@@ -22,7 +22,8 @@ jobs:
                 "fields": [
                   {"name": "Tag", "value": "${{ github.ref_name }}", "inline": true},
                   {"name": "Author", "value": "${{ github.actor }}", "inline": true},
-                  {"name": "Commit", "value": "[${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})", "inline": true}
+                  {"name": "Commit", "value": "[${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})", "inline": true},
+                  {"name": "What's new", "value": "${{ github.event.head_commit.message }}", "inline": false}
                 ],
                 "timestamp": "${{ github.event.head_commit.timestamp }}",
                 "footer": {"text": "GitHub Actions"}
