@@ -1,0 +1,31 @@
+name: Discord Notification on New Tag
+
+on:
+  push:
+    tags:
+      - '*'          # all tags, or 'v*' for version tags
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Discord message
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          curl -H "Content-Type: application/json" \
+            -d '{
+              "embeds": [{
+                "title": "New tag in ${{ github.repository }}",
+                "description": "```${{ github.event.head_commit.message }}```",
+                "color": 3447003,
+                "fields": [
+                  {"name": "Tag", "value": "${{ github.ref_name }}", "inline": true},
+                  {"name": "Author", "value": "${{ github.actor }}", "inline": true},
+                  {"name": "Commit", "value": "[${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})", "inline": true}
+                ],
+                "timestamp": "${{ github.event.head_commit.timestamp }}",
+                "footer": {"text": "GitHub Actions"}
+              }]
+            }' \
+            "$DISCORD_WEBHOOK"
