@@ -12,21 +12,27 @@ jobs:
       - name: Send Discord message
         env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          MSG: ${{ github.event.head_commit.message }}
         run: |
-          curl -H "Content-Type: application/json" \
-            -d '{
-              "embeds": [{
-                "title": "New tag in ${{ github.repository }}",
-                "description": "```${{ github.event.head_commit.message }}```",
-                "color": 3447003,
-                "fields": [
-                  {"name": "Tag", "value": "${{ github.ref_name }}", "inline": true},
-                  {"name": "Author", "value": "${{ github.actor }}", "inline": true},
-                  {"name": "Commit", "value": "[${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})", "inline": true},
-                  {"name": "What's new", "value": "${{ github.event.head_commit.message }}", "inline": false}
-                ],
-                "timestamp": "${{ github.event.head_commit.timestamp }}",
-                "footer": {"text": "GitHub Actions"}
-              }]
-            }' \
-            "$DISCORD_WEBHOOK"
+          jq -n --arg msg "$MSG" '{
+            embeds: [{
+              title: "New tag in \($repo)",
+              description: ("```" + $msg + "```"),
+              color: 3447003,
+              fields: [
+                {name: "Tag", value: $tag, inline: true},
+                {name: "Author", value: $author, inline: true},
+                {name: "Commit", value: ("[" + $sha + "](" + $url + ")"), inline: true},
+                {name: "What'\''s new", value: $msg, inline: false}
+              ],
+              timestamp: $timestamp,
+              footer: {text: "GitHub Actions"}
+            }]
+          }' \
+          --arg repo "${{ github.repository }}" \
+          --arg tag  "${{ github.ref_name }}" \
+          --arg author "${{ github.actor }}" \
+          --arg sha   "${{ github.sha }}" \
+          --arg url   "https://github.com/${{ github.repository }}/commit/${{ github.sha }}" \
+          --arg timestamp "${{ github.event.head_commit.timestamp }}" \
+          | curl -H "Content-Type: application/json" -d @- "$DISCORD_WEBHOOK"
