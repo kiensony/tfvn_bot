@@ -84,6 +84,7 @@ class NSFWInteractionCog(commands.Cog):
             self,
             ctx,
             member,
+            log_action,
             action,
             title,
             description,
@@ -104,7 +105,7 @@ class NSFWInteractionCog(commands.Cog):
             "message_id": ctx.message.id,
             "initMember": ctx.author.id,
             "targetMember": member.id,
-            "action": action,
+            "action": log_action,
             "coefficient": coefficient,
             "created_at": datetime.utcnow(),
         })
@@ -147,32 +148,32 @@ class NSFWInteractionCog(commands.Cog):
     @commands.command(name="bj")
     @commands.cooldown(1, 15, commands.BucketType.user)
     async def blowjob(self, ctx, member: discord.Member):
-        await self._handle_interaction(ctx, member, "bú cu", "👅 Bú bú", f"{ctx.author.mention} bú cu {member.mention} 💖", self.bj_picker)
+        await self._handle_interaction(ctx, member, "bj", "bú cu", "👅 Bú bú", f"{ctx.author.mention} bú cu {member.mention} 💖", self.bj_picker)
 
     @commands.command(name="rj")
     @commands.cooldown(1, 15, commands.BucketType.user)
     async def rimjob(self, ctx, member: discord.Member):
-        await self._handle_interaction(ctx, member, "liếm lồn", "🍑 Liếm cái ik~", f"{ctx.author.mention} liếm lồn {member.mention} 👅💦", self.rj_picker)
+        await self._handle_interaction(ctx, member, "rj", "liếm lồn", "🍑 Liếm cái ik~", f"{ctx.author.mention} liếm lồn {member.mention} 👅💦", self.rj_picker)
 
     @commands.command(name="hj")
     @commands.cooldown(1, 15, commands.BucketType.user)
     async def handjob(self, ctx, member: discord.Member):
-        await self._handle_interaction(ctx, member, "sục cho", "🥰 Sục cho nè~", f"{ctx.author.mention} sục cho {member.mention} 💦", self.hj_picker, self_allowed=True)
+        await self._handle_interaction(ctx, member, "hj", "sục cho", "🥰 Sục cho nè~", f"{ctx.author.mention} sục cho {member.mention} 💦", self.hj_picker, self_allowed=True)
 
     @commands.command(name="frot")
     @commands.cooldown(1, 15, commands.BucketType.user)
     async def frotting(self, ctx, member: discord.Member):
-        await self._handle_interaction(ctx, member, "đấu kiếm", "🤺 Đấu kiếm nhẹ nhàng nha~", f"{ctx.author.mention} frot với {member.mention} 🌸", self.frot_picker)
+        await self._handle_interaction(ctx, member, "frot", "đấu kiếm", "🤺 Đấu kiếm nhẹ nhàng nha~", f"{ctx.author.mention} frot với {member.mention} 🌸", self.frot_picker)
 
     @commands.command(name="fuck")
     @commands.cooldown(1, 15, commands.BucketType.user)
     async def fucking(self, ctx, member: discord.Member):
-        await self._handle_interaction(ctx, member, "chịch", "Lên giường thôi 👉🏻👌🏻💦", f"{ctx.author.mention} chịch {member.mention} 💦", self.fuck_picker)
+        await self._handle_interaction(ctx, member, "fuck", "chịch", "Lên giường thôi 👉🏻👌🏻💦", f"{ctx.author.mention} chịch {member.mention} 💦", self.fuck_picker)
 
     @commands.command(name="cream")
     @commands.cooldown(1, 15, commands.BucketType.user)
     async def creampie(self, ctx, member: discord.Member):
-        await self._handle_interaction(ctx, member, "xuất trong", "💦 Aaaahhh~! Em chịu không nổi nữa rồi...", f"{ctx.author.mention} ra bên trong {member.mention} 💦!", self.cream_picker)
+        await self._handle_interaction(ctx, member, "cream", "xuất trong", "💦 Aaaahhh~! Em chịu không nổi nữa rồi...", f"{ctx.author.mention} ra bên trong {member.mention} 💦!", self.cream_picker)
 
     # Generic error handler for all commands
     async def _cooldown_error(self, ctx, error):
