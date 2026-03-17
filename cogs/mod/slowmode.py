@@ -13,17 +13,20 @@ class SlowmodeCog(commands.Cog):
         await ctx.send_help(ctx.command)
 
     @slowmode.command(name="check_bypass")
-    async def check_slowmode_bypass(self, ctx: commands.Context):
+    async def check_slowmode_bypass(self, ctx: commands.Context, member: discord.Member = None):
+        if member is None:
+            member = ctx.author
+        
         # Get the permissions for the command author in the current channel
-        perms = ctx.channel.permissions_for(ctx.author)
+        perms = ctx.channel.permissions_for(member)
 
         # Check for the specific permissions that grant bypass
         # The 'manage_messages' attribute is the name used in discord.py for the permission
-        print(perms.manage_messages, perms.manage_channels, perms.bypass_slowmode)
-        if perms.manage_messages or perms.manage_channels or perms.bypass_slowmode: # 'bypass_slowmode' is for the newer dedicated permission
-            await ctx.send(f"{ctx.author.mention} có thể bypass chế độ chậm trong kênh này.")
+        if perms.bypass_slowmode: # 'bypass_slowmode' is for the newer dedicated permission
+            await ctx.send(f"{member.mention} có thể bypass chế độ chậm trong kênh này.")
         else:
-            await ctx.send(f"{ctx.author.mention} không thể bypass chế độ chậm trong kênh này và phải tuân theo nó.")
+            await ctx.send(f"{member.mention} không thể bypass chế độ chậm trong kênh này.")
+
     @check_slowmode_bypass.error
     async def check_slowmode_bypass_error(self, ctx: commands.Context, error):
         if isinstance(error, commands.MissingPermissions):
@@ -40,8 +43,7 @@ class SlowmodeCog(commands.Cog):
             await ctx.channel.set_permissions(
                 member,
                 overwrite=discord.PermissionOverwrite(
-                    send_messages=True,
-                    # bypass_slowmode=True
+                    bypass_slowmode=True
                 ),
                 reason="Slowmode immunity (this channel only)"
             )
@@ -64,7 +66,12 @@ class SlowmodeCog(commands.Cog):
     @slowmode.command(name="prominent")
     @commands.has_permissions(manage_messages=True)
     async def slowmode_prominent(self, ctx: commands.Context, member: discord.Member):
-        await ctx.channel.set_permissions(member, overwrite=None)
+        await ctx.channel.set_permissions(
+            member,
+            overwrite=discord.PermissionOverwrite(
+                bypass_slowmode=False
+                ), reason="Remove slowmode immunity (this channel only)"
+            )
         await ctx.send(f"{member.mention} đã bị gỡ bỏ miễn chế độ chậm trong kênh này.")
         
 async def setup(bot: commands.Bot):
