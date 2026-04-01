@@ -71,7 +71,7 @@ class AFK(commands.Cog):
                 "user_id": ctx.author.id,
                 "$or": [
                     {"end_at": None},
-                    {"end_at": {"$gt": datetime.utcnow()}}
+                    {"end_at": {"$gt": discord.utils.utcnow()}}
                 ]
             })
         if existing:
@@ -94,7 +94,7 @@ class AFK(commands.Cog):
 
         self.db["afk_reminders"].update_one(
             {"user_id": ctx.author.id},
-            {"$set": {"message": reason, "start_at": datetime.utcnow(), "end_at": None}},
+            {"$set": {"message": reason, "start_at": discord.utils.utcnow(), "end_at": None}},
             upsert=True,
         )
 
@@ -109,7 +109,7 @@ class AFK(commands.Cog):
                 "user_id": ctx.author.id,
                 "$or": [
                     {"end_at": None},
-                    {"end_at": {"$gt": datetime.utcnow()}}
+                    {"end_at": {"$gt": discord.utils.utcnow()}}
                 ]
             })
         if existing:
@@ -165,11 +165,11 @@ class AFK(commands.Cog):
             return
 
         formatted_time = self.format_duration(seconds)
-        end_at = datetime.utcnow() + timedelta(seconds=seconds)
+        end_at = discord.utils.utcnow() + timedelta(seconds=seconds)
 
         self.db["afk_reminders"].update_one(
             {"user_id": ctx.author.id},
-            {"$set": {"message": remind_message, "start_at": datetime.utcnow(), "end_at": end_at}},
+            {"$set": {"message": remind_message, "start_at": discord.utils.utcnow(), "end_at": end_at}},
             upsert=True,
         )
 
@@ -187,10 +187,10 @@ class AFK(commands.Cog):
         result = self.db["afk_reminders"].update_one(
             {
                 "user_id": ctx.author.id,
-                "end_at": {"$gt": datetime.utcnow()},
+                "end_at": {"$gt": discord.utils.utcnow()},
             },
             {
-                "$set": {"end_at": datetime.utcnow()},
+                "$set": {"end_at": discord.utils.utcnow()},
             },
         )
 

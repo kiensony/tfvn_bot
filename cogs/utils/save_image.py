@@ -36,7 +36,7 @@ class SaveImageCog(commands.Cog):
                 "url": att.url,                    # permanent
                 "proxy_url": att.proxy_url,
                 "metadata": metadata_dict,
-                "saved_at": datetime.utcnow()
+                "saved_at": discord.utils.utcnow()
             }
             
             saved_image = self.db['images'].insert_one(doc)

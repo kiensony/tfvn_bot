@@ -5,7 +5,7 @@ from datetime import datetime
 class ServerStatsCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.start_time = datetime.utcnow()  # Log start time
+        self.start_time = discord.utils.utcnow()  # Log start time
         self.command_count = 0  # Total commands executed
         self.exception_count = 0  # Total exceptions caused
 
@@ -24,7 +24,7 @@ class ServerStatsCog(commands.Cog):
     @commands.cooldown(1, 10, commands.BucketType.guild)  # 10 seconds cooldown per guild
     async def server_stats(self, ctx):
         """Displays the bot's start time, command count, and exception count."""
-        uptime = datetime.utcnow() - self.start_time
+        uptime = discord.utils.utcnow() - self.start_time
         await ctx.send(
             f"**Thống kê máy chủ:**\n"
             f"- Khởi chạy lúc: {self.start_time.strftime('%Y-%m-%d %H:%M:%S UTC')}\n"

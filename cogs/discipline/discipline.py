@@ -16,7 +16,7 @@ class DisciplineCog(commands.Cog):
             "channel": str(message.channel),
             "channel_id": message.channel.id,
             "content": message.content,
-            "timestamp": datetime.utcnow()  # UTC timestamp
+            "timestamp": discord.utils.utcnow()  # UTC timestamp
         }
         
         # Insert into the 'discipline_logs' collection

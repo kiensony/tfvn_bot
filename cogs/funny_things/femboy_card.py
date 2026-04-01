@@ -42,11 +42,11 @@ class FemboyCardCog(commands.Cog):
         embed.add_field(name="", value=f"**Được công nhận là Femboy**", inline=False)
         embed.add_field(name="", value="Dễ thương - Tự tin - Tỏa sáng ✨", inline=False)
 
-        embed.add_field(name="", value=f"**Ngày tạo thẻ: ** {datetime.datetime.utcnow().strftime('%Y-%m-%d')}", inline=False)
+        embed.add_field(name="", value=f"**Ngày tạo thẻ: ** {discord.utils.utcnow().strftime('%Y-%m-%d')}", inline=False)
         embed.add_field(name="", value="**Hiệu lực đến: ** Mãi mãi dễ thương", inline=True)
 
         embed.set_footer(text="Ký bởi: Cộng đồng TFVN.")
-        embed.timestamp = datetime.datetime.utcnow()
+        embed.timestamp = discord.utils.utcnow()
 
         await ctx.send(embed=embed)
 
