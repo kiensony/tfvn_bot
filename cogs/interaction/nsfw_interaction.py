@@ -318,6 +318,7 @@ class NSFWInteractionCog(commands.Cog):
         # Pipeline for "given" (người chủ động)
         pipeline_given = [
             {"$match": {"created_at": {"$gte": start_of_month, "$lt": end_of_month}}},
+            {"$match": {"action": {"$in": self.NSFW_INTERACTIONS}}},
             {"$addFields": {"coefficient": {"$ifNull": ["$coefficient", 1]}}},
             {"$group": {"_id": "$initMember", "count": {"$sum": "$coefficient"}}},
             {"$sort": {"count": -1}},
@@ -327,6 +328,7 @@ class NSFWInteractionCog(commands.Cog):
         # Pipeline for "received" (người bị động)
         pipeline_received = [
             {"$match": {"created_at": {"$gte": start_of_month, "$lt": end_of_month}}},
+            {"$match": {"action": {"$in": self.NSFW_INTERACTIONS}}},
             {"$addFields": {"coefficient": {"$ifNull": ["$coefficient", 1]}}},
             {"$group": {"_id": "$targetMember", "count": {"$sum": "$coefficient"}}},
             {"$sort": {"count": -1}},
