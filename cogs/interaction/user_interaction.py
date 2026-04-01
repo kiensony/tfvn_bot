@@ -1,3 +1,4 @@
+import datetime
 import random
 from collections import deque
 import discord  # pyright: ignore[reportMissingImports]
@@ -46,7 +47,7 @@ class UserInteractionCog(commands.Cog):
             "initMember": ctx.author.id,
             "targetMember": member.id,
             "action": action,
-            "created_at": discord.datetime.utcnow(),
+            "created_at": discord.utils.utcnow(),
         }
         self.db["interactions"].insert_one(document)
 
