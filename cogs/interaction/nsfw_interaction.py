@@ -40,9 +40,10 @@ class NSFWInteractionCog(commands.Cog):
         self.db = bot.db
         self.KING_ROLE_ID = int(self.bot.global_vars["KING_ROLE_ID"])
         self.QUEEN_ROLE_ID = int(self.bot.global_vars["QUEEN_ROLE_ID"])
+        self.NSFW_INTERACTIONS = ["bj", "rj", "hj", "frot", "fuck", "cream"]
 
     def format_relative_time_vn(self, dt: datetime) -> str:
-        now = datetime.utcnow()
+        now = discord.utils.utcnow()
         diff = dt - now
         if diff.total_seconds() <= 0:
             return "đã hết"
@@ -61,13 +62,13 @@ class NSFWInteractionCog(commands.Cog):
     def check_if_user_is_locked(self, member_id: int) -> bool:
         return self.db["nsfw_settings"].find_one({
             "user_locked": member_id,
-            "lock_until": {"$gte": datetime.utcnow()}
+            "lock_until": {"$gte": discord.utils.utcnow()}
         }) is not None
 
     def get_remaining_lock_time(self, member_id: int) -> dict | None:
         return self.db["nsfw_settings"].find_one({
             "user_locked": member_id,
-            "lock_until": {"$gte": datetime.utcnow()}
+            "lock_until": {"$gte": discord.utils.utcnow()}
         })
 
     async def _nsfw_guard(self, ctx: commands.Context) -> bool:
@@ -107,7 +108,7 @@ class NSFWInteractionCog(commands.Cog):
             "targetMember": member.id,
             "action": log_action,
             "coefficient": coefficient,
-            "created_at": datetime.utcnow(),
+            "created_at": discord.utils.utcnow(),
         })
         embed = discord.Embed(title=title, description=description)
         embed.set_image(url=gif_picker.pick())
@@ -237,7 +238,7 @@ class NSFWInteractionCog(commands.Cog):
 
         user_field = "$initMember" if mode == "given" else "$targetMember"
 
-        start_of_month = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        start_of_month = discord.utils.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         end_of_month = (start_of_month + timedelta(days=32)).replace(day=1)
 
         pipeline = [
@@ -278,8 +279,8 @@ class NSFWInteractionCog(commands.Cog):
 
         description = "\n".join(lines) if lines else "Chưa có dữ liệu."
 
-        current_month = datetime.utcnow().month
-        current_year = datetime.utcnow().year
+        current_month = discord.utils.utcnow().month
+        current_year = discord.utils.utcnow().year
 
         if mode == "given":
             title = f"Top 10 con quỷ sex của server tháng {current_month}/{current_year} 😈"
