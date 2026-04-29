@@ -215,7 +215,15 @@ class NSFWInteractionCog(commands.Cog):
     @commands.command(name="cream")
     @commands.cooldown(1, 3, commands.BucketType.user)
     async def creampie(self, ctx, member: discord.Member):
-        await self._handle_interaction(ctx, member, "cream", "xuất trong", "💦 Aaaahhh~! Em chịu không nổi nữa rồi...", f"{ctx.author.mention} ra bên trong {member.mention} 💦!", self.cream_picker)
+        await self._handle_interaction(
+            ctx,
+            member,
+            "cream",
+            "xuất trong",
+            "💦 Aaaahhh~! Em chịu không nổi nữa rồi...",
+            f"{ctx.author.mention} ra bên trong {member.mention} 💦!",
+            self.cream_picker
+        )
 
     @commands.command(name="3some", aliases=["threesome"])
     @commands.cooldown(1, 3, commands.BucketType.user)
