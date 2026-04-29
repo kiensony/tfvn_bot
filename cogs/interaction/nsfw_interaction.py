@@ -13,6 +13,7 @@ from assets.nsfw_gifs import (
     FROTTING_GIFS,
     FUCKING_GIFS,
     CREAMPIE_GIFS,
+    THREESOME_GIFS,
 )
 
 
@@ -37,10 +38,11 @@ class NSFWInteractionCog(commands.Cog):
         self.frot_picker = GifPicker(FROTTING_GIFS, history_size=len(FROTTING_GIFS))
         self.fuck_picker = GifPicker(FUCKING_GIFS, history_size=len(FUCKING_GIFS))
         self.cream_picker = GifPicker(CREAMPIE_GIFS, history_size=len(CREAMPIE_GIFS))
+        self.threesome_picker = GifPicker(THREESOME_GIFS, history_size=len(THREESOME_GIFS))
         self.db = bot.db
         self.KING_ROLE_ID = int(self.bot.global_vars["KING_ROLE_ID"])
         self.QUEEN_ROLE_ID = int(self.bot.global_vars["QUEEN_ROLE_ID"])
-        self.NSFW_INTERACTIONS = ["bj", "rj", "hj", "frot", "fuck", "cream"]
+        self.NSFW_INTERACTIONS = ["bj", "rj", "hj", "frot", "fuck", "cream", "3some"]
 
     def format_relative_time_vn(self, dt: datetime) -> str:
         now = discord.utils.utcnow()
@@ -116,6 +118,45 @@ class NSFWInteractionCog(commands.Cog):
             embed.set_footer(text=f"Bị {ctx.author.name} {action} x{coefficient} lần")
         await ctx.send(embed=embed)
 
+    async def _handle_interaction_multi(
+            self,
+            ctx,
+            members,
+            log_action,
+            action,
+            title,
+            description,
+            gif_picker,
+            self_allowed=False
+        ):
+        if not await self._nsfw_guard(ctx):
+            return
+        if not self_allowed and ctx.author in members:
+            await ctx.send("Bạn không thể tự tương tác với mình được đâu 😳")
+            return
+        if self.check_if_user_is_locked(ctx.author.id):
+            lock_time = self.get_remaining_lock_time(ctx.author.id)["lock_until"]
+            await ctx.send(
+                f"{members[0].mention} hiện đang bị khoá lệnh NSFW, không thể thực hiện tương tác này {self.format_relative_time_vn(lock_time)}."
+            )
+            return
+        coefficient = 3 if self.KING_ROLE_ID in [r.id for r in ctx.author.roles] else 1
+        target_ids = [member.id for member in members]
+        self.db["interactions"].insert_one({
+            "message_id": ctx.message.id,
+            "initMember": ctx.author.id,
+            "targetMember": target_ids[0],
+            "targetMembers": target_ids,
+            "action": log_action,
+            "coefficient": coefficient,
+            "created_at": discord.utils.utcnow(),
+        })
+        embed = discord.Embed(title=title, description=description)
+        embed.set_image(url=gif_picker.pick())
+        if coefficient > 1:
+            embed.set_footer(text=f"Bị {ctx.author.name} {action} x{coefficient} lần")
+        await ctx.send(embed=embed)
+
     # Commands
     @commands.command(name="nsfwrule")
     async def nsfw_rule(self, ctx):
@@ -134,8 +175,8 @@ class NSFWInteractionCog(commands.Cog):
 
         gameplay_text = (
             f"🎮 **Cách Chơi Các Lệnh NSFW** 🎮\n"
-            f"1. Sử dụng lệnh với cú pháp: `!{self.bot.command_prefix} <lệnh> @tên_thành_viên`.\n"
-            f"2. Các lệnh bao gồm: `bj` (bú cu), `rj` (liếm lồn), `hj` (sục cho), `frot` (đấu kiếm), `fuck` (chịch), `cream` (xuất trong).\n"
+            f"1. Sử dụng lệnh với cú pháp: `!{self.bot.command_prefix} <lệnh> @tên_thành_viên` (riêng `3some` cần tag 2 người).\n"
+            f"2. Các lệnh bao gồm: `bj` (bú cu), `rj` (liếm lồn), `hj` (sục cho), `frot` (đấu kiếm), `fuck` (chịch), `cream` (xuất trong), `3some` (chơi 3some).\n"
             f"3. Mỗi lệnh có thời gian hồi (cooldown) là 15 giây để tránh spam.\n"
             f"4. Femboy Queen có thể khoá lệnh NSFW của người chơi bất kỳ trong vòng 24 giờ.\n"
             f"5. Femboy King sẽ nhận được hệ số x3 điểm khi sử dụng lệnh NSFW.\n"
@@ -147,34 +188,50 @@ class NSFWInteractionCog(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command(name="bj")
-    @commands.cooldown(1, 15, commands.BucketType.user)
+    @commands.cooldown(1, 3, commands.BucketType.user)
     async def blowjob(self, ctx, member: discord.Member):
         await self._handle_interaction(ctx, member, "bj", "bú cu", "👅 Bú bú", f"{ctx.author.mention} bú cu {member.mention} 💖", self.bj_picker)
 
     @commands.command(name="rj")
-    @commands.cooldown(1, 15, commands.BucketType.user)
+    @commands.cooldown(1, 3, commands.BucketType.user)
     async def rimjob(self, ctx, member: discord.Member):
         await self._handle_interaction(ctx, member, "rj", "liếm lồn", "🍑 Liếm cái ik~", f"{ctx.author.mention} liếm lồn {member.mention} 👅💦", self.rj_picker)
 
     @commands.command(name="hj")
-    @commands.cooldown(1, 15, commands.BucketType.user)
+    @commands.cooldown(1, 3, commands.BucketType.user)
     async def handjob(self, ctx, member: discord.Member):
         await self._handle_interaction(ctx, member, "hj", "sục cho", "🥰 Sục cho nè~", f"{ctx.author.mention} sục cho {member.mention} 💦", self.hj_picker, self_allowed=True)
 
     @commands.command(name="frot")
-    @commands.cooldown(1, 15, commands.BucketType.user)
+    @commands.cooldown(1, 3, commands.BucketType.user)
     async def frotting(self, ctx, member: discord.Member):
         await self._handle_interaction(ctx, member, "frot", "đấu kiếm", "🤺 Đấu kiếm nhẹ nhàng nha~", f"{ctx.author.mention} frot với {member.mention} 🌸", self.frot_picker)
 
     @commands.command(name="fuck")
-    @commands.cooldown(1, 15, commands.BucketType.user)
+    @commands.cooldown(1, 3, commands.BucketType.user)
     async def fucking(self, ctx, member: discord.Member):
         await self._handle_interaction(ctx, member, "fuck", "chịch", "Lên giường thôi 👉🏻👌🏻💦", f"{ctx.author.mention} chịch {member.mention} 💦", self.fuck_picker)
 
     @commands.command(name="cream")
-    @commands.cooldown(1, 15, commands.BucketType.user)
+    @commands.cooldown(1, 3, commands.BucketType.user)
     async def creampie(self, ctx, member: discord.Member):
         await self._handle_interaction(ctx, member, "cream", "xuất trong", "💦 Aaaahhh~! Em chịu không nổi nữa rồi...", f"{ctx.author.mention} ra bên trong {member.mention} 💦!", self.cream_picker)
+
+    @commands.command(name="3some", aliases=["threesome"])
+    @commands.cooldown(1, 3, commands.BucketType.user)
+    async def threesome(self, ctx, member1: discord.Member, member2: discord.Member):
+        if member1 == member2:
+            await ctx.send("Hai người nhận phải khác nhau.")
+            return
+        await self._handle_interaction_multi(
+            ctx,
+            [member1, member2],
+            "3some",
+            "chơi 3some",
+            "😈 3some nào~",
+            f"{ctx.author.mention} chơi 3some với {member1.mention} và {member2.mention} 💦",
+            self.threesome_picker,
+        )
 
     # Generic error handler for all commands
     async def _cooldown_error(self, ctx, error):
@@ -188,6 +245,7 @@ class NSFWInteractionCog(commands.Cog):
     frotting.error = _cooldown_error
     fucking.error = _cooldown_error
     creampie.error = _cooldown_error
+    threesome.error = _cooldown_error
 
     @commands.command(name="ranknsfw", aliases=["nsfwrank"])
     async def ranknsfw(
@@ -199,7 +257,7 @@ class NSFWInteractionCog(commands.Cog):
         if not await self._nsfw_guard(ctx):
             return
 
-        nsfw_interactions = ["bj", "rj", "hj", "frot", "fuck", "cream"]
+        nsfw_interactions = self.NSFW_INTERACTIONS
 
         # text cho NGƯỜI CHỦ ĐỘNG
         action_text_given = {
@@ -209,6 +267,7 @@ class NSFWInteractionCog(commands.Cog):
             "frot": "đấu kiếm",
             "fuck": "địt member khác",
             "cream": "xuất trong",
+            "3some": "chơi 3some",
         }
 
         # text cho NGƯỜI BỊ
@@ -219,6 +278,7 @@ class NSFWInteractionCog(commands.Cog):
             "frot": "được đấu kiếm",
             "fuck": "bị địt",
             "cream": "bị xuất trong",
+            "3some": "tham gia 3some",
         }
 
         # mặc định: người CHỦ ĐỘNG
@@ -232,22 +292,31 @@ class NSFWInteractionCog(commands.Cog):
 
         if action not in (nsfw_interactions + [None]):
             await ctx.send(
-                "Loại tương tác không hợp lệ.\nVui lòng sử dụng: `bj`, `rj`, `hj`, `frot`, `fuck`, `cream`."
+                "Loại tương tác không hợp lệ.\nVui lòng sử dụng: `bj`, `rj`, `hj`, `frot`, `fuck`, `cream`, `3some`."
             )
             return
-
-        user_field = "$initMember" if mode == "given" else "$targetMember"
 
         start_of_month = discord.utils.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         end_of_month = (start_of_month + timedelta(days=32)).replace(day=1)
 
-        pipeline = [
-            {"$match": {"created_at": {"$gte": start_of_month, "$lt": end_of_month}}},
-            {"$addFields": {"coefficient": {"$ifNull": ["$coefficient", 1]}}},
-            {"$group": {"_id": user_field, "count": {"$sum": "$coefficient"}}},
-            {"$sort": {"count": -1}},
-            {"$limit": 10},
-        ]
+        if mode == "given":
+            pipeline = [
+                {"$match": {"created_at": {"$gte": start_of_month, "$lt": end_of_month}}},
+                {"$addFields": {"coefficient": {"$ifNull": ["$coefficient", 1]}}},
+                {"$group": {"_id": "$initMember", "count": {"$sum": "$coefficient"}}},
+                {"$sort": {"count": -1}},
+                {"$limit": 10},
+            ]
+        else:
+            pipeline = [
+                {"$match": {"created_at": {"$gte": start_of_month, "$lt": end_of_month}}},
+                {"$addFields": {"coefficient": {"$ifNull": ["$coefficient", 1]}}},
+                {"$addFields": {"targets": {"$ifNull": ["$targetMembers", ["$targetMember"]]}}},
+                {"$unwind": "$targets"},
+                {"$group": {"_id": "$targets", "count": {"$sum": "$coefficient"}}},
+                {"$sort": {"count": -1}},
+                {"$limit": 10},
+            ]
 
         if action:
             pipeline.insert(0, {"$match": {"action": action}})
@@ -330,7 +399,9 @@ class NSFWInteractionCog(commands.Cog):
             {"$match": {"created_at": {"$gte": start_of_month, "$lt": end_of_month}}},
             {"$match": {"action": {"$in": self.NSFW_INTERACTIONS}}},
             {"$addFields": {"coefficient": {"$ifNull": ["$coefficient", 1]}}},
-            {"$group": {"_id": "$targetMember", "count": {"$sum": "$coefficient"}}},
+            {"$addFields": {"targets": {"$ifNull": ["$targetMembers", ["$targetMember"]]}}},
+            {"$unwind": "$targets"},
+            {"$group": {"_id": "$targets", "count": {"$sum": "$coefficient"}}},
             {"$sort": {"count": -1}},
             {"$limit": 5},
         ]

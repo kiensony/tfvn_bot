@@ -109,3 +109,16 @@ GANGBANG_GIFS = [
     "https://img2.gelbooru.com//images/c2/da/c2dad182933ca3f10846e208045e122d.gif",
     "https://img2.gelbooru.com//images/74/4a/744a279127d28e8cd80355a98d9dfde0.gif",
 ]
+
+THREESOME_GIFS = [
+    "https://files.catbox.moe/gt229c.gif",
+    "https://files.catbox.moe/r2ww0u.webp",
+    "https://files.catbox.moe/uldara.webp",
+    "https://files.catbox.moe/sq3xj6.webp",
+    "https://files.catbox.moe/y2rqbt.gif",
+    "https://files.catbox.moe/9y8y2l.webp",
+    "https://files.catbox.moe/yx9lwm.gif",
+    "https://files.catbox.moe/gd2j3s.webp",
+    "https://files.catbox.moe/acolh7.webp",
+    "https://files.catbox.moe/z0f4zv.webp",
+]
