@@ -69,6 +69,7 @@ class HelpCog(commands.Cog):
             value=(
                 f"`{self.bot.command_prefix} gay @user` – Kiểm tra độ gay của người được tag.\n"
                 f"`{self.bot.command_prefix} ship @user1 @user2` – Đo mức độ hợp đôi của hai người dùng.\n"
+                f"`{self.bot.command_prefix} penisize @user` – Đo kích thước peni của người được tag.\n"
             ),
             inline=False,
         )
