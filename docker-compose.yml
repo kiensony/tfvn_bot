@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  bot:
+    build: .
+    container_name: tfvn_bot
+    env_file:
+      - .env
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      DB_METHOD: ${DB_METHOD:-mongodb}
+      DB_USERNAME: ${DB_USERNAME:-tfvn_bot}
+      DB_PASSWORD: ${DB_PASSWORD:-tfvn_bot_pass}
+      DB_HOST: ${DB_HOST:-mongo.example.com:27017}
+      DB_NAME: ${DB_NAME:-tfvn_bot}
+    restart: unless-stopped

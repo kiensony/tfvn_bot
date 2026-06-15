@@ -16,7 +16,7 @@ class WordConnectCommandCog(commands.Cog):
         if not isinstance(self.bot.global_vars["WORD_CONNECT_GAMES_CHANNELS"], list):
             self.bot.global_vars["WORD_CONNECT_GAMES_CHANNELS"] = [self.bot.global_vars["WORD_CONNECT_GAMES_CHANNELS"]]
         self.word_list: list[str] = self.bot.WORD_CONNECT_WORDS
-        self.channel_games: list[str] = self.bot.global_vars["WORD_CONNECT_GAMES_CHANNELS"]
+        self.channel_games: list[str] = [str(channel_id) for channel_id in self.bot.global_vars["WORD_CONNECT_GAMES_CHANNELS"]]
         self.db = bot.db
         self.hint_timeout_datetime = None
         # self.rate_icon = {
@@ -91,6 +91,9 @@ class WordConnectCommandCog(commands.Cog):
     def _random_word(self) -> str:
         return random.choice(self.word_list)
 
+    def _is_word_connect_channel(self, channel_id: int) -> bool:
+        return str(channel_id) in self.channel_games
+
     def _is_dead_end(self, word: str) -> bool:
         last = word.split()[-1]
         return not any(
@@ -109,6 +112,26 @@ class WordConnectCommandCog(commands.Cog):
         self.last_player_id = None
         self.last_valid_message_id = None
         self._save_context()
+
+    def _turn_number_reactions(self, turn_number: int) -> list[str]:
+        digit_reactions = {
+            "0": "0️⃣",
+            "1": "1️⃣",
+            "2": "2️⃣",
+            "3": "3️⃣",
+            "4": "4️⃣",
+            "5": "5️⃣",
+            "6": "6️⃣",
+            "7": "7️⃣",
+            "8": "8️⃣",
+            "9": "9️⃣",
+        }
+        return [digit_reactions[digit] for digit in str(turn_number)]
+
+    async def _react_with_turn_number(self, message: discord.Message, result_reaction: str, turn_number: int):
+        await message.add_reaction(result_reaction)
+        for reaction in self._turn_number_reactions(turn_number):
+            await message.add_reaction(reaction)
 
     # def _count_dead_ends(self, word: str, word_list: list[str], visited: set[str], depth: int = 0, max_depth: int = 3) -> int:
     #     print(f"Counting dead ends for word: {word}, depth: {depth}, visited: {visited}")
@@ -202,6 +225,9 @@ class WordConnectCommandCog(commands.Cog):
     # COMMANDS
     @commands.group(name="noitu", invoke_without_command=True)
     async def noitu(self, ctx):
+        if not self._is_word_connect_channel(ctx.channel.id):
+            return
+
         embed = discord.Embed(
             title="🎮 NỐI TỪ",
             description="Luật chơi Word Connect",
@@ -253,6 +279,9 @@ class WordConnectCommandCog(commands.Cog):
 
     @noitu.command(name="hint")
     async def word_connect_top(self, ctx):
+        if not self._is_word_connect_channel(ctx.channel.id):
+            return
+
         # timeout 30 seconds to prevent spam
         now = datetime.datetime.now()
         if self.hint_timeout_datetime and (now - self.hint_timeout_datetime).total_seconds() < 30:
@@ -290,6 +319,9 @@ class WordConnectCommandCog(commands.Cog):
 
     @noitu.command(name="end")
     async def wordconnect_end(self, ctx):
+        if not self._is_word_connect_channel(ctx.channel.id):
+            return
+
         self._clear_context()
         self._start_new_game()
 
@@ -384,6 +416,7 @@ class WordConnectCommandCog(commands.Cog):
         
         # standardize the word
         word = self._normalize_old_tone(word)
+        turn_number = max(1, len(self.used_words))
 
         # ❌ Không được tự nối 2 lượt liên tiếp
         if self.last_player_id == message.author.id:
@@ -417,9 +450,11 @@ class WordConnectCommandCog(commands.Cog):
             return
 
         if self._is_dead_end(word):
+            await self._react_with_turn_number(message, "✅", turn_number)
             await message.add_reaction("🏆")
             await message.channel.send(
                 f"Không còn từ nào bắt đầu bằng **{last}**! 🎉 **{message.author.display_name} là người thắng cuộc!**\n"
+                f"📊 Tổng số lượt nối: **{turn_number}**"
             )
 
             self._clear_context()
@@ -437,7 +472,7 @@ class WordConnectCommandCog(commands.Cog):
         self.last_valid_message_id = message.id
         self._save_context()
 
-        await message.add_reaction("✅")
+        await self._react_with_turn_number(message, "✅", turn_number)
 
 
 async def setup(bot):
