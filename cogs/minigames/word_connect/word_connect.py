@@ -454,6 +454,7 @@ class WordConnectCommandCog(commands.Cog):
             await message.add_reaction("🏆")
             await message.channel.send(
                 f"Không còn từ nào bắt đầu bằng **{last}**! 🎉 **{message.author.display_name} là người thắng cuộc!**\n"
+                f"📊 Tổng số lượt nối: **{turn_number}**"
             )
 
             self._clear_context()
