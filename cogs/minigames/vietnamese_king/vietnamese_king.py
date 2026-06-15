@@ -12,8 +12,10 @@ class VietnameseKingCog(commands.Cog):
         channel_var = self.bot.global_vars.get("VIETNAMESE_KING_GAMES_CHANNELS")
         if not channel_var:
             raise ValueError("VIETNAMESE_KING_GAMES_CHANNELS is not set in global variables.")
-            
-        self.VIETNAMESE_KING_GAMES_CHANNELS = int(channel_var)
+
+        if not isinstance(channel_var, list):
+            channel_var = [channel_var]
+        self.VIETNAMESE_KING_GAMES_CHANNELS = [str(channel_id) for channel_id in channel_var]
         self.db = bot.db
         
         # Load the vietnamese king data
@@ -60,6 +62,9 @@ class VietnameseKingCog(commands.Cog):
         self.scrambled_letters = None
         self.revealed_indices = []
 
+    def _is_vietnamese_king_channel(self, channel_id: int) -> bool:
+        return str(channel_id) in self.VIETNAMESE_KING_GAMES_CHANNELS
+
     def _start_new_round(self):
         if not self.words_data:
             return
@@ -89,7 +94,7 @@ class VietnameseKingCog(commands.Cog):
 
     @commands.group(name="vtv", invoke_without_command=True)
     async def vtv(self, ctx):
-        if ctx.channel.id != self.VIETNAMESE_KING_GAMES_CHANNELS:
+        if not self._is_vietnamese_king_channel(ctx.channel.id):
             return
             
         embed = discord.Embed(
@@ -105,7 +110,7 @@ class VietnameseKingCog(commands.Cog):
 
     @vtv.command(name="status")
     async def vtv_status(self, ctx):
-        if ctx.channel.id != self.VIETNAMESE_KING_GAMES_CHANNELS:
+        if not self._is_vietnamese_king_channel(ctx.channel.id):
             return
             
         if self.scrambled_letters:
@@ -118,7 +123,7 @@ class VietnameseKingCog(commands.Cog):
 
     @vtv.command(name="next")
     async def vtv_next(self, ctx):
-        if ctx.channel.id != self.VIETNAMESE_KING_GAMES_CHANNELS:
+        if not self._is_vietnamese_king_channel(ctx.channel.id):
             return
             
         self._start_new_round()
@@ -129,7 +134,7 @@ class VietnameseKingCog(commands.Cog):
 
     @vtv.command(name="hint")
     async def vtv_hint(self, ctx):
-        if ctx.channel.id != self.VIETNAMESE_KING_GAMES_CHANNELS:
+        if not self._is_vietnamese_king_channel(ctx.channel.id):
             return
             
         if not self.current_word:
@@ -181,7 +186,7 @@ class VietnameseKingCog(commands.Cog):
         if message.author.bot:
             return
             
-        if message.channel.id != self.VIETNAMESE_KING_GAMES_CHANNELS:
+        if not self._is_vietnamese_king_channel(message.channel.id):
             return
             
         # Ignore commands
