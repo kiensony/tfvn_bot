@@ -1,3 +1,4 @@
+import asyncio
 import random
 import json
 import os
@@ -28,8 +29,10 @@ class VietnameseKingCog(commands.Cog):
             self.words_data = []
 
         self.current_word = None
+        self.current_standardized_word = None
         self.scrambled_letters = None
         self.revealed_indices = []
+        self.round_lock = asyncio.Lock()
 
         # Try to restore context
         self._load_context()
@@ -38,6 +41,10 @@ class VietnameseKingCog(commands.Cog):
         record = self.db["context"].find_one({"context_type": "vietnamese_king"})
         if record:
             self.current_word = record.get("current_word")
+            self.current_standardized_word = (
+                record.get("current_standardized_word")
+                or self._normalize_old_tone((self.current_word or "").lower().strip())
+            )
             self.scrambled_letters = record.get("scrambled_letters")
             self.revealed_indices = record.get("revealed_indices", [])
         else:
@@ -47,6 +54,7 @@ class VietnameseKingCog(commands.Cog):
         doc = {
             "context_type": "vietnamese_king",
             "current_word": self.current_word,
+            "current_standardized_word": self.current_standardized_word,
             "scrambled_letters": self.scrambled_letters,
             "revealed_indices": self.revealed_indices,
         }
@@ -59,11 +67,30 @@ class VietnameseKingCog(commands.Cog):
     def _clear_context(self):
         self.db["context"].delete_many({"context_type": "vietnamese_king"})
         self.current_word = None
+        self.current_standardized_word = None
         self.scrambled_letters = None
         self.revealed_indices = []
 
     def _is_vietnamese_king_channel(self, channel_id: int) -> bool:
         return str(channel_id) in self.VIETNAMESE_KING_GAMES_CHANNELS
+
+    def _normalize_old_tone(self, s: str) -> str:
+        replacements = {
+            "oà": "òa", "oá": "óa", "oả": "ỏa", "oã": "õa", "oạ": "ọa",
+            "oè": "òe", "oé": "óe", "oẻ": "ỏe", "oẽ": "õe", "oẹ": "ọe",
+            "uà": "ùa", "uá": "úa", "uả": "ủa", "uã": "ũa", "uạ": "ụa",
+            "ưà": "ừa", "ưá": "ứa", "ưả": "ửa", "ưã": "ữa", "ưạ": "ựa",
+            "ườ": "ường", "ướ": "ướ", "ưở": "ưởng", "ưỡ": "ưỡng", "ượ": "ượng",
+            "ià": "ìa", "iá": "ía", "iả": "ỉa", "iã": "ĩa", "ịa": "ịa",
+            "yà": "ỳa", "yá": "ýa", "yả": "ỷa", "yã": "ỹa", "yạ": "ỵa",
+            "uỳ": "ùy", "uý": "úy", "uỷ": "ủy", "uỹ": "ũy", "ụy": "ụy",
+            "uồ": "uồ", "uố": "uố", "uổ": "uổ", "uỗ": "uỗ", "uộ": "uộ",
+        }
+
+        for old, new in replacements.items():
+            s = s.replace(old, new)
+
+        return s.replace("quì", "quỳ").strip()
 
     async def _is_command_message(self, message: discord.Message) -> bool:
         ctx = await self.bot.get_context(message)
@@ -94,10 +121,11 @@ class VietnameseKingCog(commands.Cog):
             # Use rules to find a decent word to scramble (e.g. space_count > 0 for phrases, or word_len > 4)
             if choice.get("word_len", 0) >= 3:
                 self.current_word = word
+                self.current_standardized_word = choice.get("standardize") or self._normalize_old_tone(word.lower().strip())
                 self.revealed_indices = []
                 # Scramble characters, ignoring spaces for simple shuffling?
                 # Actually, in Vua Tiếng Việt they scramble the phrase's letters.
-                characters = list(choice["standardize"].replace(" ", "").replace("-", ""))
+                characters = list(word.replace(" ", "").replace("-", ""))
                 
                 # Make sure it's actually scrambled
                 scrambled = characters[:]
@@ -214,17 +242,27 @@ class VietnameseKingCog(commands.Cog):
         if not self.current_word:
             return
 
-        guess = message.content.lower().strip()
-        
-        if guess == self.current_word:
-            await message.add_reaction("✅")
-            await message.reply(f"🎉 Chúc mừng bạn đã giải đúng! Đáp án là: **{self.current_word}**")
-            
-            # Start next round automatically
-            self._start_new_round()
-            await message.channel.send(f"👑 **VUA TIẾNG VIỆT** 👑\n🔠 Câu đố mới: **{self.scrambled_letters}**")
-        else:
+        guess = self._normalize_old_tone(message.content.lower().strip())
+
+        async with self.round_lock:
+            answer_key = self.current_standardized_word or self._normalize_old_tone(self.current_word.lower().strip())
+            is_correct = guess == answer_key
+            if is_correct:
+                answer = self.current_word
+                self._start_new_round()
+                next_scrambled_letters = self.scrambled_letters
+
+        if not is_correct:
             await message.add_reaction("❌")
+            return
+
+        await message.add_reaction("✅")
+        await message.reply(f"🎉 Chúc mừng bạn đã giải đúng! Đáp án là: **{answer}**")
+
+        if next_scrambled_letters:
+            await message.channel.send(f"👑 **VUA TIẾNG VIỆT** 👑\n🔠 Câu đố mới: **{next_scrambled_letters}**")
+        else:
+            await message.channel.send("Không thể bắt đầu câu đố mới do chưa tải được dữ liệu.")
 
 async def setup(bot):
     await bot.add_cog(VietnameseKingCog(bot))
