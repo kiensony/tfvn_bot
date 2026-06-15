@@ -65,6 +65,24 @@ class VietnameseKingCog(commands.Cog):
     def _is_vietnamese_king_channel(self, channel_id: int) -> bool:
         return str(channel_id) in self.VIETNAMESE_KING_GAMES_CHANNELS
 
+    async def _is_command_message(self, message: discord.Message) -> bool:
+        ctx = await self.bot.get_context(message)
+        if ctx.valid:
+            return True
+
+        content = message.content.strip()
+        if not content:
+            return False
+
+        prefix = self.bot.command_prefix
+        if isinstance(prefix, str) and content.startswith(prefix.strip()):
+            return True
+        if isinstance(prefix, (list, tuple)) and any(content.startswith(str(p).strip()) for p in prefix):
+            return True
+
+        command_name = content.split()[0].lower()
+        return command_name in self.bot.all_commands
+
     def _start_new_round(self):
         if not self.words_data:
             return
@@ -189,11 +207,8 @@ class VietnameseKingCog(commands.Cog):
         if not self._is_vietnamese_king_channel(message.channel.id):
             return
             
-        # Ignore commands
-        prefix = self.bot.command_prefix
-        if isinstance(prefix, str) and message.content.startswith(prefix):
-            return
-        elif isinstance(prefix, (list, tuple)) and any(message.content.startswith(p) for p in prefix):
+        # Ignore commands and command-like text in the game channel.
+        if await self._is_command_message(message):
             return
 
         if not self.current_word:
