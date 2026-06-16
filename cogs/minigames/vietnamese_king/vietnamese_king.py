@@ -92,6 +92,25 @@ class VietnameseKingCog(commands.Cog):
 
         return s.replace("quì", "quỳ").strip()
 
+    def _word_structure(self) -> str:
+        structure = []
+        for i, c in enumerate(self.current_word or ""):
+            if c == " " or c == "-":
+                structure.append(c)
+            elif i in self.revealed_indices:
+                structure.append(c.upper())
+            else:
+                structure.append("_")
+
+        return "".join(structure)
+
+    def _round_message(self, puzzle_label: str) -> str:
+        return (
+            "👑 **VUA TIẾNG VIỆT** 👑\n"
+            f"🧩 Cấu trúc: `{self._word_structure()}`\n"
+            f"🔠 {puzzle_label}: **{self.scrambled_letters}**"
+        )
+
     async def _is_command_message(self, message: discord.Message) -> bool:
         ctx = await self.bot.get_context(message)
         if ctx.valid:
@@ -152,7 +171,10 @@ class VietnameseKingCog(commands.Cog):
         await ctx.send(embed=embed)
         
         if self.scrambled_letters:
-            await ctx.send(f"🔠 Câu đố hiện tại: **{self.scrambled_letters}**")
+            await ctx.send(
+                f"🧩 Cấu trúc: `{self._word_structure()}`\n"
+                f"🔠 Câu đố hiện tại: **{self.scrambled_letters}**"
+            )
 
     @vtv.command(name="status")
     async def vtv_status(self, ctx):
@@ -161,6 +183,7 @@ class VietnameseKingCog(commands.Cog):
             
         if self.scrambled_letters:
             embed = discord.Embed(title="👑 VUA TIẾNG VIỆT - TRẠNG THÁI", color=discord.Color.blue())
+            embed.add_field(name="🧩 Cấu trúc", value=f"`{self._word_structure()}`", inline=False)
             embed.add_field(name="🔠 Câu đố", value=f"**{self.scrambled_letters}**", inline=False)
             embed.set_footer(text="Hãy sắp xếp lại các chữ cái để tạo thành từ đúng!")
             await ctx.send(embed=embed)
@@ -174,7 +197,7 @@ class VietnameseKingCog(commands.Cog):
             
         self._start_new_round()
         if self.scrambled_letters:
-            await ctx.send(f"👑 **VUA TIẾNG VIỆT** 👑\n🔠 Câu đố mới: **{self.scrambled_letters}**")
+            await ctx.send(self._round_message("Câu đố mới"))
         else:
             await ctx.send("Không thể bắt đầu câu đố mới do chưa tải được dữ liệu.")
 
@@ -198,16 +221,7 @@ class VietnameseKingCog(commands.Cog):
             self.revealed_indices.append(reveal_idx)
             self._save_context()
             
-        structure = []
-        for i, c in enumerate(chars):
-            if c == " " or c == "-":
-                structure.append(c)
-            elif i in self.revealed_indices:
-                structure.append(c.upper())
-            else:
-                structure.append("_")
-                
-        word_structure = "".join(structure)
+        word_structure = self._word_structure()
         
         remaining_hidden = len([i for i in valid_indices if i not in self.revealed_indices])
         if remaining_hidden <= 1:
@@ -219,7 +233,7 @@ class VietnameseKingCog(commands.Cog):
 
             self._start_new_round()
             if self.scrambled_letters:
-                await ctx.send(f"👑 **VUA TIẾNG VIỆT** 👑\n🔠 Câu đố mới: **{self.scrambled_letters}**")
+                await ctx.send(self._round_message("Câu đố mới"))
             else:
                 await ctx.send("Không thể bắt đầu câu đố mới do chưa tải được dữ liệu.")
         elif unrevealed:
@@ -250,7 +264,8 @@ class VietnameseKingCog(commands.Cog):
             if is_correct:
                 answer = self.current_word
                 self._start_new_round()
-                next_scrambled_letters = self.scrambled_letters
+                has_next_round = bool(self.scrambled_letters)
+                next_round_message = self._round_message("Câu đố mới")
 
         if not is_correct:
             await message.add_reaction("❌")
@@ -259,8 +274,8 @@ class VietnameseKingCog(commands.Cog):
         await message.add_reaction("✅")
         await message.reply(f"🎉 Chúc mừng bạn đã giải đúng! Đáp án là: **{answer}**")
 
-        if next_scrambled_letters:
-            await message.channel.send(f"👑 **VUA TIẾNG VIỆT** 👑\n🔠 Câu đố mới: **{next_scrambled_letters}**")
+        if has_next_round:
+            await message.channel.send(next_round_message)
         else:
             await message.channel.send("Không thể bắt đầu câu đố mới do chưa tải được dữ liệu.")
 
