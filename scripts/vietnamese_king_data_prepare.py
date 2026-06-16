@@ -2,6 +2,8 @@ import json
 import collections
 import os
 
+INVALID_WORD_CHARS = set("wzj-")
+
 def normalize_old_tone(s: str) -> str:
     """
     Convert legacy tone placement to modern standard
@@ -55,6 +57,9 @@ def prepare_data():
                     continue
                 
                 word_lower = word.lower()
+                if any(char in word_lower for char in INVALID_WORD_CHARS):
+                    continue
+
                 standardized = normalize_old_tone(word_lower)
                 
                 space_count = word_lower.count(' ')
