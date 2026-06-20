@@ -225,6 +225,7 @@ class HelpCog(commands.Cog):
                 f"`{self.bot.command_prefix} fuck @user` - Làm tình với member khác.\n"
                 f"`{self.bot.command_prefix} cream @user` - Creampie member khác.\n"
                 f"`{self.bot.command_prefix} 3some @user1 @user2` - Chơi 3some với 2 member.\n"
+                f"`{self.bot.command_prefix} orgy @user1 ... @user10` - Chơi orgy với 2-10 member.\n"
             ),
             inline=False,
         )

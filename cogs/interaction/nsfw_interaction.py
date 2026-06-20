@@ -14,6 +14,7 @@ from assets.nsfw_gifs import (
     FUCKING_GIFS,
     CREAMPIE_GIFS,
     THREESOME_GIFS,
+    GANGBANG_GIFS,
 )
 
 
@@ -39,10 +40,11 @@ class NSFWInteractionCog(commands.Cog):
         self.fuck_picker = GifPicker(FUCKING_GIFS, history_size=len(FUCKING_GIFS))
         self.cream_picker = GifPicker(CREAMPIE_GIFS, history_size=len(CREAMPIE_GIFS))
         self.threesome_picker = GifPicker(THREESOME_GIFS, history_size=len(THREESOME_GIFS))
+        self.orgy_picker = GifPicker(GANGBANG_GIFS, history_size=len(GANGBANG_GIFS))
         self.db = bot.db
         self.KING_ROLE_ID = int(self.bot.global_vars["KING_ROLE_ID"])
         self.QUEEN_ROLE_ID = int(self.bot.global_vars["QUEEN_ROLE_ID"])
-        self.NSFW_INTERACTIONS = ["bj", "rj", "hj", "frot", "fuck", "cream", "3some"]
+        self.NSFW_INTERACTIONS = ["bj", "rj", "hj", "frot", "fuck", "cream", "3some", "orgy"]
 
     def format_relative_time_vn(self, dt: datetime) -> str:
         now = discord.utils.utcnow()
@@ -137,7 +139,7 @@ class NSFWInteractionCog(commands.Cog):
         if self.check_if_user_is_locked(ctx.author.id):
             lock_time = self.get_remaining_lock_time(ctx.author.id)["lock_until"]
             await ctx.send(
-                f"{members[0].mention} hiện đang bị khoá lệnh NSFW, không thể thực hiện tương tác này {self.format_relative_time_vn(lock_time)}."
+                f"{ctx.author.mention} hiện đang bị khoá lệnh NSFW, không thể thực hiện tương tác này {self.format_relative_time_vn(lock_time)}."
             )
             return
         coefficient = 3 if self.KING_ROLE_ID in [r.id for r in ctx.author.roles] else 1
@@ -175,8 +177,8 @@ class NSFWInteractionCog(commands.Cog):
 
         gameplay_text = (
             f"🎮 **Cách Chơi Các Lệnh NSFW** 🎮\n"
-            f"1. Sử dụng lệnh với cú pháp: `!{self.bot.command_prefix} <lệnh> @tên_thành_viên` (riêng `3some` cần tag 2 người).\n"
-            f"2. Các lệnh bao gồm: `bj` (bú cu), `rj` (liếm lồn), `hj` (sục cho), `frot` (đấu kiếm), `fuck` (chịch), `cream` (xuất trong), `3some` (chơi 3some).\n"
+            f"1. Sử dụng lệnh với cú pháp: `!{self.bot.command_prefix} <lệnh> @tên_thành_viên` (riêng `3some` cần tag 2 người, `orgy` tag 2-10 người).\n"
+            f"2. Các lệnh bao gồm: `bj` (bú cu), `rj` (liếm lồn), `hj` (sục cho), `frot` (đấu kiếm), `fuck` (chịch), `cream` (xuất trong), `3some` (chơi 3some), `orgy` (chơi orgy).\n"
             f"3. Mỗi lệnh có thời gian hồi (cooldown) là 15 giây để tránh spam.\n"
             f"4. Femboy Queen có thể khoá lệnh NSFW của người chơi bất kỳ trong vòng 24 giờ.\n"
             f"5. Femboy King sẽ nhận được hệ số x3 điểm khi sử dụng lệnh NSFW.\n"
@@ -241,6 +243,36 @@ class NSFWInteractionCog(commands.Cog):
             self.threesome_picker,
         )
 
+    @commands.command(name="orgy")
+    @commands.cooldown(1, 3, commands.BucketType.user)
+    async def orgy(self, ctx, *members: discord.Member):
+        if len(members) < 2:
+            await ctx.send("Tag từ 2 đến 10 người để chơi orgy nha.")
+            return
+        if len(members) > 10:
+            await ctx.send("Orgy tối đa 10 người được tag thôi.")
+            return
+
+        unique_members = []
+        seen_member_ids = set()
+        for member in members:
+            if member.id in seen_member_ids:
+                await ctx.send("Mỗi người chỉ cần tag một lần thôi.")
+                return
+            seen_member_ids.add(member.id)
+            unique_members.append(member)
+
+        mentions = ", ".join(member.mention for member in unique_members)
+        await self._handle_interaction_multi(
+            ctx,
+            unique_members,
+            "orgy",
+            "chơi orgy",
+            "😈 Orgy tới bến~",
+            f"{ctx.author.mention} mở orgy với {mentions} 💦",
+            self.orgy_picker,
+        )
+
     # Generic error handler for all commands
     async def _cooldown_error(self, ctx, error):
         if isinstance(error, commands.CommandOnCooldown):
@@ -254,6 +286,7 @@ class NSFWInteractionCog(commands.Cog):
     fucking.error = _cooldown_error
     creampie.error = _cooldown_error
     threesome.error = _cooldown_error
+    orgy.error = _cooldown_error
 
     @commands.command(name="ranknsfw", aliases=["nsfwrank"])
     async def ranknsfw(
@@ -276,6 +309,7 @@ class NSFWInteractionCog(commands.Cog):
             "fuck": "địt member khác",
             "cream": "xuất trong",
             "3some": "chơi 3some",
+            "orgy": "chơi orgy",
         }
 
         # text cho NGƯỜI BỊ
@@ -287,6 +321,7 @@ class NSFWInteractionCog(commands.Cog):
             "fuck": "bị địt",
             "cream": "bị xuất trong",
             "3some": "tham gia 3some",
+            "orgy": "tham gia orgy",
         }
 
         # mặc định: người CHỦ ĐỘNG
@@ -300,7 +335,7 @@ class NSFWInteractionCog(commands.Cog):
 
         if action not in (nsfw_interactions + [None]):
             await ctx.send(
-                "Loại tương tác không hợp lệ.\nVui lòng sử dụng: `bj`, `rj`, `hj`, `frot`, `fuck`, `cream`, `3some`."
+                "Loại tương tác không hợp lệ.\nVui lòng sử dụng: `bj`, `rj`, `hj`, `frot`, `fuck`, `cream`, `3some`, `orgy`."
             )
             return
 
