@@ -941,28 +941,6 @@
         }
     },
     {
-        "word": "abc",
-        "standardize": "abc",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "a": 1,
-            "b": 1,
-            "c": 1
-        }
-    },
-    {
-        "word": "abc",
-        "standardize": "abc",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "a": 1,
-            "b": 1,
-            "c": 1
-        }
-    },
-    {
         "word": "ác",
         "standardize": "ác",
         "word_len": 2,
@@ -1896,17 +1874,6 @@
         }
     },
     {
-        "word": "adn",
-        "standardize": "adn",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "a": 1,
-            "d": 1,
-            "n": 1
-        }
-    },
-    {
         "word": "adrenalin",
         "standardize": "adrenalin",
         "word_len": 9,
@@ -2757,28 +2724,6 @@
         }
     },
     {
-        "word": "aids",
-        "standardize": "aids",
-        "word_len": 4,
-        "space_count": 0,
-        "count": {
-            "a": 1,
-            "i": 1,
-            "d": 1,
-            "s": 1
-        }
-    },
-    {
-        "word": "ak",
-        "standardize": "ak",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "a": 1,
-            "k": 1
-        }
-    },
-    {
         "word": "al",
         "standardize": "al",
         "word_len": 2,
@@ -2842,18 +2787,6 @@
             "e": 1,
             "h": 1,
             "y": 1
-        }
-    },
-    {
-        "word": "algol",
-        "standardize": "algol",
-        "word_len": 5,
-        "space_count": 0,
-        "count": {
-            "a": 1,
-            "l": 2,
-            "g": 1,
-            "o": 1
         }
     },
     {
@@ -2936,26 +2869,6 @@
             "m": 1,
             "i": 1,
             "n": 1
-        }
-    },
-    {
-        "word": "am",
-        "standardize": "am",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "a": 1,
-            "m": 1
-        }
-    },
-    {
-        "word": "am",
-        "standardize": "am",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "a": 1,
-            "m": 1
         }
     },
     {
@@ -9517,18 +9430,6 @@
         }
     },
     {
-        "word": "asean",
-        "standardize": "asean",
-        "word_len": 5,
-        "space_count": 0,
-        "count": {
-            "a": 2,
-            "s": 1,
-            "e": 1,
-            "n": 1
-        }
-    },
-    {
         "word": "asen",
         "standardize": "asen",
         "word_len": 4,
@@ -9603,17 +9504,6 @@
             "á": 2,
             "t": 2,
             "l": 1
-        }
-    },
-    {
-        "word": "atk",
-        "standardize": "atk",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "a": 1,
-            "t": 1,
-            "k": 1
         }
     },
     {
@@ -35981,19 +35871,6 @@
         }
     },
     {
-        "word": "basic",
-        "standardize": "basic",
-        "word_len": 5,
-        "space_count": 0,
-        "count": {
-            "b": 1,
-            "a": 1,
-            "s": 1,
-            "i": 1,
-            "c": 1
-        }
-    },
-    {
         "word": "basoi",
         "standardize": "basoi",
         "word_len": 5,
@@ -46396,38 +46273,6 @@
             "n": 1,
             "à": 1,
             "!": 1
-        }
-    },
-    {
-        "word": "bbc",
-        "standardize": "bbc",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "b": 2,
-            "c": 1
-        }
-    },
-    {
-        "word": "bch",
-        "standardize": "bch",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "b": 1,
-            "c": 1,
-            "h": 1
-        }
-    },
-    {
-        "word": "bct",
-        "standardize": "bct",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "b": 1,
-            "c": 1,
-            "t": 1
         }
     },
     {
@@ -75001,16 +74846,6 @@
         }
     },
     {
-        "word": "bs",
-        "standardize": "bs",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "b": 1,
-            "s": 1
-        }
-    },
-    {
         "word": "bu",
         "standardize": "bu",
         "word_len": 2,
@@ -82094,19 +81929,10 @@
         }
     },
     {
-        "word": "c ",
+        "word": "c",
         "standardize": "c",
         "word_len": 1,
-        "space_count": 1,
-        "count": {
-            "c": 1
-        }
-    },
-    {
-        "word": "c ",
-        "standardize": "c",
-        "word_len": 1,
-        "space_count": 1,
+        "space_count": 0,
         "count": {
             "c": 1
         }
@@ -82121,45 +81947,12 @@
         }
     },
     {
-        "word": "c.i.f",
-        "standardize": "c.i.f",
-        "word_len": 5,
+        "word": "c",
+        "standardize": "c",
+        "word_len": 1,
         "space_count": 0,
         "count": {
-            "c": 1,
-            ".": 2,
-            "i": 1,
-            "f": 1
-        }
-    },
-    {
-        "word": "ca",
-        "standardize": "ca",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "c": 1,
-            "a": 1
-        }
-    },
-    {
-        "word": "ca",
-        "standardize": "ca",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "c": 1,
-            "a": 1
-        }
-    },
-    {
-        "word": "ca",
-        "standardize": "ca",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "c": 1,
-            "a": 1
+            "c": 1
         }
     },
     {
@@ -91626,19 +91419,6 @@
             "à": 1,
             "n": 1,
             "g": 1
-        }
-    },
-    {
-        "word": "càng... càng",
-        "standardize": "càng... càng",
-        "word_len": 12,
-        "space_count": 1,
-        "count": {
-            "c": 2,
-            "à": 2,
-            "n": 2,
-            "g": 2,
-            ".": 3
         }
     },
     {
@@ -110869,24 +110649,6 @@
         }
     },
     {
-        "word": "cây trường ii",
-        "standardize": "cây trường ii",
-        "word_len": 13,
-        "space_count": 2,
-        "count": {
-            "c": 1,
-            "â": 1,
-            "y": 1,
-            "t": 1,
-            "r": 1,
-            "ư": 1,
-            "ờ": 1,
-            "n": 1,
-            "g": 1,
-            "i": 2
-        }
-    },
-    {
         "word": "cây viết",
         "standardize": "cây viết",
         "word_len": 8,
@@ -111281,44 +111043,6 @@
         }
     },
     {
-        "word": "cc",
-        "standardize": "cc",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "c": 2
-        }
-    },
-    {
-        "word": "cc",
-        "standardize": "cc",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "c": 2
-        }
-    },
-    {
-        "word": "cd",
-        "standardize": "cd",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "c": 1,
-            "d": 1
-        }
-    },
-    {
-        "word": "cd",
-        "standardize": "cd",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "c": 1,
-            "d": 1
-        }
-    },
-    {
         "word": "cedi",
         "standardize": "cedi",
         "word_len": 4,
@@ -111381,16 +111105,6 @@
             "'": 1,
             "o": 1,
             "m": 1
-        }
-    },
-    {
-        "word": "ch",
-        "standardize": "ch",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "c": 1,
-            "h": 1
         }
     },
     {
@@ -124902,17 +124616,6 @@
             "h": 1,
             "ậ": 1,
             "y": 1
-        }
-    },
-    {
-        "word": "chdc",
-        "standardize": "chdc",
-        "word_len": 4,
-        "space_count": 0,
-        "count": {
-            "c": 2,
-            "h": 1,
-            "d": 1
         }
     },
     {
@@ -158545,29 +158248,6 @@
         }
     },
     {
-        "word": "chxhcn",
-        "standardize": "chxhcn",
-        "word_len": 6,
-        "space_count": 0,
-        "count": {
-            "c": 2,
-            "h": 2,
-            "x": 1,
-            "n": 1
-        }
-    },
-    {
-        "word": "cif",
-        "standardize": "cif",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "c": 1,
-            "i": 1,
-            "f": 1
-        }
-    },
-    {
         "word": "cl",
         "standardize": "cl",
         "word_len": 2,
@@ -158591,17 +158271,6 @@
             "n": 1,
             "e": 1,
             "t": 1
-        }
-    },
-    {
-        "word": "clb",
-        "standardize": "clb",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "c": 1,
-            "l": 1,
-            "b": 1
         }
     },
     {
@@ -158721,60 +158390,6 @@
             "r": 1,
             "u": 1,
             "a": 1
-        }
-    },
-    {
-        "word": "cm",
-        "standardize": "cm",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "c": 1,
-            "m": 1
-        }
-    },
-    {
-        "word": "cm",
-        "standardize": "cm",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "c": 1,
-            "m": 1
-        }
-    },
-    {
-        "word": "cn",
-        "standardize": "cn",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "c": 1,
-            "n": 1
-        }
-    },
-    {
-        "word": "cntb",
-        "standardize": "cntb",
-        "word_len": 4,
-        "space_count": 0,
-        "count": {
-            "c": 1,
-            "n": 1,
-            "t": 1,
-            "b": 1
-        }
-    },
-    {
-        "word": "cnxh",
-        "standardize": "cnxh",
-        "word_len": 4,
-        "space_count": 0,
-        "count": {
-            "c": 1,
-            "n": 1,
-            "x": 1,
-            "h": 1
         }
     },
     {
@@ -177201,17 +176816,6 @@
         }
     },
     {
-        "word": "cpu",
-        "standardize": "cpu",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "c": 1,
-            "p": 1,
-            "u": 1
-        }
-    },
-    {
         "word": "cr",
         "standardize": "cr",
         "word_len": 2,
@@ -177281,16 +176885,6 @@
             "r": 1,
             "ô": 1,
             "m": 1
-        }
-    },
-    {
-        "word": "cs",
-        "standardize": "cs",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "c": 1,
-            "s": 1
         }
     },
     {
@@ -191830,16 +191424,6 @@
             "u": 1,
             "ư": 1,
             "ớ": 1
-        }
-    },
-    {
-        "word": "cy",
-        "standardize": "cy",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "c": 1,
-            "y": 1
         }
     },
     {
@@ -246913,10 +246497,10 @@
         }
     },
     {
-        "word": "đến nỗi ",
+        "word": "đến nỗi",
         "standardize": "đến nỗi",
         "word_len": 7,
-        "space_count": 2,
+        "space_count": 1,
         "count": {
             "đ": 1,
             "ế": 1,
@@ -273633,16 +273217,6 @@
         }
     },
     {
-        "word": "đt",
-        "standardize": "đt",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "đ": 1,
-            "t": 1
-        }
-    },
-    {
         "word": "đu",
         "standardize": "đu",
         "word_len": 2,
@@ -283007,10 +282581,10 @@
         }
     },
     {
-        "word": "f ",
+        "word": "f",
         "standardize": "f",
         "word_len": 1,
-        "space_count": 1,
+        "space_count": 0,
         "count": {
             "f": 1
         }
@@ -283022,18 +282596,6 @@
         "space_count": 0,
         "count": {
             "f": 1
-        }
-    },
-    {
-        "word": "f.o.b",
-        "standardize": "f.o.b",
-        "word_len": 5,
-        "space_count": 0,
-        "count": {
-            "f": 1,
-            ".": 2,
-            "o": 1,
-            "b": 1
         }
     },
     {
@@ -283277,17 +282839,6 @@
             "u": 2,
             "o": 1,
             "r": 2
-        }
-    },
-    {
-        "word": "fob",
-        "standardize": "fob",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "f": 1,
-            "o": 1,
-            "b": 1
         }
     },
     {
@@ -290478,17 +290029,6 @@
             "v": 1,
             "ô": 1,
             "n": 1
-        }
-    },
-    {
-        "word": "gdp",
-        "standardize": "gdp",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "g": 1,
-            "d": 1,
-            "p": 1
         }
     },
     {
@@ -309990,20 +309530,6 @@
         }
     },
     {
-        "word": "giờ g.m.t",
-        "standardize": "giờ g.m.t",
-        "word_len": 9,
-        "space_count": 1,
-        "count": {
-            "g": 2,
-            "i": 1,
-            "ờ": 1,
-            ".": 2,
-            "m": 1,
-            "t": 1
-        }
-    },
-    {
         "word": "giờ giấc",
         "standardize": "giờ giấc",
         "word_len": 8,
@@ -310014,19 +309540,6 @@
             "ờ": 1,
             "ấ": 1,
             "c": 1
-        }
-    },
-    {
-        "word": "giờ gmt",
-        "standardize": "giờ gmt",
-        "word_len": 7,
-        "space_count": 1,
-        "count": {
-            "g": 2,
-            "i": 1,
-            "ờ": 1,
-            "m": 1,
-            "t": 1
         }
     },
     {
@@ -312244,28 +311757,6 @@
         }
     },
     {
-        "word": "gmt",
-        "standardize": "gmt",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "g": 1,
-            "m": 1,
-            "t": 1
-        }
-    },
-    {
-        "word": "gnp",
-        "standardize": "gnp",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "g": 1,
-            "n": 1,
-            "p": 1
-        }
-    },
-    {
         "word": "go",
         "standardize": "go",
         "word_len": 2,
@@ -313389,10 +312880,10 @@
         }
     },
     {
-        "word": "gọi là ",
+        "word": "gọi là",
         "standardize": "gọi là",
         "word_len": 6,
-        "space_count": 2,
+        "space_count": 1,
         "count": {
             "g": 1,
             "ọ": 1,
@@ -315685,16 +315176,6 @@
             "r": 1,
             "á": 1,
             "t": 1
-        }
-    },
-    {
-        "word": "gs",
-        "standardize": "gs",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "g": 1,
-            "s": 1
         }
     },
     {
@@ -328888,18 +328369,6 @@
         }
     },
     {
-        "word": "hđnd",
-        "standardize": "hđnd",
-        "word_len": 4,
-        "space_count": 0,
-        "count": {
-            "h": 1,
-            "đ": 1,
-            "n": 1,
-            "d": 1
-        }
-    },
-    {
         "word": "hđrung",
         "standardize": "hđrung",
         "word_len": 6,
@@ -330188,18 +329657,6 @@
             "c": 1,
             "i": 1,
             "ế": 1
-        }
-    },
-    {
-        "word": "hệ si",
-        "standardize": "hệ si",
-        "word_len": 5,
-        "space_count": 1,
-        "count": {
-            "h": 1,
-            "ệ": 1,
-            "s": 1,
-            "i": 1
         }
     },
     {
@@ -336438,17 +335895,6 @@
             "q": 1,
             "ạ": 1,
             "n": 1
-        }
-    },
-    {
-        "word": "hiv",
-        "standardize": "hiv",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "h": 1,
-            "i": 1,
-            "v": 1
         }
     },
     {
@@ -354104,27 +353550,6 @@
         }
     },
     {
-        "word": "ht",
-        "standardize": "ht",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "h": 1,
-            "t": 1
-        }
-    },
-    {
-        "word": "htx",
-        "standardize": "htx",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "h": 1,
-            "t": 1,
-            "x": 1
-        }
-    },
-    {
         "word": "hu hu",
         "standardize": "hu hu",
         "word_len": 5,
@@ -362468,17 +361893,6 @@
         }
     },
     {
-        "word": "ic, ic",
-        "standardize": "ic, ic",
-        "word_len": 6,
-        "space_count": 1,
-        "count": {
-            "i": 2,
-            "c": 2,
-            ",": 1
-        }
-    },
-    {
         "word": "ích",
         "standardize": "ích",
         "word_len": 3,
@@ -362608,16 +362022,6 @@
             "ị": 1,
             "c": 1,
             "h": 1
-        }
-    },
-    {
-        "word": "im",
-        "standardize": "im",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "i": 1,
-            "m": 1
         }
     },
     {
@@ -363891,10 +363295,10 @@
         }
     },
     {
-        "word": "k ",
+        "word": "k",
         "standardize": "k",
         "word_len": 1,
-        "space_count": 1,
+        "space_count": 0,
         "count": {
             "k": 1
         }
@@ -364060,17 +363464,6 @@
             "r": 1,
             "t": 1,
             "e": 1
-        }
-    },
-    {
-        "word": "kcs",
-        "standardize": "kcs",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "k": 1,
-            "c": 1,
-            "s": 1
         }
     },
     {
@@ -366315,10 +365708,10 @@
         }
     },
     {
-        "word": "kể cả ",
+        "word": "kể cả",
         "standardize": "kể cả",
         "word_len": 5,
-        "space_count": 2,
+        "space_count": 1,
         "count": {
             "k": 1,
             "ể": 1,
@@ -400020,16 +399413,6 @@
         }
     },
     {
-        "word": "kt",
-        "standardize": "kt",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "k": 1,
-            "t": 1
-        }
-    },
-    {
         "word": "ktlê",
         "standardize": "ktlê",
         "word_len": 4,
@@ -404674,10 +404057,10 @@
         }
     },
     {
-        "word": "làm gì ",
+        "word": "làm gì",
         "standardize": "làm gì",
         "word_len": 6,
-        "space_count": 2,
+        "space_count": 1,
         "count": {
             "l": 1,
             "à": 1,
@@ -423815,10 +423198,10 @@
         }
     },
     {
-        "word": "lo  lường",
-        "standardize": "lo  lường",
-        "word_len": 9,
-        "space_count": 2,
+        "word": "lo lường",
+        "standardize": "lo lường",
+        "word_len": 8,
+        "space_count": 1,
         "count": {
             "l": 2,
             "o": 1,
@@ -438736,10 +438119,10 @@
         }
     },
     {
-        "word": "luyến  ái",
-        "standardize": "luyến  ái",
-        "word_len": 9,
-        "space_count": 2,
+        "word": "luyến ái",
+        "standardize": "luyến ái",
+        "word_len": 8,
+        "space_count": 1,
         "count": {
             "l": 1,
             "u": 1,
@@ -475934,10 +475317,10 @@
         }
     },
     {
-        "word": "n ",
+        "word": "n",
         "standardize": "n",
         "word_len": 1,
-        "space_count": 1,
+        "space_count": 0,
         "count": {
             "n": 1
         }
@@ -477537,20 +476920,6 @@
             "n": 1,
             "à": 1,
             "o": 1
-        }
-    },
-    {
-        "word": "nào... nấy",
-        "standardize": "nào... nấy",
-        "word_len": 10,
-        "space_count": 1,
-        "count": {
-            "n": 2,
-            "à": 1,
-            "o": 1,
-            ".": 3,
-            "ấ": 1,
-            "y": 1
         }
     },
     {
@@ -505631,6 +505000,25 @@
         }
     },
     {
+        "word": "nguyên vật liệu",
+        "standardize": "nguyên vật liệu",
+        "word_len": 15,
+        "space_count": 2,
+        "count": {
+            "n": 2,
+            "g": 1,
+            "u": 2,
+            "y": 1,
+            "ê": 1,
+            "v": 1,
+            "ậ": 1,
+            "t": 1,
+            "l": 1,
+            "i": 1,
+            "ệ": 1
+        }
+    },
+    {
         "word": "nguyên vẹn",
         "standardize": "nguyên vẹn",
         "word_len": 10,
@@ -509116,10 +508504,10 @@
         }
     },
     {
-        "word": "nhà  trai",
-        "standardize": "nhà  trai",
-        "word_len": 9,
-        "space_count": 2,
+        "word": "nhà trai",
+        "standardize": "nhà trai",
+        "word_len": 8,
+        "space_count": 1,
         "count": {
             "n": 1,
             "h": 1,
@@ -509420,6 +508808,23 @@
             "c": 1,
             "u": 1,
             "g": 1
+        }
+    },
+    {
+        "word": "nhà chuyên môn",
+        "standardize": "nhà chuyên môn",
+        "word_len": 14,
+        "space_count": 2,
+        "count": {
+            "n": 3,
+            "h": 2,
+            "à": 1,
+            "c": 1,
+            "u": 1,
+            "y": 1,
+            "ê": 1,
+            "m": 1,
+            "ô": 1
         }
     },
     {
@@ -512924,10 +512329,10 @@
         }
     },
     {
-        "word": "nhàn  rỗi",
-        "standardize": "nhàn  rỗi",
-        "word_len": 9,
-        "space_count": 2,
+        "word": "nhàn rỗi",
+        "standardize": "nhàn rỗi",
+        "word_len": 8,
+        "space_count": 1,
         "count": {
             "n": 2,
             "h": 1,
@@ -513611,10 +513016,10 @@
         }
     },
     {
-        "word": "nhanh  nhảnh",
-        "standardize": "nhanh  nhảnh",
-        "word_len": 12,
-        "space_count": 2,
+        "word": "nhanh nhảnh",
+        "standardize": "nhanh nhảnh",
+        "word_len": 11,
+        "space_count": 1,
         "count": {
             "n": 4,
             "h": 4,
@@ -516755,10 +516160,10 @@
         }
     },
     {
-        "word": "nhân  nhượng",
-        "standardize": "nhân  nhượng",
-        "word_len": 12,
-        "space_count": 2,
+        "word": "nhân nhượng",
+        "standardize": "nhân nhượng",
+        "word_len": 11,
+        "space_count": 1,
         "count": {
             "n": 4,
             "h": 2,
@@ -542310,17 +541715,6 @@
         }
     },
     {
-        "word": "nsnd",
-        "standardize": "nsnd",
-        "word_len": 4,
-        "space_count": 0,
-        "count": {
-            "n": 2,
-            "s": 1,
-            "d": 1
-        }
-    },
-    {
         "word": "nsưt",
         "standardize": "nsưt",
         "word_len": 4,
@@ -549037,16 +548431,6 @@
         "count": {
             "ọ": 1,
             "i": 1
-        }
-    },
-    {
-        "word": "ok",
-        "standardize": "ok",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "o": 1,
-            "k": 1
         }
     },
     {
@@ -556433,10 +555817,10 @@
         }
     },
     {
-        "word": "phải chăng2 ",
+        "word": "phải chăng2",
         "standardize": "phải chăng2",
         "word_len": 11,
-        "space_count": 2,
+        "space_count": 1,
         "count": {
             "p": 1,
             "h": 2,
@@ -580827,17 +580211,6 @@
         }
     },
     {
-        "word": "pts",
-        "standardize": "pts",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "p": 1,
-            "t": 1,
-            "s": 1
-        }
-    },
-    {
         "word": "pu nà",
         "standardize": "pu nà",
         "word_len": 5,
@@ -581012,16 +580385,6 @@
         "space_count": 0,
         "count": {
             "q": 1
-        }
-    },
-    {
-        "word": "qs",
-        "standardize": "qs",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "q": 1,
-            "s": 1
         }
     },
     {
@@ -602285,10 +601648,10 @@
         }
     },
     {
-        "word": "ra vẻ ",
+        "word": "ra vẻ",
         "standardize": "ra vẻ",
         "word_len": 5,
-        "space_count": 2,
+        "space_count": 1,
         "count": {
             "r": 1,
             "a": 1,
@@ -603171,28 +602534,6 @@
             "a": 1,
             "l": 1,
             "u": 1,
-            "m": 1
-        }
-    },
-    {
-        "word": "ram",
-        "standardize": "ram",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "r": 1,
-            "a": 1,
-            "m": 1
-        }
-    },
-    {
-        "word": "ram",
-        "standardize": "ram",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "r": 1,
-            "a": 1,
             "m": 1
         }
     },
@@ -611508,28 +610849,6 @@
         }
     },
     {
-        "word": "rom",
-        "standardize": "rom",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "r": 1,
-            "o": 1,
-            "m": 1
-        }
-    },
-    {
-        "word": "rom",
-        "standardize": "rom",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "r": 1,
-            "o": 1,
-            "m": 1
-        }
-    },
-    {
         "word": "ròm",
         "standardize": "ròm",
         "word_len": 3,
@@ -618846,17 +618165,6 @@
         "space_count": 0,
         "count": {
             "s": 1
-        }
-    },
-    {
-        "word": "s.o.s.",
-        "standardize": "s.o.s.",
-        "word_len": 6,
-        "space_count": 0,
-        "count": {
-            "s": 2,
-            ".": 3,
-            "o": 1
         }
     },
     {
@@ -631325,18 +630633,6 @@
         }
     },
     {
-        "word": "sida",
-        "standardize": "sida",
-        "word_len": 4,
-        "space_count": 0,
-        "count": {
-            "s": 1,
-            "i": 1,
-            "d": 1,
-            "a": 1
-        }
-    },
-    {
         "word": "siếc",
         "standardize": "siếc",
         "word_len": 4,
@@ -636382,6 +635678,24 @@
         }
     },
     {
+        "word": "song tử diệp",
+        "standardize": "song tử diệp",
+        "word_len": 12,
+        "space_count": 2,
+        "count": {
+            "s": 1,
+            "o": 1,
+            "n": 1,
+            "g": 1,
+            "t": 1,
+            "ử": 1,
+            "d": 1,
+            "i": 1,
+            "ệ": 1,
+            "p": 1
+        }
+    },
+    {
         "word": "song tử dịệp",
         "standardize": "song tử dịệp",
         "word_len": 12,
@@ -637018,16 +636332,6 @@
             "o": 2,
             "n": 1,
             "g": 1
-        }
-    },
-    {
-        "word": "sos",
-        "standardize": "sos",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "s": 2,
-            "o": 1
         }
     },
     {
@@ -647857,10 +647161,10 @@
         }
     },
     {
-        "word": "sử  xanh",
-        "standardize": "sử  xanh",
-        "word_len": 8,
-        "space_count": 2,
+        "word": "sử xanh",
+        "standardize": "sử xanh",
+        "word_len": 7,
+        "space_count": 1,
         "count": {
             "s": 1,
             "ử": 1,
@@ -648271,10 +647575,10 @@
         }
     },
     {
-        "word": "sự  thể",
-        "standardize": "sự  thể",
-        "word_len": 7,
-        "space_count": 2,
+        "word": "sự thể",
+        "standardize": "sự thể",
+        "word_len": 6,
+        "space_count": 1,
         "count": {
             "s": 1,
             "ự": 1,
@@ -648284,10 +647588,10 @@
         }
     },
     {
-        "word": "sự  thế",
-        "standardize": "sự  thế",
-        "word_len": 7,
-        "space_count": 2,
+        "word": "sự thế",
+        "standardize": "sự thế",
+        "word_len": 6,
+        "space_count": 1,
         "count": {
             "s": 1,
             "ự": 1,
@@ -650692,17 +649996,6 @@
         "space_count": 0,
         "count": {
             "t": 1
-        }
-    },
-    {
-        "word": "t.b",
-        "standardize": "t.b",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "t": 1,
-            ".": 1,
-            "b": 1
         }
     },
     {
@@ -655976,22 +655269,6 @@
         }
     },
     {
-        "word": "tam xuân ii",
-        "standardize": "tam xuân ii",
-        "word_len": 11,
-        "space_count": 2,
-        "count": {
-            "t": 1,
-            "a": 1,
-            "m": 1,
-            "x": 1,
-            "u": 1,
-            "â": 1,
-            "n": 1,
-            "i": 2
-        }
-    },
-    {
         "word": "tàm tạm",
         "standardize": "tàm tạm",
         "word_len": 7,
@@ -657196,18 +656473,6 @@
             "a": 2,
             "n": 2,
             "h": 1
-        }
-    },
-    {
-        "word": "tand",
-        "standardize": "tand",
-        "word_len": 4,
-        "space_count": 0,
-        "count": {
-            "t": 1,
-            "a": 1,
-            "n": 1,
-            "d": 1
         }
     },
     {
@@ -669145,16 +668410,6 @@
         }
     },
     {
-        "word": "tb",
-        "standardize": "tb",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "t": 1,
-            "b": 1
-        }
-    },
-    {
         "word": "tbuăn",
         "standardize": "tbuăn",
         "word_len": 5,
@@ -669165,16 +668420,6 @@
             "u": 1,
             "ă": 1,
             "n": 1
-        }
-    },
-    {
-        "word": "tdtt",
-        "standardize": "tdtt",
-        "word_len": 4,
-        "space_count": 0,
-        "count": {
-            "t": 3,
-            "d": 1
         }
     },
     {
@@ -694517,10 +693762,10 @@
         }
     },
     {
-        "word": "thì có ",
+        "word": "thì có",
         "standardize": "thì có",
         "word_len": 6,
-        "space_count": 2,
+        "space_count": 1,
         "count": {
             "t": 1,
             "h": 1,
@@ -703552,10 +702797,10 @@
         }
     },
     {
-        "word": "thóc  lúa",
-        "standardize": "thóc  lúa",
-        "word_len": 9,
-        "space_count": 2,
+        "word": "thóc lúa",
+        "standardize": "thóc lúa",
+        "word_len": 8,
+        "space_count": 1,
         "count": {
             "t": 1,
             "h": 1,
@@ -743731,16 +742976,6 @@
         }
     },
     {
-        "word": "tl",
-        "standardize": "tl",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "t": 1,
-            "l": 1
-        }
-    },
-    {
         "word": "to",
         "standardize": "to",
         "word_len": 2,
@@ -754899,16 +754134,6 @@
         }
     },
     {
-        "word": "tp",
-        "standardize": "tp",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "t": 1,
-            "p": 1
-        }
-    },
-    {
         "word": "tr' hy",
         "standardize": "tr' hy",
         "word_len": 6,
@@ -754929,19 +754154,6 @@
         "count": {
             "t": 1,
             "r": 1
-        }
-    },
-    {
-        "word": "tr. cn",
-        "standardize": "tr. cn",
-        "word_len": 6,
-        "space_count": 1,
-        "count": {
-            "t": 1,
-            "r": 1,
-            ".": 1,
-            "c": 1,
-            "n": 1
         }
     },
     {
@@ -773152,10 +772364,10 @@
         }
     },
     {
-        "word": "trộm vía ",
+        "word": "trộm vía",
         "standardize": "trộm vía",
         "word_len": 8,
-        "space_count": 2,
+        "space_count": 1,
         "count": {
             "t": 1,
             "r": 1,
@@ -783019,10 +782231,10 @@
         }
     },
     {
-        "word": "trứ  danh",
-        "standardize": "trứ  danh",
-        "word_len": 9,
-        "space_count": 2,
+        "word": "trứ danh",
+        "standardize": "trứ danh",
+        "word_len": 8,
+        "space_count": 1,
         "count": {
             "t": 1,
             "r": 1,
@@ -786104,10 +785316,10 @@
         }
     },
     {
-        "word": "trưởng  phòng",
-        "standardize": "trưởng  phòng",
-        "word_len": 13,
-        "space_count": 2,
+        "word": "trưởng phòng",
+        "standardize": "trưởng phòng",
+        "word_len": 12,
+        "space_count": 1,
         "count": {
             "t": 1,
             "r": 1,
@@ -786919,26 +786131,6 @@
             "h": 1,
             "o": 1,
             "á": 1
-        }
-    },
-    {
-        "word": "ts",
-        "standardize": "ts",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "t": 1,
-            "s": 1
-        }
-    },
-    {
-        "word": "tts",
-        "standardize": "tts",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "t": 2,
-            "s": 1
         }
     },
     {
@@ -795548,10 +794740,10 @@
         }
     },
     {
-        "word": "từ  pháp",
-        "standardize": "từ  pháp",
-        "word_len": 8,
-        "space_count": 2,
+        "word": "từ pháp",
+        "standardize": "từ pháp",
+        "word_len": 7,
+        "space_count": 1,
         "count": {
             "t": 1,
             "ừ": 1,
@@ -795561,10 +794753,10 @@
         }
     },
     {
-        "word": "từ  phổ",
-        "standardize": "từ  phổ",
-        "word_len": 7,
-        "space_count": 2,
+        "word": "từ phổ",
+        "standardize": "từ phổ",
+        "word_len": 6,
+        "space_count": 1,
         "count": {
             "t": 1,
             "ừ": 1,
@@ -796781,10 +795973,10 @@
         }
     },
     {
-        "word": "tử  biệt",
-        "standardize": "tử  biệt",
-        "word_len": 8,
-        "space_count": 2,
+        "word": "tử biệt",
+        "standardize": "tử biệt",
+        "word_len": 7,
+        "space_count": 1,
         "count": {
             "t": 2,
             "ử": 1,
@@ -797351,10 +796543,26 @@
         }
     },
     {
-        "word": "tứ  phía",
-        "standardize": "tứ  phía",
-        "word_len": 8,
+        "word": "tứ đại oán",
+        "standardize": "tứ đại óan",
+        "word_len": 10,
         "space_count": 2,
+        "count": {
+            "t": 1,
+            "ứ": 1,
+            "đ": 1,
+            "ạ": 1,
+            "i": 1,
+            "o": 1,
+            "á": 1,
+            "n": 1
+        }
+    },
+    {
+        "word": "tứ phía",
+        "standardize": "tứ phía",
+        "word_len": 7,
+        "space_count": 1,
         "count": {
             "t": 1,
             "ứ": 1,
@@ -797365,10 +796573,10 @@
         }
     },
     {
-        "word": "tứ  phương",
-        "standardize": "tứ  phương",
-        "word_len": 10,
-        "space_count": 2,
+        "word": "tứ phương",
+        "standardize": "tứ phương",
+        "word_len": 9,
+        "space_count": 1,
         "count": {
             "t": 1,
             "ứ": 1,
@@ -804231,28 +803439,6 @@
         }
     },
     {
-        "word": "ub",
-        "standardize": "ub",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "u": 1,
-            "b": 1
-        }
-    },
-    {
-        "word": "ubnd",
-        "standardize": "ubnd",
-        "word_len": 4,
-        "space_count": 0,
-        "count": {
-            "u": 1,
-            "b": 1,
-            "n": 1,
-            "d": 1
-        }
-    },
-    {
         "word": "úc",
         "standardize": "úc",
         "word_len": 2,
@@ -805206,17 +804392,6 @@
         }
     },
     {
-        "word": "ups",
-        "standardize": "ups",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "u": 1,
-            "p": 1,
-            "s": 1
-        }
-    },
-    {
         "word": "upsilon",
         "standardize": "upsilon",
         "word_len": 7,
@@ -805253,17 +804428,6 @@
             "u": 1,
             "r": 1,
             "ê": 1
-        }
-    },
-    {
-        "word": "usd",
-        "standardize": "usd",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "u": 1,
-            "s": 1,
-            "d": 1
         }
     },
     {
@@ -808186,16 +807350,6 @@
         }
     },
     {
-        "word": "v.v.",
-        "standardize": "v.v.",
-        "word_len": 4,
-        "space_count": 0,
-        "count": {
-            "v": 2,
-            ".": 2
-        }
-    },
-    {
         "word": "va",
         "standardize": "va",
         "word_len": 2,
@@ -808532,17 +807686,6 @@
             "ạ": 1,
             "ị": 1,
             "t": 1
-        }
-    },
-    {
-        "word": "vac",
-        "standardize": "vac",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "v": 1,
-            "a": 1,
-            "c": 1
         }
     },
     {
@@ -847004,18 +846147,6 @@
         }
     },
     {
-        "word": "xhcn",
-        "standardize": "xhcn",
-        "word_len": 4,
-        "space_count": 0,
-        "count": {
-            "x": 1,
-            "h": 1,
-            "c": 1,
-            "n": 1
-        }
-    },
-    {
         "word": "xi",
         "standardize": "xi",
         "word_len": 2,
@@ -849054,16 +848185,6 @@
             "m": 1,
             "ặ": 1,
             "t": 1
-        }
-    },
-    {
-        "word": "xn",
-        "standardize": "xn",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "x": 1,
-            "n": 1
         }
     },
     {
@@ -863824,17 +862945,6 @@
         }
     },
     {
-        "word": "adn",
-        "standardize": "adn",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "a": 1,
-            "d": 1,
-            "n": 1
-        }
-    },
-    {
         "word": "adsl",
         "standardize": "adsl",
         "word_len": 4,
@@ -863865,28 +862975,6 @@
             "a": 2,
             "g": 1,
             "r": 1
-        }
-    },
-    {
-        "word": "aids",
-        "standardize": "aids",
-        "word_len": 4,
-        "space_count": 0,
-        "count": {
-            "a": 1,
-            "i": 1,
-            "d": 1,
-            "s": 1
-        }
-    },
-    {
-        "word": "ak",
-        "standardize": "ak",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "a": 1,
-            "k": 1
         }
     },
     {
@@ -865254,17 +864342,6 @@
             "c": 1,
             "h": 1,
             "à": 1
-        }
-    },
-    {
-        "word": "bch",
-        "standardize": "bch",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "b": 1,
-            "c": 1,
-            "h": 1
         }
     },
     {
@@ -867297,16 +866374,6 @@
         }
     },
     {
-        "word": "cd",
-        "standardize": "cd",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "c": 1,
-            "d": 1
-        }
-    },
-    {
         "word": "ceo",
         "standardize": "ceo",
         "word_len": 3,
@@ -868317,17 +867384,6 @@
         }
     },
     {
-        "word": "cif",
-        "standardize": "cif",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "c": 1,
-            "i": 1,
-            "f": 1
-        }
-    },
-    {
         "word": "cl",
         "standardize": "cl",
         "word_len": 2,
@@ -868335,17 +867391,6 @@
         "count": {
             "c": 1,
             "l": 1
-        }
-    },
-    {
-        "word": "clb",
-        "standardize": "clb",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "c": 1,
-            "l": 1,
-            "b": 1
         }
     },
     {
@@ -868357,40 +867402,6 @@
             "c": 1,
             "m": 1,
             "t": 1
-        }
-    },
-    {
-        "word": "cn",
-        "standardize": "cn",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "c": 1,
-            "n": 1
-        }
-    },
-    {
-        "word": "cntb",
-        "standardize": "cntb",
-        "word_len": 4,
-        "space_count": 0,
-        "count": {
-            "c": 1,
-            "n": 1,
-            "t": 1,
-            "b": 1
-        }
-    },
-    {
-        "word": "cnxh",
-        "standardize": "cnxh",
-        "word_len": 4,
-        "space_count": 0,
-        "count": {
-            "c": 1,
-            "n": 1,
-            "x": 1,
-            "h": 1
         }
     },
     {
@@ -868894,17 +867905,6 @@
         }
     },
     {
-        "word": "cpu",
-        "standardize": "cpu",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "c": 1,
-            "p": 1,
-            "u": 1
-        }
-    },
-    {
         "word": "cr",
         "standardize": "cr",
         "word_len": 2,
@@ -868927,16 +867927,6 @@
             "i": 1,
             "t": 1,
             "a": 1
-        }
-    },
-    {
-        "word": "cs",
-        "standardize": "cs",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "c": 1,
-            "s": 1
         }
     },
     {
@@ -869308,16 +868298,6 @@
             "ạ": 1,
             "n": 1,
             "g": 1
-        }
-    },
-    {
-        "word": "cy",
-        "standardize": "cy",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "c": 1,
-            "y": 1
         }
     },
     {
@@ -871557,16 +870537,6 @@
         }
     },
     {
-        "word": "đt",
-        "standardize": "đt",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "đ": 1,
-            "t": 1
-        }
-    },
-    {
         "word": "đtdđ",
         "standardize": "đtdđ",
         "word_len": 4,
@@ -872062,17 +871032,6 @@
         }
     },
     {
-        "word": "gdp",
-        "standardize": "gdp",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "g": 1,
-            "d": 1,
-            "p": 1
-        }
-    },
-    {
         "word": "ge",
         "standardize": "ge",
         "word_len": 2,
@@ -872454,19 +871413,6 @@
         }
     },
     {
-        "word": "giờ gmt",
-        "standardize": "giờ gmt",
-        "word_len": 7,
-        "space_count": 1,
-        "count": {
-            "g": 2,
-            "i": 1,
-            "ờ": 1,
-            "m": 1,
-            "t": 1
-        }
-    },
-    {
         "word": "giường nằm",
         "standardize": "giường nằm",
         "word_len": 10,
@@ -872540,17 +871486,6 @@
             "r": 1,
             "i": 1,
             "n": 1
-        }
-    },
-    {
-        "word": "gnp",
-        "standardize": "gnp",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "g": 1,
-            "n": 1,
-            "p": 1
         }
     },
     {
@@ -872666,16 +871601,6 @@
             "i": 1,
             "t": 1,
             "e": 1
-        }
-    },
-    {
-        "word": "gs",
-        "standardize": "gs",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "g": 1,
-            "s": 1
         }
     },
     {
@@ -873004,18 +871929,6 @@
         }
     },
     {
-        "word": "hđnd",
-        "standardize": "hđnd",
-        "word_len": 4,
-        "space_count": 0,
-        "count": {
-            "h": 1,
-            "đ": 1,
-            "n": 1,
-            "d": 1
-        }
-    },
-    {
         "word": "hđqt",
         "standardize": "hđqt",
         "word_len": 4,
@@ -873096,18 +872009,6 @@
             "i": 2,
             "ễ": 2,
             "n": 2
-        }
-    },
-    {
-        "word": "hệ si",
-        "standardize": "hệ si",
-        "word_len": 5,
-        "space_count": 1,
-        "count": {
-            "h": 1,
-            "ệ": 1,
-            "s": 1,
-            "i": 1
         }
     },
     {
@@ -873256,17 +872157,6 @@
             "i": 1,
             "p": 2,
             "o": 1
-        }
-    },
-    {
-        "word": "hiv",
-        "standardize": "hiv",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "h": 1,
-            "i": 1,
-            "v": 1
         }
     },
     {
@@ -873669,27 +872559,6 @@
         }
     },
     {
-        "word": "ht",
-        "standardize": "ht",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "h": 1,
-            "t": 1
-        }
-    },
-    {
-        "word": "htx",
-        "standardize": "htx",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "h": 1,
-            "t": 1,
-            "x": 1
-        }
-    },
-    {
         "word": "hút chích",
         "standardize": "hút chích",
         "word_len": 9,
@@ -874070,17 +872939,6 @@
         "count": {
             "k": 1,
             "b": 1
-        }
-    },
-    {
-        "word": "kcs",
-        "standardize": "kcs",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "k": 1,
-            "c": 1,
-            "s": 1
         }
     },
     {
@@ -874957,16 +873815,6 @@
             "h": 1,
             "r": 1,
             "ợ": 1
-        }
-    },
-    {
-        "word": "kt",
-        "standardize": "kt",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "k": 1,
-            "t": 1
         }
     },
     {
@@ -876173,10 +875021,10 @@
         }
     },
     {
-        "word": "lọ  nồi",
-        "standardize": "lọ  nồi",
-        "word_len": 7,
-        "space_count": 2,
+        "word": "lọ nồi",
+        "standardize": "lọ nồi",
+        "word_len": 6,
+        "space_count": 1,
         "count": {
             "l": 1,
             "ọ": 1,
@@ -879955,17 +878803,6 @@
         }
     },
     {
-        "word": "nsnd",
-        "standardize": "nsnd",
-        "word_len": 4,
-        "space_count": 0,
-        "count": {
-            "n": 2,
-            "s": 1,
-            "d": 1
-        }
-    },
-    {
         "word": "nsưt",
         "standardize": "nsưt",
         "word_len": 4,
@@ -880134,16 +878971,6 @@
             "g": 1,
             "ộ": 1,
             "t": 1
-        }
-    },
-    {
-        "word": "ok",
-        "standardize": "ok",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "o": 1,
-            "k": 1
         }
     },
     {
@@ -881263,17 +880090,6 @@
         }
     },
     {
-        "word": "pts",
-        "standardize": "pts",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "p": 1,
-            "t": 1,
-            "s": 1
-        }
-    },
-    {
         "word": "ptth",
         "standardize": "ptth",
         "word_len": 4,
@@ -881341,16 +880157,6 @@
         "count": {
             "q": 1,
             "h": 1
-        }
-    },
-    {
-        "word": "qs",
-        "standardize": "qs",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "q": 1,
-            "s": 1
         }
     },
     {
@@ -882295,18 +881101,6 @@
         }
     },
     {
-        "word": "sida",
-        "standardize": "sida",
-        "word_len": 4,
-        "space_count": 0,
-        "count": {
-            "s": 1,
-            "i": 1,
-            "d": 1,
-            "a": 1
-        }
-    },
-    {
         "word": "siêu mẫu",
         "standardize": "siêu mẫu",
         "word_len": 8,
@@ -882521,16 +881315,6 @@
             "b": 1,
             "i": 1,
             "ê": 1
-        }
-    },
-    {
-        "word": "sos",
-        "standardize": "sos",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "s": 2,
-            "o": 1
         }
     },
     {
@@ -883070,18 +881854,6 @@
         }
     },
     {
-        "word": "tand",
-        "standardize": "tand",
-        "word_len": 4,
-        "space_count": 0,
-        "count": {
-            "t": 1,
-            "a": 1,
-            "n": 1,
-            "d": 1
-        }
-    },
-    {
         "word": "tàng ẩn",
         "standardize": "tàng ẩn",
         "word_len": 7,
@@ -883547,16 +882319,6 @@
         }
     },
     {
-        "word": "tb",
-        "standardize": "tb",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "t": 1,
-            "b": 1
-        }
-    },
-    {
         "word": "tbt",
         "standardize": "tbt",
         "word_len": 3,
@@ -883575,16 +882337,6 @@
             "t": 2,
             "c": 1,
             "y": 1
-        }
-    },
-    {
-        "word": "tdtt",
-        "standardize": "tdtt",
-        "word_len": 4,
-        "space_count": 0,
-        "count": {
-            "t": 3,
-            "d": 1
         }
     },
     {
@@ -885362,16 +884114,6 @@
         }
     },
     {
-        "word": "tl",
-        "standardize": "tl",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "t": 1,
-            "l": 1
-        }
-    },
-    {
         "word": "toa xe",
         "standardize": "toa xe",
         "word_len": 6,
@@ -885693,16 +884435,6 @@
             "b": 1,
             "ế": 1,
             "n": 1
-        }
-    },
-    {
-        "word": "tp",
-        "standardize": "tp",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "t": 1,
-            "p": 1
         }
     },
     {
@@ -886378,32 +885110,12 @@
         }
     },
     {
-        "word": "ts",
-        "standardize": "ts",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "t": 1,
-            "s": 1
-        }
-    },
-    {
         "word": "tt",
         "standardize": "tt",
         "word_len": 2,
         "space_count": 0,
         "count": {
             "t": 2
-        }
-    },
-    {
-        "word": "tts",
-        "standardize": "tts",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "t": 2,
-            "s": 1
         }
     },
     {
@@ -886772,16 +885484,6 @@
         }
     },
     {
-        "word": "tv",
-        "standardize": "tv",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "t": 1,
-            "v": 1
-        }
-    },
-    {
         "word": "tỷ lệ nghịch",
         "standardize": "tỷ lệ nghịch",
         "word_len": 12,
@@ -886888,28 +885590,6 @@
         }
     },
     {
-        "word": "ub",
-        "standardize": "ub",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "u": 1,
-            "b": 1
-        }
-    },
-    {
-        "word": "ubnd",
-        "standardize": "ubnd",
-        "word_len": 4,
-        "space_count": 0,
-        "count": {
-            "u": 1,
-            "b": 1,
-            "n": 1,
-            "d": 1
-        }
-    },
-    {
         "word": "úi dà",
         "standardize": "úi dà",
         "word_len": 5,
@@ -886965,17 +885645,6 @@
         }
     },
     {
-        "word": "ups",
-        "standardize": "ups",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "u": 1,
-            "p": 1,
-            "s": 1
-        }
-    },
-    {
         "word": "uranium",
         "standardize": "uranium",
         "word_len": 7,
@@ -887010,17 +885679,6 @@
             "u": 1,
             "r": 1,
             "l": 1
-        }
-    },
-    {
-        "word": "usd",
-        "standardize": "usd",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "u": 1,
-            "s": 1,
-            "d": 1
         }
     },
     {
@@ -887068,16 +885726,6 @@
         "count": {
             "v": 2,
             ",": 1
-        }
-    },
-    {
-        "word": "v.v",
-        "standardize": "v.v",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "v": 2,
-            ".": 1
         }
     },
     {
@@ -888239,18 +886887,6 @@
         }
     },
     {
-        "word": "xhcn",
-        "standardize": "xhcn",
-        "word_len": 4,
-        "space_count": 0,
-        "count": {
-            "x": 1,
-            "h": 1,
-            "c": 1,
-            "n": 1
-        }
-    },
-    {
         "word": "xí bệt",
         "standardize": "xí bệt",
         "word_len": 6,
@@ -888321,16 +886957,6 @@
             "x": 1,
             "m": 1,
             "l": 1
-        }
-    },
-    {
-        "word": "xn",
-        "standardize": "xn",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "x": 1,
-            "n": 1
         }
     },
     {
@@ -889081,17 +887707,6 @@
             "c": 1,
             "t": 1,
             "h": 1,
-            "i": 1
-        }
-    },
-    {
-        "word": "api",
-        "standardize": "api",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "a": 1,
-            "p": 1,
             "i": 1
         }
     },
@@ -894060,16 +892675,6 @@
         }
     },
     {
-        "word": "chcc",
-        "standardize": "chcc",
-        "word_len": 4,
-        "space_count": 0,
-        "count": {
-            "c": 3,
-            "h": 1
-        }
-    },
-    {
         "word": "chém gió",
         "standardize": "chém gió",
         "word_len": 8,
@@ -895413,19 +894018,6 @@
         }
     },
     {
-        "word": "chxhcnvn",
-        "standardize": "chxhcnvn",
-        "word_len": 8,
-        "space_count": 0,
-        "count": {
-            "c": 2,
-            "h": 2,
-            "x": 1,
-            "n": 2,
-            "v": 1
-        }
-    },
-    {
         "word": "cleopatra",
         "standardize": "cleopatra",
         "word_len": 9,
@@ -895439,16 +894031,6 @@
             "a": 2,
             "t": 1,
             "r": 1
-        }
-    },
-    {
-        "word": "cnc",
-        "standardize": "cnc",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "c": 2,
-            "n": 1
         }
     },
     {
@@ -905493,16 +904075,6 @@
         }
     },
     {
-        "word": "im",
-        "standardize": "im",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "i": 1,
-            "m": 1
-        }
-    },
-    {
         "word": "include file",
         "standardize": "include file",
         "word_len": 12,
@@ -905540,17 +904112,6 @@
             "i": 1,
             "ố": 1,
             "t": 1
-        }
-    },
-    {
-        "word": "irc",
-        "standardize": "irc",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "i": 1,
-            "r": 1,
-            "c": 1
         }
     },
     {
@@ -908495,17 +907056,6 @@
             "b": 1,
             "á": 1,
             "o": 1
-        }
-    },
-    {
-        "word": "lhq",
-        "standardize": "lhq",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "l": 1,
-            "h": 1,
-            "q": 1
         }
     },
     {
@@ -912393,26 +910943,6 @@
             "u": 1,
             "ố": 1,
             "i": 1
-        }
-    },
-    {
-        "word": "mp",
-        "standardize": "mp",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "m": 1,
-            "p": 1
-        }
-    },
-    {
-        "word": "mp",
-        "standardize": "mp",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "m": 1,
-            "p": 1
         }
     },
     {
@@ -918632,18 +917162,6 @@
         }
     },
     {
-        "word": "ptsc",
-        "standardize": "ptsc",
-        "word_len": 4,
-        "space_count": 0,
-        "count": {
-            "p": 1,
-            "t": 1,
-            "s": 1,
-            "c": 1
-        }
-    },
-    {
         "word": "quả cầu",
         "standardize": "qủa cầu",
         "word_len": 7,
@@ -920481,17 +918999,6 @@
         }
     },
     {
-        "word": "scn",
-        "standardize": "scn",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "s": 1,
-            "c": 1,
-            "n": 1
-        }
-    },
-    {
         "word": "scotland",
         "standardize": "scotland",
         "word_len": 8,
@@ -921132,16 +919639,6 @@
             "i": 1,
             "ệ": 1,
             "m": 1
-        }
-    },
-    {
-        "word": "stt",
-        "standardize": "stt",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "s": 1,
-            "t": 2
         }
     },
     {
@@ -922685,29 +921182,6 @@
             "m": 1,
             "ẫ": 1,
             "u": 1
-        }
-    },
-    {
-        "word": "tcn",
-        "standardize": "tcn",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "t": 1,
-            "c": 1,
-            "n": 1
-        }
-    },
-    {
-        "word": "tcyttg",
-        "standardize": "tcyttg",
-        "word_len": 6,
-        "space_count": 0,
-        "count": {
-            "t": 3,
-            "c": 1,
-            "y": 1,
-            "g": 1
         }
     },
     {
@@ -929806,16 +928280,6 @@
         }
     },
     {
-        "word": "ttl",
-        "standardize": "ttl",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "t": 2,
-            "l": 1
-        }
-    },
-    {
         "word": "tụ đầu",
         "standardize": "tụ đầu",
         "word_len": 6,
@@ -930864,16 +929328,6 @@
         }
     },
     {
-        "word": "tv",
-        "standardize": "tv",
-        "word_len": 2,
-        "space_count": 0,
-        "count": {
-            "t": 1,
-            "v": 1
-        }
-    },
-    {
         "word": "tỷ dực",
         "standardize": "tỷ dực",
         "word_len": 6,
@@ -931230,17 +929684,6 @@
             "a": 1,
             "n": 1,
             "i": 1
-        }
-    },
-    {
-        "word": "vac",
-        "standardize": "vac",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "v": 1,
-            "a": 1,
-            "c": 1
         }
     },
     {
@@ -932384,18 +930827,6 @@
         }
     },
     {
-        "word": "vnch",
-        "standardize": "vnch",
-        "word_len": 4,
-        "space_count": 0,
-        "count": {
-            "v": 1,
-            "n": 1,
-            "c": 1,
-            "h": 1
-        }
-    },
-    {
         "word": "võ",
         "standardize": "võ",
         "word_len": 2,
@@ -932548,16 +930979,6 @@
             "ớ": 1,
             "b": 1,
             "ở": 1
-        }
-    },
-    {
-        "word": "vtv",
-        "standardize": "vtv",
-        "word_len": 3,
-        "space_count": 0,
-        "count": {
-            "v": 2,
-            "t": 1
         }
     },
     {
