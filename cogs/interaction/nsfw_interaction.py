@@ -29,7 +29,7 @@ class NSFWInteractionCog(commands.Cog):
         self.fuck_picker = self._load_gif_picker("FUCKING_GIFS")
         self.cream_picker = self._load_gif_picker("CREAMPIE_GIFS")
         self.threesome_picker = self._load_gif_picker("THREESOME_GIFS")
-        self.orgy_picker = self._load_gif_picker("GANGBANG_GIFS")
+        self.orgy_picker = self._load_gif_picker("ORGY_GIFS")
         self.db = bot.db
         self.KING_ROLE_ID = int(self.bot.global_vars["KING_ROLE_ID"])
         self.QUEEN_ROLE_ID = int(self.bot.global_vars["QUEEN_ROLE_ID"])
@@ -270,7 +270,7 @@ class NSFWInteractionCog(commands.Cog):
             "orgy",
             "chơi orgy",
             "😈 Orgy tới bến~",
-            f"{ctx.author.mention} mở orgy với {mentions} 💦",
+            f"{ctx.author.mention} mở thác loạn với {mentions} 💦",
             self.orgy_picker,
         )
 
