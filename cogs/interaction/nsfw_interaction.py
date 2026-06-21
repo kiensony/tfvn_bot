@@ -6,17 +6,6 @@ from discord.ext import commands  # pyright: ignore[reportMissingImports]
 import random
 from collections import deque
 
-from assets.nsfw_gifs import (
-    BLOWJOB_GIFS,
-    HANDJOB_GIFS,
-    RIMJOB_GIFS,
-    FROTTING_GIFS,
-    FUCKING_GIFS,
-    CREAMPIE_GIFS,
-    THREESOME_GIFS,
-    GANGBANG_GIFS,
-)
-
 
 # Tránh lặp gif đcmmmmmmm
 class GifPicker:
@@ -33,18 +22,30 @@ class GifPicker:
 class NSFWInteractionCog(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
-        self.bj_picker = GifPicker(BLOWJOB_GIFS, history_size=len(BLOWJOB_GIFS))
-        self.hj_picker = GifPicker(HANDJOB_GIFS, history_size=len(HANDJOB_GIFS))
-        self.rj_picker = GifPicker(RIMJOB_GIFS, history_size=len(RIMJOB_GIFS))
-        self.frot_picker = GifPicker(FROTTING_GIFS, history_size=len(FROTTING_GIFS))
-        self.fuck_picker = GifPicker(FUCKING_GIFS, history_size=len(FUCKING_GIFS))
-        self.cream_picker = GifPicker(CREAMPIE_GIFS, history_size=len(CREAMPIE_GIFS))
-        self.threesome_picker = GifPicker(THREESOME_GIFS, history_size=len(THREESOME_GIFS))
-        self.orgy_picker = GifPicker(GANGBANG_GIFS, history_size=len(GANGBANG_GIFS))
+        self.bj_picker = self._load_gif_picker("BLOWJOB_GIFS")
+        self.hj_picker = self._load_gif_picker("HANDJOB_GIFS")
+        self.rj_picker = self._load_gif_picker("RIMJOB_GIFS")
+        self.frot_picker = self._load_gif_picker("FROTTING_GIFS")
+        self.fuck_picker = self._load_gif_picker("FUCKING_GIFS")
+        self.cream_picker = self._load_gif_picker("CREAMPIE_GIFS")
+        self.threesome_picker = self._load_gif_picker("THREESOME_GIFS")
+        self.orgy_picker = self._load_gif_picker("GANGBANG_GIFS")
         self.db = bot.db
         self.KING_ROLE_ID = int(self.bot.global_vars["KING_ROLE_ID"])
         self.QUEEN_ROLE_ID = int(self.bot.global_vars["QUEEN_ROLE_ID"])
         self.NSFW_INTERACTIONS = ["bj", "rj", "hj", "frot", "fuck", "cream", "3some", "orgy"]
+
+    def _load_gif_picker(self, variable_name: str) -> GifPicker:
+        gifs = self.bot.global_vars.get(variable_name)
+        if (
+            not isinstance(gifs, list)
+            or not gifs
+            or any(not isinstance(gif, str) or not gif.strip() for gif in gifs)
+        ):
+            raise ValueError(
+                f"{variable_name} must be a non-empty ARRAY in global_variables."
+            )
+        return GifPicker(gifs.copy(), history_size=len(gifs))
 
     def format_relative_time_vn(self, dt: datetime) -> str:
         now = discord.utils.utcnow()
