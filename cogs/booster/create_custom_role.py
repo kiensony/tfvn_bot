@@ -1,6 +1,8 @@
 import discord
 from discord.ext import commands
 
+from cogs.booster._role_colors import parse_role_color_args
+
 
 class BoosterCustomRoleCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
@@ -22,15 +24,6 @@ class BoosterCustomRoleCog(commands.Cog):
             await ctx.send("Bot đang thiếu quyền Manage Roles.")
             return False
         return True
-
-    def _parse_hex_color(self, color_text: str) -> discord.Color | None:
-        value = color_text.strip().lstrip("#")
-        if len(value) != 6:
-            return None
-        try:
-            return discord.Color(int(value, 16))
-        except ValueError:
-            return None
 
     def _get_png_attachment(
         self, message: discord.Message
@@ -60,7 +53,7 @@ class BoosterCustomRoleCog(commands.Cog):
     @commands.command(
         name="custom_role",
         aliases=["booster_role"],
-        help="Tạo custom role cho booster.",
+        help="Tạo custom role cho booster. Dùng #RRGGBB hoặc #RRGGBB,#RRGGBB.",
     )
     async def custom_role(
         self, ctx: commands.Context, color_hex: str, *, role_name: str
@@ -73,6 +66,13 @@ class BoosterCustomRoleCog(commands.Cog):
             await ctx.send("Bạn cần là Booster để dùng lệnh này.")
             return
 
+        color_spec, role_name = parse_role_color_args(color_hex, role_name)
+        if not color_spec:
+            await ctx.send(
+                "Màu không hợp lệ. Dùng #RRGGBB hoặc #RRGGBB,#RRGGBB cho gradient."
+            )
+            return
+
         role_name = role_name.strip()
         if not role_name:
             await ctx.send("Tên role không hợp lệ.")
@@ -80,11 +80,6 @@ class BoosterCustomRoleCog(commands.Cog):
 
         if len(role_name) > 100:
             await ctx.send("Tên role tối đa 100 ký tự.")
-            return
-
-        color = self._parse_hex_color(color_hex)
-        if not color:
-            await ctx.send("Màu không hợp lệ. Dùng định dạng #RRGGBB.")
             return
 
         icon_attachment = None
@@ -122,10 +117,10 @@ class BoosterCustomRoleCog(commands.Cog):
 
             role = await ctx.guild.create_role(
                 name=role_name,
-                colour=color,
                 mentionable=False,
                 display_icon=icon_bytes,
                 reason=f"Booster custom role for {ctx.author} ({ctx.author.id})",
+                **color_spec.create_kwargs(),
             )
 
             anchor_role = self._get_anchor_role(ctx.guild)
@@ -164,6 +159,7 @@ class BoosterCustomRoleCog(commands.Cog):
                     "$set": {
                         "role_id": role.id,
                         "role_name": role.name,
+                        **color_spec.record_fields(),
                         "updated_at": now,
                     },
                     "$setOnInsert": {"created_at": now},
