@@ -117,6 +117,8 @@ class HelpCog(commands.Cog):
                 "Chỉ được sử dụng trong channel NSFW!\n"
                 f"`{self.bot.command_prefix} nsfw` – Hướng dẫn lệnh nsfw.\n"
                 f"`{self.bot.command_prefix} verify` – Hướng dẫn chứng thực độ tuổi.\n"
+                f"`{self.bot.command_prefix}verified @user` – Support gán verified role cho member.\n"
+                f"`{self.bot.command_prefix}unverified @user` – Support gỡ verified role khỏi member.\n"
             ),
             inline=False,
         )
