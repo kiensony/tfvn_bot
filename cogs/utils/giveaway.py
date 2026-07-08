@@ -264,6 +264,17 @@ class GiveawayCog(commands.Cog):
 
         return 1, full_prize
 
+    def _is_admin_or_mod(self, member: discord.Member | discord.User) -> bool:
+        """Admin or mod: Administrator, Manage Server, or Manage Messages."""
+        if not isinstance(member, discord.Member):
+            return False
+        perms = member.guild_permissions
+        return bool(
+            perms.administrator
+            or perms.manage_guild
+            or perms.manage_messages
+        )
+
     def _is_host_or_mod(
         self,
         member: discord.Member | discord.User,
@@ -271,10 +282,7 @@ class GiveawayCog(commands.Cog):
     ) -> bool:
         if member.id == giveaway.get("host_id"):
             return True
-        if isinstance(member, discord.Member):
-            perms = member.guild_permissions
-            return perms.manage_guild or perms.manage_messages or perms.administrator
-        return False
+        return self._is_admin_or_mod(member)
 
     async def _resolve_message_id(
         self,
@@ -886,6 +894,13 @@ class GiveawayCog(commands.Cog):
         # Subcommand names should not be treated as durations
         if duration.lower() in {"end", "reroll", "list", "entries", "help"}:
             await ctx.reply(self._usage_text(), mention_author=False)
+            return
+
+        if not self._is_admin_or_mod(ctx.author):
+            await ctx.reply(
+                "Chỉ **admin** hoặc **mod** (Manage Messages / Manage Server) mới có thể tạo giveaway.",
+                mention_author=False,
+            )
             return
 
         winner_count, prize = self._split_giveaway_args(winner_or_prize, prize)
