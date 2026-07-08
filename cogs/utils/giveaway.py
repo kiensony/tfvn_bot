@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 import discord
 from discord.ext import commands
-from pymongo import ReturnDocument
+from pymongo import ASCENDING, ReturnDocument
 
 
 GIVEAWAY_COLLECTION = "giveaways"
@@ -16,6 +16,8 @@ MAX_WINNERS = 20
 MIN_DURATION_SECONDS = 10
 MAX_DURATION_SECONDS = 60 * 60 * 24 * 30  # 30 days
 UPDATE_DEBOUNCE_SECONDS = 2.0
+# Discord embed field value hard limit
+MAX_EMBED_FIELD_CHARS = 1024
 
 
 def _as_utc(value: datetime) -> datetime:
@@ -23,6 +25,19 @@ def _as_utc(value: datetime) -> datetime:
         return value.replace(tzinfo=timezone.utc)
 
     return value.astimezone(timezone.utc)
+
+
+def _mongo_utc(value: datetime | None = None) -> datetime:
+    """Naive UTC datetime for consistent MongoDB storage/queries."""
+    if value is None:
+        value = datetime.now(timezone.utc)
+    aware = _as_utc(value)
+    return aware.replace(tzinfo=None)
+
+
+def _jump_url(guild_id: int | None, channel_id: int, message_id: int) -> str:
+    guild_part = guild_id if guild_id is not None else "@me"
+    return f"https://discord.com/channels/{guild_part}/{channel_id}/{message_id}"
 
 
 class GiveawayView(discord.ui.View):
@@ -103,6 +118,7 @@ class GiveawayCog(commands.Cog):
         self.pending_giveaways: dict[int, asyncio.Task] = {}
         self._update_tasks: dict[int, asyncio.Task] = {}
         self._synced_startup = False
+        self._ensure_indexes()
 
     def cog_unload(self) -> None:
         for task in self.pending_giveaways.values():
@@ -110,9 +126,37 @@ class GiveawayCog(commands.Cog):
         for task in self._update_tasks.values():
             task.cancel()
 
+    async def cog_load(self) -> None:
+        # If the bot is already ready (e.g. cog reload), restore immediately.
+        if self.bot.is_ready():
+            await self._restore_giveaways_from_db()
+
     @property
     def collection(self):
         return self.db[GIVEAWAY_COLLECTION]
+
+    def _ensure_indexes(self) -> None:
+        """Indexes so giveaways + entrants survive restarts and stay queryable."""
+        try:
+            self.collection.create_index(
+                [("message_id", ASCENDING)],
+                unique=True,
+                name="message_id_unique",
+            )
+            self.collection.create_index(
+                [("guild_id", ASCENDING), ("ended", ASCENDING), ("end_at", ASCENDING)],
+                name="guild_active_end",
+            )
+            self.collection.create_index(
+                [("ended", ASCENDING), ("end_at", ASCENDING)],
+                name="ended_end_at",
+            )
+            self.collection.create_index(
+                [("entries", ASCENDING)],
+                name="entries_user",
+            )
+        except Exception:
+            self.logger.exception("Failed to ensure giveaway indexes")
 
     def parse_duration(self, duration: str) -> int:
         matches = re.findall(r"(\d+)([dhms])", duration.lower().replace(" ", ""))
@@ -157,6 +201,8 @@ class GiveawayCog(commands.Cog):
         return (
             f"**Cách dùng:**\n"
             f"`{prefix}giveaway <thời gian> [số người thắng] <phần thưởng>` — tạo giveaway\n"
+            f"`{prefix}giveaway list` — danh sách giveaway đang chạy\n"
+            f"`{prefix}giveaway entries [message_id]` — ai đã join\n"
             f"`{prefix}giveaway end [message_id]` — kết thúc sớm (host/mod)\n"
             f"`{prefix}giveaway reroll [message_id] [số người]` — quay lại người thắng (host/mod)\n\n"
             f"**Ví dụ:**\n"
@@ -165,6 +211,40 @@ class GiveawayCog(commands.Cog):
             f"`{prefix}giveaway end` (reply tin giveaway)\n"
             f"`{prefix}giveaway reroll` (reply tin giveaway)"
         )
+
+    def _entry_ids(self, giveaway: dict) -> list[int]:
+        """Normalize entry user IDs from DB (ints, or legacy dicts)."""
+        raw = giveaway.get("entries") or []
+        ids: list[int] = []
+        seen: set[int] = set()
+        for item in raw:
+            if isinstance(item, dict):
+                uid = item.get("user_id")
+            else:
+                uid = item
+            if uid is None:
+                continue
+            try:
+                uid_int = int(uid)
+            except (TypeError, ValueError):
+                continue
+            if uid_int not in seen:
+                seen.add(uid_int)
+                ids.append(uid_int)
+        return ids
+
+    def _format_user_list(self, user_ids: list[int], *, limit: int = 30) -> str:
+        if not user_ids:
+            return "_Chưa có ai tham gia._"
+        shown = user_ids[:limit]
+        lines = [f"• <@{uid}> (`{uid}`)" for uid in shown]
+        remaining = len(user_ids) - len(shown)
+        if remaining > 0:
+            lines.append(f"… và **{remaining}** người nữa")
+        text = "\n".join(lines)
+        if len(text) > MAX_EMBED_FIELD_CHARS:
+            text = text[: MAX_EMBED_FIELD_CHARS - 20] + "\n…"
+        return text
 
     def _split_giveaway_args(
         self,
@@ -209,7 +289,7 @@ class GiveawayCog(commands.Cog):
 
     def _giveaway_embed(self, giveaway: dict, ended: bool = False) -> discord.Embed:
         end_at = _as_utc(giveaway["end_at"])
-        entries = giveaway.get("entries", [])
+        entries = self._entry_ids(giveaway)
         winner_count = giveaway.get("winner_count", 1)
         title = "🎉 Giveaway đã kết thúc" if ended else "🎉 Giveaway"
         color = discord.Color.dark_grey() if ended else discord.Color.gold()
@@ -260,7 +340,7 @@ class GiveawayCog(commands.Cog):
         prize = giveaway.get("prize", "Phần thưởng không xác định")
         host_id = giveaway.get("host_id")
         winner_ids = giveaway.get("winner_ids") or []
-        entry_count = len(giveaway.get("entries", []))
+        entry_count = len(self._entry_ids(giveaway))
 
         title = "🔄 Giveaway reroll!" if reroll else "🎉 Giveaway đã kết thúc!"
         embed = discord.Embed(title=title, color=discord.Color.gold())
@@ -392,7 +472,7 @@ class GiveawayCog(commands.Cog):
         self._schedule_message_update(message_id)
 
     def _track_giveaway(self, giveaway: dict) -> None:
-        message_id = giveaway["message_id"]
+        message_id = int(giveaway["message_id"])
         if message_id in self.pending_giveaways:
             return
 
@@ -405,7 +485,7 @@ class GiveawayCog(commands.Cog):
         If we cancelled ourselves from inside ``end_giveaway``, the next
         ``await`` would raise CancelledError and skip winner announce/edit.
         """
-        task = self.pending_giveaways.pop(message_id, None)
+        task = self.pending_giveaways.pop(int(message_id), None)
         if task is None or task.done():
             return
         if task is asyncio.current_task():
@@ -419,51 +499,95 @@ class GiveawayCog(commands.Cog):
             return []
         return random.sample(unique, count)
 
-    @commands.Cog.listener()
-    async def on_ready(self) -> None:
+    async def _restore_giveaways_from_db(self) -> None:
+        """Reload active giveaways + entrants from MongoDB after restart."""
         if self._synced_startup:
             return
-
         self._synced_startup = True
-        now = discord.utils.utcnow()
-        active_giveaways = list(
-            self.collection.find(
-                {
-                    "ended": False,
-                    "end_at": {"$gt": now},
-                }
-            )
-        )
-        expired_giveaways = list(
-            self.collection.find(
-                {
-                    "ended": False,
-                    "end_at": {"$lte": now},
-                }
-            )
-        )
 
+        now = _mongo_utc()
+        try:
+            active_giveaways = list(
+                self.collection.find(
+                    {
+                        "ended": False,
+                        "end_at": {"$gt": now},
+                    }
+                )
+            )
+            expired_giveaways = list(
+                self.collection.find(
+                    {
+                        "ended": False,
+                        "end_at": {"$lte": now},
+                    }
+                )
+            )
+        except Exception:
+            self.logger.exception("Failed loading giveaways from database")
+            self._synced_startup = False
+            return
+
+        active_entries = 0
         for giveaway in active_giveaways:
+            message_id = int(giveaway["message_id"])
+            entry_count = len(self._entry_ids(giveaway))
+            active_entries += entry_count
             self.bot.add_view(
-                GiveawayView(self, giveaway["message_id"]),
-                message_id=giveaway["message_id"],
+                GiveawayView(self, message_id),
+                message_id=message_id,
             )
             self._track_giveaway(giveaway)
+            self.logger.info(
+                "Restored active giveaway message_id=%s prize=%r entries=%s end_at=%s",
+                message_id,
+                giveaway.get("prize"),
+                entry_count,
+                giveaway.get("end_at"),
+            )
 
         for giveaway in expired_giveaways:
             self._track_giveaway(giveaway)
+            self.logger.info(
+                "Restored expired giveaway (will end now) message_id=%s entries=%s",
+                giveaway.get("message_id"),
+                len(self._entry_ids(giveaway)),
+            )
+
+        self.logger.info(
+            "Giveaway restore complete: %s active (%s total entrants), %s expired pending end",
+            len(active_giveaways),
+            active_entries,
+            len(expired_giveaways),
+        )
+
+    @commands.Cog.listener()
+    async def on_ready(self) -> None:
+        await self._restore_giveaways_from_db()
 
     async def schedule_giveaway_end(self, giveaway: dict) -> None:
-        message_id = giveaway["message_id"]
+        message_id = int(giveaway["message_id"])
         try:
-            now = discord.utils.utcnow()
-            end_at = _as_utc(giveaway["end_at"])
+            # Always re-read end_at from DB so restarts use the saved value
+            fresh = self.collection.find_one({"message_id": message_id})
+            if fresh is None:
+                self.logger.warning(
+                    "Giveaway %s missing from DB while scheduling end",
+                    message_id,
+                )
+                return
+            if fresh.get("ended"):
+                return
+
+            now = _as_utc(datetime.now(timezone.utc))
+            end_at = _as_utc(fresh["end_at"])
             delay = max(0, (end_at - now).total_seconds())
 
             self.logger.info(
-                "Scheduled giveaway %s to end in %.1fs",
+                "Scheduled giveaway %s to end in %.1fs (entries=%s)",
                 message_id,
                 delay,
+                len(self._entry_ids(fresh)),
             )
 
             if delay:
@@ -480,7 +604,7 @@ class GiveawayCog(commands.Cog):
                     "Giveaway %s ended with winners=%s entries=%s",
                     message_id,
                     ended.get("winner_ids"),
-                    len(ended.get("entries") or []),
+                    len(self._entry_ids(ended)),
                 )
         except asyncio.CancelledError:
             self.logger.debug("Giveaway end task cancelled for %s", message_id)
@@ -505,13 +629,26 @@ class GiveawayCog(commands.Cog):
 
         await interaction.response.defer(ephemeral=True)
 
+        user_id = int(interaction.user.id)
+        joined_at = _mongo_utc()
+        # Persist entrant ID + join metadata so restarts keep the full list
         result = self.collection.find_one_and_update(
             {
                 "message_id": message_id,
                 "ended": False,
-                "entries": {"$nin": [interaction.user.id]},
+                "entries": {"$nin": [user_id]},
             },
-            {"$addToSet": {"entries": interaction.user.id}},
+            {
+                "$addToSet": {"entries": user_id},
+                "$set": {
+                    f"entry_meta.{user_id}": {
+                        "user_id": user_id,
+                        "joined_at": joined_at,
+                        "name": str(interaction.user),
+                    },
+                    "updated_at": joined_at,
+                },
+            },
             return_document=ReturnDocument.AFTER,
         )
 
@@ -532,7 +669,7 @@ class GiveawayCog(commands.Cog):
             )
             return
 
-        if interaction.user.id in giveaway.get("entries", []):
+        if user_id in self._entry_ids(giveaway):
             await interaction.followup.send(
                 "Bạn đã tham gia giveaway này rồi. Nhấn **Rời** nếu muốn rút lui.",
                 ephemeral=True,
@@ -559,13 +696,19 @@ class GiveawayCog(commands.Cog):
 
         await interaction.response.defer(ephemeral=True)
 
+        user_id = int(interaction.user.id)
+        left_at = _mongo_utc()
         result = self.collection.find_one_and_update(
             {
                 "message_id": message_id,
                 "ended": False,
-                "entries": interaction.user.id,
+                "entries": user_id,
             },
-            {"$pull": {"entries": interaction.user.id}},
+            {
+                "$pull": {"entries": user_id},
+                "$unset": {f"entry_meta.{user_id}": ""},
+                "$set": {"updated_at": left_at},
+            },
             return_document=ReturnDocument.AFTER,
         )
 
@@ -598,19 +741,19 @@ class GiveawayCog(commands.Cog):
         *,
         announce: bool = True,
     ) -> dict | None:
-        # Fresh read so we roll against the latest entries
+        # Fresh read from DB so we roll against the latest persisted entrants
         giveaway = self.collection.find_one(
             {"message_id": message_id, "ended": False},
         )
         if giveaway is None:
             return None
 
-        entries = list(giveaway.get("entries") or [])
+        entries = self._entry_ids(giveaway)
         winner_count = int(giveaway.get("winner_count") or 1)
         winner_ids = self._pick_winners(entries, winner_count)
-        ended_at = discord.utils.utcnow()
+        ended_at = _mongo_utc()
 
-        # Atomic: mark ended + store winners in one write
+        # Atomic: mark ended + store winners in one write (kept in DB after restart)
         giveaway = self.collection.find_one_and_update(
             {"message_id": message_id, "ended": False},
             {
@@ -618,6 +761,7 @@ class GiveawayCog(commands.Cog):
                     "ended": True,
                     "ended_at": ended_at,
                     "winner_ids": winner_ids,
+                    "updated_at": ended_at,
                 }
             },
             return_document=ReturnDocument.AFTER,
@@ -687,20 +831,29 @@ class GiveawayCog(commands.Cog):
         if giveaway is None:
             return None
 
-        entries = list(giveaway.get("entries", []))
+        entries = self._entry_ids(giveaway)
         count = winner_count if winner_count is not None else giveaway.get("winner_count", 1)
-        previous = set(giveaway.get("winner_ids") or [])
+        previous = {int(w) for w in (giveaway.get("winner_ids") or [])}
 
         # Prefer entrants who have not won yet; fall back to full pool
-        eligible = [uid for uid in dict.fromkeys(entries) if uid not in previous]
-        pool = eligible if eligible else list(dict.fromkeys(entries))
+        eligible = [uid for uid in entries if uid not in previous]
+        pool = eligible if eligible else list(entries)
         winner_ids = self._pick_winners(pool, count)
+        rerolled_at = _mongo_utc()
 
         giveaway = self.collection.find_one_and_update(
             {"message_id": message_id, "ended": True},
             {
-                "$set": {"winner_ids": winner_ids},
-                "$push": {"reroll_history": {"at": discord.utils.utcnow(), "winner_ids": winner_ids}},
+                "$set": {
+                    "winner_ids": winner_ids,
+                    "updated_at": rerolled_at,
+                },
+                "$push": {
+                    "reroll_history": {
+                        "at": rerolled_at,
+                        "winner_ids": winner_ids,
+                    }
+                },
             },
             return_document=ReturnDocument.AFTER,
         )
@@ -731,7 +884,7 @@ class GiveawayCog(commands.Cog):
             return
 
         # Subcommand names should not be treated as durations
-        if duration.lower() in {"end", "reroll", "help"}:
+        if duration.lower() in {"end", "reroll", "list", "entries", "help"}:
             await ctx.reply(self._usage_text(), mention_author=False)
             return
 
@@ -770,18 +923,23 @@ class GiveawayCog(commands.Cog):
             )
             return
 
-        end_at = discord.utils.utcnow() + timedelta(seconds=seconds)
+        created_at = _mongo_utc()
+        end_at = created_at + timedelta(seconds=seconds)
+        # message_id filled after send, then written to DB
         giveaway_doc = {
             "guild_id": ctx.guild.id if ctx.guild else None,
             "channel_id": ctx.channel.id,
-            "host_id": ctx.author.id,
+            "host_id": int(ctx.author.id),
             "message_id": 0,
             "prize": prize.strip(),
             "winner_count": winner_count,
+            # Persisted entrant list (survives bot/server restart)
             "entries": [],
+            "entry_meta": {},
             "winner_ids": [],
             "reroll_history": [],
-            "created_at": discord.utils.utcnow(),
+            "created_at": created_at,
+            "updated_at": created_at,
             "end_at": end_at,
             "ended": False,
         }
@@ -793,25 +951,182 @@ class GiveawayCog(commands.Cog):
             allowed_mentions=discord.AllowedMentions.none(),
         )
         view.message_id = message.id
-        giveaway_doc["message_id"] = message.id
+        giveaway_doc["message_id"] = int(message.id)
 
         # Register persistent view for this message across restarts
-        self.bot.add_view(GiveawayView(self, message.id), message_id=message.id)
+        self.bot.add_view(
+            GiveawayView(self, message.id),
+            message_id=message.id,
+        )
 
-        self.collection.insert_one(giveaway_doc)
+        try:
+            self.collection.insert_one(giveaway_doc)
+        except Exception:
+            self.logger.exception(
+                "Failed to persist giveaway message_id=%s to database",
+                message.id,
+            )
+            await ctx.reply(
+                "Không thể tạo giveaway. Vui lòng thử lại.",
+                mention_author=False,
+            )
+            try:
+                await message.delete()
+            except discord.HTTPException:
+                pass
+            return
+
         self._track_giveaway(giveaway_doc)
+        self.logger.info(
+            "Created giveaway message_id=%s guild=%s prize=%r end_at=%s",
+            message.id,
+            giveaway_doc.get("guild_id"),
+            giveaway_doc.get("prize"),
+            end_at,
+        )
 
         await ctx.reply(
             (
                 f"Đã bắt đầu giveaway cho **{prize.strip()}** "
                 f"({winner_count} người thắng).\n"
                 f"Kết thúc sau **{self.format_duration(seconds)}** "
-                f"({discord.utils.format_dt(end_at, style='R')}).\n"
+                f"({discord.utils.format_dt(_as_utc(end_at), style='R')}).\n"
                 f"Tin nhắn: {message.jump_url}"
             ),
             mention_author=False,
             allowed_mentions=discord.AllowedMentions.none(),
         )
+
+    @giveaway.command(name="list", aliases=["ls", "active"], help="Danh sách giveaway đang chạy.")
+    @commands.guild_only()
+    async def giveaway_list(self, ctx: commands.Context) -> None:
+        now = _mongo_utc()
+        query = {
+            "ended": False,
+            "end_at": {"$gt": now},
+        }
+        if ctx.guild is not None:
+            query["guild_id"] = ctx.guild.id
+
+        giveaways = list(self.collection.find(query).sort("end_at", ASCENDING).limit(25))
+        if not giveaways:
+            await ctx.reply(
+                "Không có giveaway đang chạy.",
+                mention_author=False,
+            )
+            return
+
+        embed = discord.Embed(
+            title="📋 Giveaway đang chạy",
+            color=discord.Color.gold(),
+            description=f"Tìm thấy **{len(giveaways)}** giveaway active.",
+        )
+
+        for giveaway in giveaways:
+            message_id = int(giveaway["message_id"])
+            channel_id = int(giveaway["channel_id"])
+            guild_id = giveaway.get("guild_id")
+            entries = self._entry_ids(giveaway)
+            end_at = _as_utc(giveaway["end_at"])
+            prize = str(giveaway.get("prize", "?"))[:80]
+            url = _jump_url(guild_id, channel_id, message_id)
+            value = (
+                f"[Nhảy tới tin nhắn]({url})\n"
+                f"Host: <@{giveaway.get('host_id')}>\n"
+                f"Entries: **{len(entries)}** · Winners: **{giveaway.get('winner_count', 1)}**\n"
+                f"Kết thúc: {discord.utils.format_dt(end_at, style='R')}\n"
+                f"`message_id`: `{message_id}`"
+            )
+            embed.add_field(name=prize, value=value, inline=False)
+
+        await ctx.reply(embed=embed, mention_author=False)
+
+    @giveaway.command(
+        name="entries",
+        aliases=["entrants", "joined", "who"],
+        help="Xem ai đã join giveaway.",
+    )
+    @commands.guild_only()
+    async def giveaway_entries(
+        self,
+        ctx: commands.Context,
+        message_id: int = None,
+    ) -> None:
+        resolved_id = await self._resolve_message_id(ctx, message_id)
+        if resolved_id is None:
+            await ctx.reply(
+                "Cần `message_id` hoặc reply tin nhắn giveaway.\n"
+                f"Ví dụ: `{self.bot.command_prefix}giveaway entries 1234567890`",
+                mention_author=False,
+            )
+            return
+
+        giveaway = self.collection.find_one({"message_id": resolved_id})
+        if giveaway is None:
+            await ctx.reply(
+                "Không tìm thấy giveaway này.",
+                mention_author=False,
+            )
+            return
+
+        if (
+            giveaway.get("guild_id")
+            and ctx.guild
+            and giveaway["guild_id"] != ctx.guild.id
+        ):
+            await ctx.reply("Giveaway này không thuộc server này.", mention_author=False)
+            return
+
+        entries = self._entry_ids(giveaway)
+        entry_meta = giveaway.get("entry_meta") or {}
+        end_at = _as_utc(giveaway["end_at"])
+        status = "đã kết thúc" if giveaway.get("ended") else "đang chạy"
+
+        embed = discord.Embed(
+            title="👥 Người tham gia giveaway",
+            color=discord.Color.blurple(),
+            description=(
+                f"**Phần thưởng:** {giveaway.get('prize', '?')}\n"
+                f"**Trạng thái:** {status}\n"
+                f"**Tổng entries:** **{len(entries)}**"
+            ),
+        )
+        embed.add_field(
+            name="Danh sách",
+            value=self._format_user_list(entries),
+            inline=False,
+        )
+
+        # Show a few join timestamps when available
+        timed = []
+        for uid in entries[:10]:
+            meta = entry_meta.get(str(uid)) or entry_meta.get(uid)
+            if isinstance(meta, dict) and meta.get("joined_at"):
+                joined = _as_utc(meta["joined_at"])
+                timed.append(
+                    f"<@{uid}> — {discord.utils.format_dt(joined, style='R')}"
+                )
+        if timed:
+            embed.add_field(
+                name="Thời gian join",
+                value="\n".join(timed),
+                inline=False,
+            )
+
+        if giveaway.get("ended") and giveaway.get("winner_ids"):
+            winners = ", ".join(f"<@{w}>" for w in giveaway["winner_ids"])
+            embed.add_field(name="Người thắng", value=winners, inline=False)
+
+        embed.add_field(
+            name="Thông tin",
+            value=(
+                f"Host: <@{giveaway.get('host_id')}>\n"
+                f"Kết thúc: {discord.utils.format_dt(end_at, style='F')}\n"
+                f"`message_id`: `{resolved_id}`"
+            ),
+            inline=False,
+        )
+        await ctx.reply(embed=embed, mention_author=False)
 
     @giveaway.command(name="end", help="Kết thúc giveaway sớm.")
     @commands.guild_only()
