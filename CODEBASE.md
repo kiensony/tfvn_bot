@@ -1,0 +1,160 @@
+# Codebase Map
+
+This document maps the maintained repository files and explains where each behavior lives. It intentionally omits secrets and generated workstation artifacts such as `.env`, `.env.prod`, `.git/`, `.agents/`, `venv/`, `__pycache__/`, `.VSCodeCounter/`, and `bot.log`.
+
+## Runtime Flow
+
+1. `main.py` loads `.env`, creates the prefix-based `commands.Bot`, enables member and message-content intents, and attaches the MongoDB database from `db.py`.
+2. `DataLoader` loads shared lists from `data/` onto the bot instance.
+3. In production, every public Python module below `cogs/` is discovered recursively. In development, only modules in the ignored `dev_cogs.txt` are loaded.
+4. `cogs.settings.variable_setting` is loaded first when selected, populating `bot.global_vars` from MongoDB.
+5. Each extension registers commands, listeners, views, or scheduled tasks through `async def setup(bot)`.
+
+## Repository Tree and Responsibilities
+
+```text
+tfvn_bot/
+├── main.py                         Bot construction, events, data loading, cog discovery
+├── db.py                           MongoDB client and selected database
+├── dataloader.py                   UTF-8 JSON/text/line/CSV loading helpers
+├── requirements.txt                Pinned Python runtime dependencies
+├── Dockerfile                      Python 3.11 multi-stage image
+├── docker-compose.yml              Bot service and environment wiring; no Mongo service
+├── .dockerignore                   Excludes secrets, tests, logs, and local artifacts
+├── .gitignore                      Excludes local configuration, logs, and Python artifacts
+├── README.md                       Project overview, setup, configuration, and operation
+├── AGENTS.md                       Short contributor and agent entry guide
+├── CODEBASE.md                     This ownership and architecture map
+├── CODING_CONVENSION.md            Detailed implementation conventions
+├── sample.dev_cogs.txt             Legacy development-cog sample; review paths before use
+│
+├── .github/workflows/
+│   ├── build_and_push.yml          Builds and publishes images to GHCR
+│   └── notificate_to_discord.yml   Sends tag notifications to Discord
+│
+├── assets/
+│   ├── gifs.py                     Welcome and general interaction media URLs
+│   └── nsfw_gifs.py                Legacy NSFW media lists used by migration tooling
+│
+├── data/
+│   ├── banned_word_list.txt        Discipline filter terms
+│   ├── fake_loading_sentences.txt  Random progress text for fun commands
+│   ├── femboy_role.txt             Role names used by the femboy card command
+│   ├── nsfw_channel.json           Verification-managed NSFW channel definitions
+│   ├── vietnamese_king_data.json   Generated Vua Tiếng Việt puzzle dataset
+│   └── word_connect_valid_list.txt Valid Vietnamese word-chain entries
+│
+├── scripts/
+│   ├── migrate_nsfw_gifs.py        Moves legacy GIF lists into Mongo global variables
+│   ├── vietnamese_king_data_prepare.py
+│   │                                 Normalizes/filter source words and generates game data
+│   └── words.txt                   Source records for Vietnamese data preparation
+│
+├── test/
+│   ├── test_meter_number_bars.py   unittest coverage for signed meter formatting
+│   └── word_stardardlize.py        Manual normalization utility; not auto-discovered as a test
+│
+└── cogs/
+    ├── __init__.py                 Root extension package marker
+    ├── general.py                  hello, invite, and verification-channel pointers
+    ├── help.py                     User, moderator, and NSFW help embeds
+    ├── afk_remind/
+    │   ├── afk_set.py              Timed/dynamic AFK setup, clearing, and ping review
+    │   └── afk_monitor.py          AFK mention capture and return detection
+    ├── announcement/
+    │   ├── __init__.py             Announcement package marker
+    │   ├── welcome.py              Member-join announcement
+    │   ├── goodbye.py              Member-leave announcement
+    │   └── banned.py               Member-ban announcement
+    ├── booster/
+    │   ├── _role_colors.py         Solid/gradient role-color parsing helper
+    │   ├── create_custom_role.py   Booster-owned custom role creation
+    │   ├── update_custom_role.py   Booster custom role edits
+    │   ├── create_custom_room.py   Booster private voice-room creation
+    │   └── janitor_unboosted.py    Scheduled cleanup after boosts expire
+    ├── cotd/random_femboy.py       Random saved image and social metadata lookup
+    ├── daily_reward/
+    │   ├── daily_action.py         Daily Trap Coin grant and claim tracking
+    │   └── user_account.py         Balance lookup and account initialization
+    ├── discipline/discipline.py    Banned-word listener, logging, warning, and deletion
+    ├── funny_things/
+    │   ├── _meter_helper.py        Deterministic scores, bars, loading, and embed helpers
+    │   ├── aura.py                 Signed aura score and icon bar
+    │   ├── redflag.py              Signed red/green flag score and icon bar
+    │   ├── birthday.py             Birthday registration and announcement task
+    │   ├── femboy_card.py          Member card based on configured role names
+    │   ├── gay_meter.py            Daily member meter with staged loading
+    │   ├── penisize.py             Daily member meter with staged loading
+    │   ├── ship_meter.py           Two-member compatibility meter
+    │   └── based.py, brainrot.py, clown.py, cope.py, cringe.py, delulu.py,
+    │       gyatt.py, ick.py, les_meter.py, mainchar.py, npc.py, ohio.py,
+    │       rizz.py, simp.py, skillissue.py, touchgrass.py, yapper.py
+    │                                 Shared-helper-based daily meter commands
+    ├── happy_new_year/
+    │   └── happy_lunar_new_year_2026.py
+    │                                     Time-limited one-time Lunar New Year greeting
+    ├── interaction/
+    │   ├── cat.py, dog.py             External animal-image API commands
+    │   ├── meme_interaction.py        Static meme response command
+    │   ├── user_interaction.py        Social actions, avatar display, and rankings
+    │   ├── nsfw_interaction.py        Age-gated interactions and rankings
+    │   └── nsfw_super_user.py         Role-controlled NSFW lock/unlock workflow
+    ├── job_remind/job_remind.py       Persistent timed DM reminders
+    ├── minigames/
+    │   ├── flip_coin/flip_coin.py     Coin betting against user balances
+    │   ├── slot_machine/slot_machine.py
+    │   │                                 Slot betting, payouts, and transaction logs
+    │   ├── sicbo/sicbo.py             Reaction-based Sic Bo rounds
+    │   ├── word_connect/word_connect.py
+    │   │                                 Persistent Vietnamese word-chain game
+    │   └── vietnamese_king/vietnamese_king.py
+    │                                     Persistent letter-scramble game
+    ├── mod/
+    │   ├── ban.py, kick.py             Basic member removal actions
+    │   ├── mute.py, timeout.py          Temporary restriction controls
+    │   ├── softban.py                   Soft-ban and role restoration data
+    │   ├── purge.py, janitor.py         Message cleanup commands
+    │   ├── nickname.py, role.py         Nickname and role management
+    │   ├── slowmode.py                  Slow-mode inspection and overrides
+    │   ├── warn.py                      Warning commands
+    │   ├── verified.py                  Verified role and NSFW channel access management
+    │   └── area_51_guard.py             Honeypot channel, cancel view, bans, and reminders
+    ├── nsfw/
+    │   ├── __init__.py             NSFW extension package marker
+    │   ├── r34.py                       Age-gated Rule34 API search
+    │   └── gelbooru.py                  Age-gated Gelbooru API search
+    ├── operation/
+    │   ├── heartbeat.py                 Latency/health command
+    │   ├── server_stats.py              In-memory uptime and command/error counts
+    │   └── leave.py                     Administrator-controlled guild departure
+    ├── settings/variable_setting.py     Mongo-backed runtime variable commands
+    └── utils/
+        ├── giveaway.py                  Persistent views, entries, scheduling, and rerolls
+        ├── vote.py                      Persistent reaction polls and result scheduling
+        ├── random_member.py             Random guild member selection
+        └── save_image.py                Discord attachment metadata persistence
+```
+
+Local `dev_cogs.txt` selects extensions during development. `draft.txt` is a local scratch file. Neither is maintained source, and neither should be committed.
+
+## Persistence Boundaries
+
+MongoDB collections are created lazily. Major groups are:
+
+- Configuration: `global_variables`
+- Economy: `user_accounts`, `daily_rewards_logs`, `transaction_logs`
+- Social state: `interactions`, `nsfw_settings`, `images`
+- Scheduling: `tasks`, `votes`, `giveaways`, `birthdays`, `birthday_announcements`
+- AFK and moderation: `afk_reminders`, `afk_pings`, `discipline_logs`, `old_roles`
+- Games and boosters: `context`, `sicbo_active_games`, `booster_custom_roles`, `booster_custom_rooms`
+
+Discord tokens, database credentials, and external API credentials belong in environment variables. Guild-specific IDs, media arrays, and feature switches generally belong in `global_variables`.
+
+## Where to Make a Change
+
+- Add or change a command/listener in its domain under `cogs/`.
+- Put reusable feature helpers in a leading-underscore module beside their consumers.
+- Put shared static media in `assets/`; put runtime-editable media in Mongo settings.
+- Treat large game datasets as generated outputs and update their preparation script with them.
+- Add deterministic regression tests under `test/test_*.py`.
+- Update this map whenever files move, a new subsystem appears, or ownership changes.
