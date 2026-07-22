@@ -4,7 +4,7 @@ These are the target conventions for new and changed code. Some legacy modules d
 
 ## Python Style
 
-- Target Python 3.11 and save source/data files as UTF-8.
+- Target Python 3.11, save source/data files as UTF-8, and keep tracked text files on LF line endings as enforced by `.gitattributes`.
 - Indent with four spaces; never use tabs.
 - Keep lines readable (roughly 88–100 characters when practical), but do not churn existing code only to wrap lines.
 - Use `snake_case` for files, functions, methods, variables, commands, and MongoDB fields; `PascalCase` for cogs, views, and other classes; `UPPER_SNAKE_CASE` for constants.
@@ -54,6 +54,12 @@ async def setup(bot: commands.Bot) -> None:
 
 Use explicit command names and concise `help` text. Add aliases only when they are stable and unambiguous. Use subcommand groups for one feature with multiple operations. Keep user-facing command responses in Vietnamese unless the surrounding feature deliberately uses another language; keep identifiers, logs, and technical comments in English.
 
+Mark experimental commands with `@BetaFunction` from
+`cogs._beta_function`, placed closest to the callback underneath the Discord
+command decorator. The shared check requires the member to hold at least one
+role configured in the MongoDB `BETA_ROLE_IDS` array, regardless of runtime; do
+not duplicate that check inside commands.
+
 ## Discord and Async Safety
 
 - Use `async def` for commands, listeners, view callbacks, and Discord I/O.
@@ -76,8 +82,12 @@ Use environment variables for credentials and process-level boot settings:
 - MongoDB connection fields
 - External API credentials
 - `ENVIRONMENT` and `COMMAND_PREFIX`
+- Process-level extension controls such as `DISABLED_COGS`
 
 Use MongoDB `global_variables` for guild-specific IDs, configurable media arrays, and feature settings. Read them through `bot.global_vars`; validate required values at cog initialization and name the missing key in the error. Optional settings should have an explicit default or disable only the affected behavior.
+
+Use `DISABLED_COGS` when an entire extension must be skipped before import;
+patterns are parsed by `cogs._feature_flags`.
 
 Never commit `.env`, `.env.prod`, tokens, API keys, production IDs, database dumps, or log files. Do not print secrets or full connection strings.
 

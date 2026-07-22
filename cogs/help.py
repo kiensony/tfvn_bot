@@ -1,6 +1,9 @@
 import asyncio
-from discord.ext import commands  # pyright: ignore[reportMissingImports]
+
 import discord  # pyright: ignore[reportMissingImports]
+from discord.ext import commands  # pyright: ignore[reportMissingImports]
+
+from cogs._beta_function import beta_access_denial, is_beta_function
 
 
 class HelpCog(commands.Cog):
@@ -15,11 +18,29 @@ class HelpCog(commands.Cog):
         # check if user have administrator permission
 
         # normal command (for all users)
+        title = "📖 Hướng dẫn sử dụng TFVN bot"
         embed = discord.Embed(
-            title="📖 Hướng dẫn sử dụng TFVN bot",
+            title=title,
             description="Danh sách lệnh hiện có:",
             color=0xFFC0CB,
         )
+        beta_commands = sorted(
+            command.qualified_name
+            for command in self.bot.walk_commands()
+            if is_beta_function(command) and not command.hidden
+        )
+        if beta_commands and beta_access_denial(ctx) is None:
+            command_list = ", ".join(
+                f"`{self.bot.command_prefix}{name}`" for name in beta_commands
+            )
+            embed.add_field(
+                name="Beta access:",
+                value=(
+                    f"{command_list}\n"
+                    "Các lệnh này yêu cầu Beta role đã cấu hình."
+                ),
+                inline=False,
+            )
         # AFK commands
         embed.add_field(
             name="AFK:",
@@ -40,12 +61,15 @@ class HelpCog(commands.Cog):
             inline=False,
         )
 
-        # Finance credits commands
+        # Economy commands
         embed.add_field(
-            name="Credits hàng ngày:",
+            name="Trap Coin & shop:",
             value=(
                 f"`{self.bot.command_prefix} daily` – Điểm danh hàng ngày và nhận 10 trap coin.\n"
                 f"`{self.bot.command_prefix} user_balance` – Xem số Trap coin hiện có của bạn.\n"
+                f"`{self.bot.command_prefix}user_transactions` – Xem 10 giao dịch gần nhất.\n"
+                f"`{self.bot.command_prefix}shop` – Xem cửa hàng Trap Coin.\n"
+                f"`{self.bot.command_prefix}shop inventory` – Xem vật phẩm đã mua.\n"
             ),
             inline=False,
         )
@@ -144,8 +168,9 @@ class HelpCog(commands.Cog):
     async def mod_help(self, ctx, *args):
         if args:
             return  # Ignore arguments for now
+        title = "Lệnh quản trị viên"
         embed = discord.Embed(
-            title="Lệnh quản trị viên",
+            title=title,
             color=0xFF0000,
         )
         embed.add_field(
@@ -153,8 +178,7 @@ class HelpCog(commands.Cog):
             value=(
                 f"`{self.bot.command_prefix} kick @user [reason]` – Kick member khỏi server.\n"
                 f"`{self.bot.command_prefix} ban @user [reason]` – Ban member khỏi server.\n"
-                f"`{self.bot.command_prefix} unban user#discrim` – Gỡ ban member khỏi server.\n"
-                f"`{self.bot.command_prefix} mute @user [duration] [reason]` – Mute member trong thời gian nhất định.\n"
+                f"`{self.bot.command_prefix} mute @user [reason]` – Gán role Muted.\n"
                 f"`{self.bot.command_prefix} unmute @user` – Gỡ mute cho member.\n"
                 f"`{self.bot.command_prefix} nickchange @user [new_nick]` – Đổi nickname cho member.\n"
                 f"`{self.bot.command_prefix} softban @user [reason]` – Softban member khỏi server.\n"
@@ -170,6 +194,24 @@ class HelpCog(commands.Cog):
                 f"`{self.bot.command_prefix} purge <n>` – Xoá n tin nhắn gần nhất trong channel hiện tại.\n"
                 f"`{self.bot.command_prefix} purge_user @user <n>` – Xoá n tin nhắn của user trong channel hiện tại.\n"
             ),
+            inline=False,
+        )
+        embed.add_field(
+            name="Cases & cấu hình:",
+            value=(
+                f"`{self.bot.command_prefix}case view <số>` – Xem moderation case.\n"
+                f"`{self.bot.command_prefix}case history @user` – Xem lịch sử member.\n"
+                f"`{self.bot.command_prefix}case log_channel [channel]` – Đặt mod-log channel.\n"
+                f"`{self.bot.command_prefix}setup check` – Kiểm tra config và permission.\n"
+            ),
+            inline=False,
+        )
+        community_admin_commands = [
+            f"`{self.bot.command_prefix}shop add_role <id> <giá> @role` – Thêm role vào shop.\n",
+        ]
+        embed.add_field(
+            name="Hệ thống cộng đồng:",
+            value="".join(community_admin_commands),
             inline=False,
         )
         await ctx.send(embed=embed)

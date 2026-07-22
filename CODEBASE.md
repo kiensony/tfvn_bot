@@ -6,7 +6,7 @@ This document maps the maintained repository files and explains where each behav
 
 1. `main.py` loads `.env`, creates the prefix-based `commands.Bot`, enables member and message-content intents, and attaches the MongoDB database from `db.py`.
 2. `DataLoader` loads shared lists from `data/` onto the bot instance.
-3. In production, every public Python module below `cogs/` is discovered recursively. In development, only modules in the ignored `dev_cogs.txt` are loaded.
+3. In production, every public Python module below `cogs/` is discovered recursively. Development uses the ignored `dev_cogs.txt`. Both use the database selected by `DB_NAME`.
 4. `cogs.settings.variable_setting` is loaded first when selected, populating `bot.global_vars` from MongoDB.
 5. Each extension registers commands, listeners, views, or scheduled tasks through `async def setup(bot)`.
 
@@ -21,6 +21,7 @@ tfvn_bot/
 ├── Dockerfile                      Python 3.11 multi-stage image
 ├── docker-compose.yml              Bot service and environment wiring; no Mongo service
 ├── .dockerignore                   Excludes secrets, tests, logs, and local artifacts
+├── .gitattributes                  Normalizes tracked text files to LF line endings
 ├── .gitignore                      Excludes local configuration, logs, and Python artifacts
 ├── README.md                       Project overview, setup, configuration, and operation
 ├── AGENTS.md                       Short contributor and agent entry guide
@@ -51,11 +52,14 @@ tfvn_bot/
 │   └── words.txt                   Source records for Vietnamese data preparation
 │
 ├── test/
+│   ├── test_community_features.py  Pure validation/time/helper regression tests
 │   ├── test_meter_number_bars.py   unittest coverage for signed meter formatting
 │   └── word_stardardlize.py        Manual normalization utility; not auto-discovered as a test
 │
 └── cogs/
     ├── __init__.py                 Root extension package marker
+    ├── _beta_function.py           Multi-role Beta command access guard
+    ├── _feature_flags.py           DISABLED_COGS pattern parsing
     ├── general.py                  hello, invite, and verification-channel pointers
     ├── help.py                     User, moderator, and NSFW help embeds
     ├── afk_remind/
@@ -75,7 +79,10 @@ tfvn_bot/
     ├── cotd/random_femboy.py       Random saved image and social metadata lookup
     ├── daily_reward/
     │   ├── daily_action.py         Daily Trap Coin grant and claim tracking
-    │   └── user_account.py         Balance lookup and account initialization
+    │   └── user_account.py         Balance, badge, and transaction-history lookup
+    ├── economy/
+    │   ├── _shop_helpers.py        Catalog ID, price, and display validation
+    │   └── shop.py                 Guild catalog, purchases, inventory, roles, and badges
     ├── discipline/discipline.py    Banned-word listener, logging, warning, and deletion
     ├── funny_things/
     │   ├── _meter_helper.py        Deterministic scores, bars, loading, and embed helpers
@@ -110,6 +117,8 @@ tfvn_bot/
     │   └── vietnamese_king/vietnamese_king.py
     │                                     Persistent letter-scramble game
     ├── mod/
+    │   ├── _case_helpers.py         Safe shared case recording and validation
+    │   ├── cases.py                 Numbered moderation audit trail and log config
     │   ├── ban.py, kick.py             Basic member removal actions
     │   ├── mute.py, timeout.py          Temporary restriction controls
     │   ├── softban.py                   Soft-ban and role restoration data
@@ -124,8 +133,10 @@ tfvn_bot/
     │   ├── r34.py                       Age-gated Rule34 API search
     │   └── gelbooru.py                  Age-gated Gelbooru API search
     ├── operation/
+    │   ├── _setup_helpers.py           Pure setup-check result and ID helpers
     │   ├── heartbeat.py                 Latency/health command
     │   ├── server_stats.py              In-memory uptime and command/error counts
+    │   ├── setup_check.py               Database, permission, ID, and cog diagnostics
     │   └── leave.py                     Administrator-controlled guild departure
     ├── settings/variable_setting.py     Mongo-backed runtime variable commands
     └── utils/
@@ -135,20 +146,31 @@ tfvn_bot/
         └── save_image.py                Discord attachment metadata persistence
 ```
 
-Local `dev_cogs.txt` selects extensions during development. `draft.txt` is a local scratch file. Neither is maintained source, and neither should be committed.
+Local `dev_cogs.txt` selects extensions during development. `DISABLED_COGS` can
+filter loaded extensions with exact dotted modules or wildcard patterns.
+`draft.txt` is a local scratch file.
 
 ## Persistence Boundaries
 
 MongoDB collections are created lazily. Major groups are:
 
-- Configuration: `global_variables`
-- Economy: `user_accounts`, `daily_rewards_logs`, `transaction_logs`
+- Configuration: `global_variables`, `moderation_config`
+- Economy: `user_accounts`, `daily_rewards_logs`, `transaction_logs`, `shop_items`, `shop_inventory`
 - Social state: `interactions`, `nsfw_settings`, `images`
 - Scheduling: `tasks`, `votes`, `giveaways`, `birthdays`, `birthday_announcements`
-- AFK and moderation: `afk_reminders`, `afk_pings`, `discipline_logs`, `old_roles`
+- AFK and moderation: `afk_reminders`, `afk_pings`, `discipline_logs`, `old_roles`, `warnings`, `moderation_cases`
+- Shared sequence counters: `feature_counters`
 - Games and boosters: `context`, `sicbo_active_games`, `booster_custom_roles`, `booster_custom_rooms`
 
-Discord tokens, database credentials, and external API credentials belong in environment variables. Guild-specific IDs, media arrays, and feature switches generally belong in `global_variables`.
+Discord tokens, database credentials, and external API credentials belong in
+environment variables. Runtime database selection uses `DB_NAME`.
+Process-level extension controls use `DISABLED_COGS`; guild-specific IDs and
+media arrays generally belong in `global_variables`.
+
+Commands decorated with `@BetaFunction` are registered normally in any runtime,
+but the callback requires the invoking member to hold at least one role in
+`BETA_ROLE_IDS`. The role list is read only from `bot.global_vars`, populated by
+the MongoDB `global_variables` collection; environment role values are ignored.
 
 ## Where to Make a Change
 

@@ -9,10 +9,10 @@ The bot uses prefix commands (the default prefix is `!tf `), stores persistent s
 
 ## Highlights
 
-- **Community management:** welcome, goodbye, ban announcements, verification, AFK tracking, birthdays, reminders, votes, and giveaways.
-- **Moderation:** kick, ban, soft-ban, mute, timeout, warnings, message cleanup, slow mode, nickname/role tools, and the Area 51 guard workflow.
+- **Community management:** welcome/goodbye announcements, verification, AFK tracking, birthdays, reminders, votes, and giveaways.
+- **Moderation:** kick, ban, soft-ban, mute, timeout, warnings, numbered audit cases, message cleanup, slow mode, nickname/role tools, and the Area 51 guard workflow.
 - **Booster perks:** custom roles and voice rooms, with automatic cleanup after a member stops boosting.
-- **Games and economy:** daily Trap Coins, slots, coin flips, Sic Bo, Vietnamese word chaining (`noitu`), and Vua Tiếng Việt (`vtv`).
+- **Games and economy:** daily Trap Coins, a configurable role/badge shop, transaction history, slots, coin flips, Sic Bo, Vietnamese word chaining (`noitu`), and Vua Tiếng Việt (`vtv`).
 - **Social and fun commands:** member interactions, rankings, avatars, random members, community-themed cards, and a collection of playful “meter” commands.
 - **Optional age-restricted features:** NSFW interactions and Rule34/Gelbooru searches, guarded by Discord's NSFW channel setting.
 - **Persistent state:** MongoDB-backed balances, interactions, game context, reminders, settings, giveaways, booster resources, and moderation data.
@@ -25,6 +25,9 @@ Cog loading depends on `ENVIRONMENT`:
 
 - `production` scans `cogs/` recursively and attempts to load every Python module whose filename does not start with `_`.
 - `development` loads only the dotted module paths listed in the ignored `dev_cogs.txt` file. Wildcards such as `cogs.mod.*` are supported.
+
+`DISABLED_COGS` accepts comma-separated dotted paths or wildcard patterns and
+skips matching extensions before import.
 
 The settings cog is always prioritized when present. It loads the MongoDB `global_variables` collection into `bot.global_vars` before feature cogs initialize. If an individual cog is missing its required configuration, the loader reports that failure and continues loading the remaining cogs.
 
@@ -71,6 +74,9 @@ DB_PASSWORD=replace_with_a_strong_password
 DB_HOST=localhost:27017
 DB_NAME=tfvn_bot
 
+# Optional feature controls
+DISABLED_COGS=
+
 # Used by cogs.general when that cog is enabled
 INVITE_LINK=https://discord.com/oauth2/authorize?...
 VERIFY_CHANNEL=123456789012345678
@@ -84,6 +90,35 @@ DB_METHOD://DB_USERNAME:DB_PASSWORD@DB_HOST/?retryWrites=true&w=majority
 
 Include the port in `DB_HOST`; the current connection builder does not read `DB_PORT`. Keep `.env` and `.env.prod` private—they are already ignored by Git.
 
+Feature controls:
+
+| Variable | Behavior |
+| --- | --- |
+| `DISABLED_COGS` | Comma-separated module patterns, such as `cogs.nsfw.*` |
+
+### Role-gated Beta command decorator
+
+Import `BetaFunction` and place it directly above a command callback:
+
+```python
+from discord.ext import commands
+
+from cogs._beta_function import BetaFunction
+
+
+@commands.command(name="new_preview")
+@BetaFunction
+async def new_preview(ctx: commands.Context) -> None:
+    await ctx.send("This Beta function is enabled.")
+```
+
+The callback is loaded with the normal bot, but runs only when the member has at
+least one role configured by `BETA_ROLE_IDS`. Set it as an `ARRAY` with
+`!tf setting set_variable BETA_ROLE_IDS`, one role ID per line.
+This setting is read only from MongoDB's `global_variables`; `.env` role values
+are ignored. Denied checks receive a safe message instead of running the
+callback. The shipped `!tf beta_preview` command can verify the configuration.
+
 ### 3. Select development cogs
 
 Create `dev_cogs.txt` with a small startup profile:
@@ -96,6 +131,8 @@ cogs.operation.heartbeat
 ```
 
 Add one dotted module path per line as you work. For example, `cogs.mod.*` loads every public module under `cogs/mod/`.
+The profile supports blank lines, comments, explicit modules, and `.*`
+wildcards.
 
 ### 4. Run the bot
 
@@ -125,10 +162,20 @@ Common settings include:
 | Verification | `FALLEN_FEMBOY_ROLE_ID` | `STRING` |
 | Booster placement | `BOOSTER_CUSTOM_ROLE_ANCHOR_ID`, `BOOSTER_CUSTOM_VOICE_CATEGORY_ID` | `STRING` |
 | Area 51 guard | `AREA_51_CHANNEL_ID`, `AREA_51_PRUNE_HOURS` | `STRING` |
+| Beta command access | `BETA_ROLE_IDS` | `ARRAY` |
 | NSFW role controls | `KING_ROLE_ID`, `QUEEN_ROLE_ID` | `STRING` |
 | NSFW interaction media | `BLOWJOB_GIFS`, `HANDJOB_GIFS`, `RIMJOB_GIFS`, `FROTTING_GIFS`, `FUCKING_GIFS`, `CREAMPIE_GIFS`, `THREESOME_GIFS`, `ORGY_GIFS` | `ARRAY` |
 
 The booster placement values are optional; without them, Discord creates the resource without placing it under a configured anchor/category. The word-chain move icons also have built-in emoji defaults.
+
+The shop and moderation cases keep guild-specific configuration in their own
+MongoDB collections. Configure them with their admin
+commands rather than `setting set_variable`:
+
+| System | Initial configuration |
+| --- | --- |
+| Moderation cases | `!tf case log_channel #mod-log` |
+| Shop | Add a role or badge item; no separate setup command is required |
 
 ### Optional booru API configuration
 
@@ -148,14 +195,49 @@ Commands are invoked with `COMMAND_PREFIX`. With the default prefix, `!tf help`,
 | Area | Representative commands |
 | --- | --- |
 | General | `help`, `hello`, `invite`, `verify`, `ping`, `server_stats` |
-| Community | `afk`, `jobremind add`, `birthday set`, `vote`, `giveaway`, `random_member` |
-| Economy and games | `daily`, `user_balance`, `slot`, `flip_coin`, `sicbo_start`, `noitu`, `vtv` |
-| Moderation | `kick`, `ban`, `softban`, `mute`, `timeout`, `warn`, `purge`, `slowmode`, `verified` |
+| Community | `afk`, `jobremind add`, `birthday set`, `vote`, `giveaway` |
+| Economy and games | `daily`, `user_balance`, `user_transactions`, `shop`, `slot`, `flip_coin`, `sicbo_start`, `noitu`, `vtv` |
+| Moderation | `kick`, `ban`, `softban`, `mute`, `timeout`, `warn`, `case`, `purge`, `slowmode`, `verified` |
+| Operations | `ping`, `server_stats`, `setup check` |
 | Booster tools | `custom_role`, `update_custom_role`, `custom_room` |
 | Social and fun | `kiss`, `hug`, `pat`, `avatar`, `rank`, `ship`, `aura`, `redflag`, and other meter commands |
 | Optional NSFW | `nsfw`, `r34`, `gbr`, NSFW interactions, rankings, and role-based locks |
 
 This is an overview rather than an exhaustive command reference; the source of truth is each module under `cogs/`.
+
+## Community systems
+
+### Trap Coin shop
+
+Administrators can add permanent role or badge ownership to the guild catalog:
+
+```text
+!tf shop add_role pink 100 @Pink A cosmetic pink role
+!tf shop add_badge helper 250 Community Helper
+```
+
+Members use `shop`, `shop buy <item_id>`, `shop inventory`, and
+`shop use <item_id>`. Purchases deduct balances atomically, reject duplicate
+ownership, and write to `transaction_logs`. A badge remains owned when it is
+unequipped.
+
+### Moderation cases
+
+Successful ban, kick, warn, timeout, mute, and soft-ban actions create a
+guild-scoped numbered case. Moderators can use:
+
+```text
+!tf case view 12
+!tf case history @member
+!tf case edit 12 Updated reason
+!tf case status 12 resolved
+```
+
+Reason and status edits retain an edit history. Status can be `open`,
+`resolved`, `appealed`, or `void`.
+
+Run `!tf setup check` after configuration to inspect MongoDB connectivity,
+loaded cogs, channel/role IDs, bot permissions, and role hierarchy.
 
 ## Docker
 
@@ -184,7 +266,8 @@ Run the unit-test suite from the repository root:
 python -m unittest discover -s test -p "test_*.py"
 ```
 
-The current automated tests cover shared formatting and icon-bar behavior used by the meter commands.
+The automated tests cover meter formatting, cog flags, and validation helpers
+used by the shop, cases, and setup diagnostics.
 
 ## Project structure
 
@@ -194,7 +277,10 @@ tfvn_bot/
 ├── db.py                   # MongoDB client and database selection
 ├── dataloader.py           # JSON, text, line, and CSV data helpers
 ├── cogs/                   # Discord commands, listeners, tasks, and UI views
+│   ├── _beta_function.py   # Database-role guard for experimental commands
+│   ├── _feature_flags.py   # Feature and cog disable flag parsing
 │   ├── settings/           # Mongo-backed runtime variables
+│   ├── economy/            # Trap Coin shop, inventory, badges, and role items
 │   ├── mod/                # Moderation and verification
 │   ├── booster/            # Booster custom roles/rooms and cleanup
 │   ├── minigames/          # Economy games and Vietnamese word games
@@ -208,4 +294,7 @@ tfvn_bot/
 └── docker-compose.yml
 ```
 
-To add a cog, create a module containing an asynchronous `setup(bot)` function and call `await bot.add_cog(...)`. Production discovers it automatically; development requires adding its dotted path to `dev_cogs.txt`. Prefix helper filenames with `_` when they should not be loaded as extensions.
+To add a cog, create a module containing an asynchronous `setup(bot)` function
+and call `await bot.add_cog(...)`. Production discovers it automatically;
+development uses its local cog profile. Prefix helper filenames with `_` when
+they should not be loaded as extensions.
