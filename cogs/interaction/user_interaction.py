@@ -354,16 +354,83 @@ class UserInteractionCog(commands.Cog):
         # Let the global handler deal with unexpected errors.
         raise error
 
-    @commands.command(name="avatar", aliases=["av"])
+    def _global_avatar_url(self, member: discord.Member | discord.User) -> str:
+        """Discord global avatar (account-level), not the server override."""
+        avatar = member.avatar or member.default_avatar
+        return avatar.url
+
+    def _server_avatar_url(self, member: discord.Member) -> str | None:
+        """Guild-specific avatar, or None if the member has none in this server."""
+        if member.guild_avatar is None:
+            return None
+        return member.guild_avatar.url
+
+    async def _send_avatar_embed(
+        self,
+        ctx: commands.Context,
+        member: discord.Member,
+        *,
+        title: str,
+        image_url: str,
+        kind_label: str,
+    ) -> None:
+        embed = discord.Embed(
+            title=title,
+            description=(
+                f"{kind_label} của {member.mention}\n"
+                f"[Mở ảnh gốc]({image_url})"
+            ),
+            color=discord.Color.blurple(),
+        )
+        embed.set_image(url=image_url)
+        embed.set_footer(text=f"ID: {member.id}")
+        await ctx.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
+
+    @commands.command(
+        name="avatar",
+        aliases=["av", "global_avatar", "globalav"],
+        help="Xem avatar global (tài khoản Discord) của member.",
+    )
     async def avatar(
         self, ctx: commands.Context, member: discord.Member | None = None
     ) -> None:
         member = member or ctx.author
-        await self._send_embed(
+        await self._send_avatar_embed(
             ctx,
-            title=f"📸 Avatar của {member.display_name}:",
-            description="",
-            gif_url=member.display_avatar.url,
+            member,
+            title=f"🌐 Avatar global — {member.display_name}",
+            image_url=self._global_avatar_url(member),
+            kind_label="Avatar global",
+        )
+
+    @commands.command(
+        name="server_avatar",
+        aliases=["sav", "guild_avatar", "serverav"],
+        help="Xem avatar server của member (fallback sang global nếu chưa đặt).",
+    )
+    @commands.guild_only()
+    async def server_avatar(
+        self, ctx: commands.Context, member: discord.Member | None = None
+    ) -> None:
+        member = member or ctx.author
+        server_url = self._server_avatar_url(member)
+        if server_url is not None:
+            await self._send_avatar_embed(
+                ctx,
+                member,
+                title=f"🏠 Avatar server — {member.display_name}",
+                image_url=server_url,
+                kind_label="Avatar server",
+            )
+            return
+
+        # No server avatar (common for non-Nitro / unset): show global instead.
+        await self._send_avatar_embed(
+            ctx,
+            member,
+            title=f"🌐 Avatar global — {member.display_name}",
+            image_url=self._global_avatar_url(member),
+            kind_label="Avatar global (không có avatar server)",
         )
 
     @commands.command(name="rank", aliases=["ranking"])
