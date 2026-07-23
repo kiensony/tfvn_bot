@@ -4,6 +4,8 @@ TFVN Bot is a Vietnamese-first Discord community bot built for **Trap & Femboy V
 
 The bot uses prefix commands (the default prefix is `!tf `), stores persistent state in MongoDB, and organizes features as independently loaded cogs.
 
+For a complete list of commands and automatic features, see [FUNCTIONS.md](FUNCTIONS.md).
+
 > [!WARNING]
 > This repository includes optional adult/NSFW cogs and third-party booru integrations. Only enable them for an adult community, keep them restricted to age-gated Discord channels, and follow Discord's rules and the upstream services' terms.
 

@@ -26,6 +26,7 @@ tfvn_bot/
 ├── README.md                       Project overview, setup, configuration, and operation
 ├── AGENTS.md                       Short contributor and agent entry guide
 ├── CODEBASE.md                     This ownership and architecture map
+├── FUNCTIONS.md                    Full user-facing command and feature catalog
 ├── CODING_CONVENSION.md            Detailed implementation conventions
 ├── sample.dev_cogs.txt             Legacy development-cog sample; review paths before use
 │
