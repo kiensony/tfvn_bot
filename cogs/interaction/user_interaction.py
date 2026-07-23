@@ -26,6 +26,10 @@ from assets.gifs import (
 
 HIT_GIFS = SLAP_GIFS + PUNCH_GIFS
 
+# Shared cooldown for all SFW interaction commands (rate uses / per seconds).
+SFW_INTERACTION_COOLDOWN_RATE = 1
+SFW_INTERACTION_COOLDOWN_PER = 3.0
+
 
 @dataclass(frozen=True)
 class InteractionSpec:
@@ -39,6 +43,8 @@ class InteractionSpec:
     given_text: str
     received_text: str
     aliases: tuple[str, ...] = ()
+    # Soft / meme self-targets only; social-with-other stays blocked.
+    allow_self: bool = False
 
     @property
     def help_text(self) -> str:
@@ -73,6 +79,7 @@ SFW_ACTION_SPECS: tuple[InteractionSpec, ...] = (
         gifs=PAT_GIFS,
         given_text="xoa đầu người khác",
         received_text="được xoa đầu",
+        allow_self=True,
     ),
     InteractionSpec(
         name="slap",
@@ -82,6 +89,7 @@ SFW_ACTION_SPECS: tuple[InteractionSpec, ...] = (
         gifs=SLAP_GIFS,
         given_text="tát người khác",
         received_text="bị tát",
+        allow_self=True,  # facepalm energy
     ),
     InteractionSpec(
         name="punch",
@@ -91,6 +99,7 @@ SFW_ACTION_SPECS: tuple[InteractionSpec, ...] = (
         gifs=PUNCH_GIFS,
         given_text="đấm người khác",
         received_text="bị đấm",
+        allow_self=True,
     ),
     InteractionSpec(
         name="hit",
@@ -100,6 +109,7 @@ SFW_ACTION_SPECS: tuple[InteractionSpec, ...] = (
         gifs=HIT_GIFS,
         given_text="đánh người khác",
         received_text="bị đánh",
+        allow_self=True,
     ),
     InteractionSpec(
         name="poke",
@@ -109,6 +119,7 @@ SFW_ACTION_SPECS: tuple[InteractionSpec, ...] = (
         gifs=POKE_GIFS,
         given_text="chọc người khác",
         received_text="bị chọc",
+        allow_self=True,
     ),
     InteractionSpec(
         name="cuddle",
@@ -155,6 +166,7 @@ SFW_ACTION_SPECS: tuple[InteractionSpec, ...] = (
         gifs=BONK_GIFS,
         given_text="bonk người khác",
         received_text="bị bonk",
+        allow_self=True,
     ),
     InteractionSpec(
         name="bite",
@@ -218,8 +230,13 @@ class UserInteractionCog(commands.Cog):
     def _register_interaction_commands(self) -> None:
         """Register one command per InteractionSpec (no per-action method bodies)."""
         for spec in SFW_ACTION_SPECS:
+            callback = commands.cooldown(
+                SFW_INTERACTION_COOLDOWN_RATE,
+                SFW_INTERACTION_COOLDOWN_PER,
+                commands.BucketType.user,
+            )(self._make_interaction_callback(spec))
             command = commands.Command(
-                self._make_interaction_callback(spec),
+                callback,
                 name=spec.name,
                 aliases=list(spec.aliases),
                 help=spec.help_text,
@@ -266,22 +283,76 @@ class UserInteractionCog(commands.Cog):
             embed.set_image(url=gif_url)
         await ctx.send(embed=embed)
 
+    def _target_guard(
+        self, ctx: commands.Context, member: discord.Member, spec: InteractionSpec
+    ) -> str | None:
+        """Return a user-facing error message, or None if the target is allowed."""
+        if member.bot:
+            if member.id == getattr(self.bot.user, "id", None):
+                return "Đừng tương tác với bot nha, mình không phải thịt đâu 🤖"
+            return "Không thể tương tác với bot khác được đâu 🤖"
+
+        if member.id == ctx.author.id and not spec.allow_self:
+            return (
+                f"Bạn không thể tự **{spec.verb}** chính mình được đâu 😳\n"
+                f"Hãy tag một member khác nhé."
+            )
+        return None
+
     async def _do_interaction(
         self,
         ctx: commands.Context,
         member: discord.Member,
         spec: InteractionSpec,
     ) -> None:
+        deny_reason = self._target_guard(ctx, member, spec)
+        if deny_reason is not None:
+            await ctx.reply(deny_reason, mention_author=False)
+            return
+
         picker = self._pickers[spec.name]
         self.record_action(spec.name, ctx, member)
+
+        if member.id == ctx.author.id:
+            description = (
+                f"{ctx.author.mention} tự {spec.verb} mình {spec.suffix}"
+            )
+        else:
+            description = (
+                f"{ctx.author.mention} {spec.verb} {member.mention} {spec.suffix}"
+            )
+
         await self._send_embed(
             ctx,
             title=spec.title,
-            description=(
-                f"{ctx.author.mention} {spec.verb} {member.mention} {spec.suffix}"
-            ),
+            description=description,
             gif_url=picker.pick(),
         )
+
+    async def cog_command_error(
+        self, ctx: commands.Context, error: commands.CommandError
+    ) -> None:
+        if isinstance(error, commands.CommandOnCooldown):
+            await ctx.reply(
+                f"Chậm thôi~ đợi **{error.retry_after:.1f}s** rồi tương tác tiếp nhé ⏳",
+                mention_author=False,
+            )
+            return
+        if isinstance(error, commands.MissingRequiredArgument):
+            if ctx.command and ctx.command.name in _SFW_ACTION_BY_NAME:
+                await ctx.reply(
+                    f"Cú pháp: `{ctx.prefix}{ctx.command.name} @user`",
+                    mention_author=False,
+                )
+                return
+        if isinstance(error, commands.MemberNotFound):
+            await ctx.reply(
+                "Không tìm thấy member đó. Hãy tag đúng người nhé.",
+                mention_author=False,
+            )
+            return
+        # Let the global handler deal with unexpected errors.
+        raise error
 
     @commands.command(name="avatar", aliases=["av"])
     async def avatar(
