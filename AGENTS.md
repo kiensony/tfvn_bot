@@ -2,7 +2,7 @@
 
 ## Documentation Map
 
-Read [README.md](README.md) for setup and operation, [CODEBASE.md](CODEBASE.md) for runtime flow and file ownership, and [CODING_CONVENSION.md](CODING_CONVENSION.md) for detailed implementation rules. Update the relevant document when structure, configuration, or conventions change.
+Read [README.md](README.md) for setup and operation, [CODEBASE.md](CODEBASE.md) for runtime flow and file ownership, [FUNCTIONS.md](FUNCTIONS.md) for the full command and feature catalog, and [CODING_CONVENSION.md](CODING_CONVENSION.md) for detailed implementation rules. Update the relevant document when structure, configuration, or conventions change.
 
 ## Project Structure & Module Organization
 

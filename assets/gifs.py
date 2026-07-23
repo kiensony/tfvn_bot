@@ -64,6 +64,84 @@ POKE_GIFS = [
     "https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExZDRheHBqbmNkcGVpY2VtNms3dmdjNndmb3FvaGo4YWRscDM0YW11eSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/LXTQN2kRbaqAw/giphy.gif",
 ]
 
+# New interaction GIFs (verified HTTP 200). Prefer otakugifs + nekos.life CDNs.
+CUDDLE_GIFS = [
+    "https://cdn.otakugifs.xyz/gifs/cuddle/637c4ebe099a66c6.gif",
+    "https://cdn.otakugifs.xyz/gifs/cuddle/a95eec42fb7ead11.gif",
+    "https://cdn.otakugifs.xyz/gifs/cuddle/ba935ce7bc897ed0.gif",
+    "https://cdn.otakugifs.xyz/gifs/cuddle/d102ff1e19d1f484.gif",
+    "https://cdn.otakugifs.xyz/gifs/cuddle/9451895d4159a28b.gif",
+    "https://cdn.otakugifs.xyz/gifs/cuddle/c28fe4433104e0f0.gif",
+    "https://cdn.nekos.life/cuddle/cuddle_006.gif",
+    "https://cdn.nekos.life/cuddle/cuddle_005.gif",
+]
+
+SNUGGLE_GIFS = [
+    "https://cdn.otakugifs.xyz/gifs/nuzzle/b9f5073d29f3b7a2.gif",
+    "https://cdn.otakugifs.xyz/gifs/nuzzle/817a53c8b8a7b2a1.gif",
+    "https://cdn.otakugifs.xyz/gifs/nuzzle/zp8786it.gif",
+    "https://cdn.otakugifs.xyz/gifs/nuzzle/6807c3928b3c7a8f.gif",
+    "https://cdn.otakugifs.xyz/gifs/nuzzle/f3dd457bfa848ea5.gif",
+    "https://cdn.otakugifs.xyz/gifs/nuzzle/709PaNzpku.gif",
+    "https://cdn.nekos.life/cuddle/cuddle_041.gif",
+    "https://cdn.nekos.life/cuddle/cuddle_029.gif",
+]
+
+BOOP_GIFS = [
+    "https://cdn.otakugifs.xyz/gifs/poke/db2fdca3996922ad.gif",
+    "https://cdn.otakugifs.xyz/gifs/poke/2527bd1932ba80df.gif",
+    "https://cdn.otakugifs.xyz/gifs/poke/0fac7376e78ccfe4.gif",
+    "https://cdn.otakugifs.xyz/gifs/poke/dd9a1a19ba6e13de.gif",
+    "https://cdn.otakugifs.xyz/gifs/poke/1e2d642623174623.gif",
+    "https://cdn.otakugifs.xyz/gifs/poke/b616079b29573e08.gif",
+    "https://cdn.otakugifs.xyz/gifs/nuzzle/b9f5073d29f3b7a2.gif",
+    "https://cdn.otakugifs.xyz/gifs/nuzzle/817a53c8b8a7b2a1.gif",
+]
+
+HANDHOLD_GIFS = [
+    "https://cdn.otakugifs.xyz/gifs/handhold/a2be9c7cbdb80d5b.gif",
+    "https://cdn.otakugifs.xyz/gifs/handhold/160b0440eb5c8996.gif",
+    "https://cdn.otakugifs.xyz/gifs/handhold/1v0ZK48bw9.gif",
+    "https://cdn.otakugifs.xyz/gifs/handhold/f02cb53ce0b33c39.gif",
+    "https://cdn.otakugifs.xyz/gifs/handhold/66cc07bd7b1b7aff.gif",
+    "https://cdn.otakugifs.xyz/gifs/handhold/f9pOCLRlUU.gif",
+    "https://cdn.otakugifs.xyz/gifs/handhold/558494c34723b63c.gif",
+    "https://cdn.otakugifs.xyz/gifs/handhold/3e100d40855fecea.gif",
+]
+
+BONK_GIFS = [
+    "https://cdn.otakugifs.xyz/gifs/smack/d601af5bffe114cc.gif",
+    "https://cdn.otakugifs.xyz/gifs/smack/Avh6ieJLzKeZ.gif",
+    "https://cdn.otakugifs.xyz/gifs/smack/b2a96e2b92d86304.gif",
+    "https://cdn.otakugifs.xyz/gifs/smack/WWetybgH3D3g.gif",
+    "https://cdn.otakugifs.xyz/gifs/smack/fa0c23b3a4fb3915.gif",
+    "https://cdn.otakugifs.xyz/gifs/smack/df8232ef82800698.gif",
+    "https://cdn.nekos.life/slap/slap_013.gif",
+    "https://cdn.nekos.life/slap/slap_012.gif",
+]
+
+BITE_GIFS = [
+    "https://cdn.otakugifs.xyz/gifs/bite/qSQsCXHTRi.gif",
+    "https://cdn.otakugifs.xyz/gifs/bite/188ae836d6565df7.gif",
+    "https://cdn.otakugifs.xyz/gifs/bite/00f2ae5edc6c3e33.gif",
+    "https://cdn.otakugifs.xyz/gifs/bite/CV4RPSRD2A.gif",
+    "https://cdn.otakugifs.xyz/gifs/bite/912cdb636d8dcae1.gif",
+    "https://cdn.otakugifs.xyz/gifs/bite/2b869d0d6cd05a40.gif",
+    "https://cdn.otakugifs.xyz/gifs/nom/4bb7371b747a9815.gif",
+    "https://cdn.otakugifs.xyz/gifs/nom/f84b3b9a230fdba8.gif",
+]
+
+STARE_GIFS = [
+    "https://cdn.otakugifs.xyz/gifs/stare/ch5vwQeQj6.gif",
+    "https://cdn.otakugifs.xyz/gifs/stare/ab52b3e4058cb2cc.gif",
+    "https://cdn.otakugifs.xyz/gifs/stare/fe33f1e6f13ae0d7.gif",
+    "https://cdn.otakugifs.xyz/gifs/stare/RJcZBNkYAO.gif",
+    "https://cdn.otakugifs.xyz/gifs/stare/eb8b8a83da023242.gif",
+    "https://cdn.otakugifs.xyz/gifs/stare/E3nBwRWqhV.gif",
+    "https://cdn.otakugifs.xyz/gifs/angrystare/JEzdARxV6m.gif",
+    "https://cdn.otakugifs.xyz/gifs/angrystare/cH5xxAUe7Y.gif",
+]
+
 # Meme GIF ASSETS
 
 GIFS_36 = [

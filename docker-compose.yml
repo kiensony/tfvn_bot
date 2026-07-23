@@ -13,4 +13,5 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-tfvn_bot_pass}
       DB_HOST: ${DB_HOST:-mongo.example.com:27017}
       DB_NAME: ${DB_NAME:-tfvn_bot}
+      DISABLED_COGS: ${DISABLED_COGS:-}
     restart: unless-stopped
