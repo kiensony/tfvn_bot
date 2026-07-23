@@ -183,6 +183,13 @@ Most meters accept an optional `@member` (default: author). Scores are determini
 | `punch @user` | — | Everyone | Punch |
 | `hit @user` | — | Everyone | Hit |
 | `poke @user` | — | Everyone | Poke |
+| `cuddle @user` | — | Everyone | Cuddle |
+| `snuggle @user` | — | Everyone | Snuggle |
+| `boop @user` | — | Everyone | Boop nose |
+| `handhold @user` | `holdhand` | Everyone | Hold hands |
+| `bonk @user` | — | Everyone | Bonk |
+| `bite @user` | `nom` | Everyone | Bite |
+| `stare @user` | — | Everyone | Stare |
 | `avatar [@user]` | `av` | Everyone | Show avatar (default: author) |
 | `rank [r] [action]` | `ranking` | Everyone | Interaction leaderboards (global or per-action; `r` = receivers) |
 | `cat` | — | Everyone | Random cat image (external API) |
@@ -415,7 +422,8 @@ vtv, vtv status, vtv next, vtv hint
 gay, les, ship, penisize, aura, redflag, based, brainrot, clown, cope, cringe, delulu,
 gyatt, ick, mainchar, npc, ohio, rizz, simp, skillissue, touchgrass, yapper,
 femboycard, birthday, birthday set
-kiss, hug, pat, slap, punch, hit, poke, avatar, rank, cat, dog, 36
+kiss, hug, pat, slap, punch, hit, poke, cuddle, snuggle, boop, handhold, bonk, bite, stare,
+avatar, rank, cat, dog, 36
 r34, gbr, nsfwrule, bj, rj, hj, frot, fuck, cream, 3some, orgy, ranknsfw, mrank
 locknsfw, unlocknsfw, verified, unverified
 custom_role, update_custom_role, custom_room

@@ -117,6 +117,13 @@ class HelpCog(commands.Cog):
                 f"`{self.bot.command_prefix} punch @user` – Đấm member khác.\n"
                 f"`{self.bot.command_prefix} hit @user` – Đánh member khác.\n"
                 f"`{self.bot.command_prefix} poke @user` – Chọc member khác.\n"
+                f"`{self.bot.command_prefix} cuddle @user` – Cuddle member khác.\n"
+                f"`{self.bot.command_prefix} snuggle @user` – Snuggle member khác.\n"
+                f"`{self.bot.command_prefix} boop @user` – Boop mũi member khác.\n"
+                f"`{self.bot.command_prefix} handhold @user` – Nắm tay member khác.\n"
+                f"`{self.bot.command_prefix} bonk @user` – Bonk member khác.\n"
+                f"`{self.bot.command_prefix} bite @user` – Cắn member khác.\n"
+                f"`{self.bot.command_prefix} stare @user` – Nhìn chằm chằm member khác.\n"
                 f"`{self.bot.command_prefix} avatar @user` – Xem avatar của member khác.\n"
             ),
             inline=False,
