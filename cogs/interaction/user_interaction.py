@@ -1,5 +1,9 @@
+from __future__ import annotations
+
 import random
 from collections import deque
+from dataclasses import dataclass
+from typing import Sequence
 
 import discord  # pyright: ignore[reportMissingImports]
 from discord.ext import commands  # pyright: ignore[reportMissingImports]
@@ -22,99 +26,249 @@ from assets.gifs import (
 
 HIT_GIFS = SLAP_GIFS + PUNCH_GIFS
 
-SFW_INTERACTIONS = [
-    "kiss",
-    "hug",
-    "pat",
-    "slap",
-    "punch",
-    "hit",
-    "poke",
-    "cuddle",
-    "snuggle",
-    "boop",
-    "handhold",
-    "bonk",
-    "bite",
-    "stare",
-]
+# Shared cooldown for all SFW interaction commands (rate uses / per seconds).
+SFW_INTERACTION_COOLDOWN_RATE = 1
+SFW_INTERACTION_COOLDOWN_PER = 3.0
 
-ACTION_TEXT_GIVEN = {
-    "kiss": "hôn người khác",
-    "hug": "ôm người khác",
-    "pat": "xoa đầu người khác",
-    "slap": "tát người khác",
-    "punch": "đấm người khác",
-    "hit": "đánh người khác",
-    "poke": "chọc người khác",
-    "cuddle": "cuddle người khác",
-    "snuggle": "snuggle người khác",
-    "boop": "boop mũi người khác",
-    "handhold": "nắm tay người khác",
-    "bonk": "bonk người khác",
-    "bite": "cắn người khác",
-    "stare": "nhìn chằm chằm người khác",
+
+@dataclass(frozen=True)
+class InteractionSpec:
+    """One SFW member interaction (command + rank copy + GIF pool)."""
+
+    name: str
+    title: str
+    verb: str
+    suffix: str
+    gifs: Sequence[str]
+    given_text: str
+    received_text: str
+    aliases: tuple[str, ...] = ()
+    # Soft / meme self-targets only; social-with-other stays blocked.
+    allow_self: bool = False
+
+    @property
+    def help_text(self) -> str:
+        return f"{self.verb.capitalize()} member khác."
+
+
+# Single source of truth: adding an action only requires a new entry here.
+SFW_ACTION_SPECS: tuple[InteractionSpec, ...] = (
+    InteractionSpec(
+        name="kiss",
+        title="💋 Moah moahhh~",
+        verb="hôn",
+        suffix="💖",
+        gifs=KISS_GIFS,
+        given_text="hôn người khác",
+        received_text="được hôn",
+    ),
+    InteractionSpec(
+        name="hug",
+        title="🤗 Ỏoooo, ôm cái nào!",
+        verb="ôm",
+        suffix="🫂",
+        gifs=HUG_GIFS,
+        given_text="ôm người khác",
+        received_text="được ôm",
+    ),
+    InteractionSpec(
+        name="pat",
+        title="😉 Xoa đầu cái nha~",
+        verb="xoa đầu",
+        suffix="🌸",
+        gifs=PAT_GIFS,
+        given_text="xoa đầu người khác",
+        received_text="được xoa đầu",
+        allow_self=True,
+    ),
+    InteractionSpec(
+        name="slap",
+        title="🤬 Ăn tát đi!",
+        verb="tát",
+        suffix="🤚🏻",
+        gifs=SLAP_GIFS,
+        given_text="tát người khác",
+        received_text="bị tát",
+        allow_self=True,  # facepalm energy
+    ),
+    InteractionSpec(
+        name="punch",
+        title="👊 Một đấm là nằm!",
+        verb="đấm",
+        suffix="👊🏻",
+        gifs=PUNCH_GIFS,
+        given_text="đấm người khác",
+        received_text="bị đấm",
+        allow_self=True,
+    ),
+    InteractionSpec(
+        name="hit",
+        title="💥 Bốp bốp!",
+        verb="đánh",
+        suffix="🔨",
+        gifs=HIT_GIFS,
+        given_text="đánh người khác",
+        received_text="bị đánh",
+        allow_self=True,
+    ),
+    InteractionSpec(
+        name="poke",
+        title="👉 Chọc chọc!",
+        verb="chọc",
+        suffix="👉🏻",
+        gifs=POKE_GIFS,
+        given_text="chọc người khác",
+        received_text="bị chọc",
+        allow_self=True,
+    ),
+    InteractionSpec(
+        name="cuddle",
+        title="🥰 Cuddle nè~",
+        verb="cuddle",
+        suffix="💕",
+        gifs=CUDDLE_GIFS,
+        given_text="cuddle người khác",
+        received_text="được cuddle",
+    ),
+    InteractionSpec(
+        name="snuggle",
+        title="🐻 Snuggle chút nha~",
+        verb="snuggle",
+        suffix="💗",
+        gifs=SNUGGLE_GIFS,
+        given_text="snuggle người khác",
+        received_text="được snuggle",
+    ),
+    InteractionSpec(
+        name="boop",
+        title="👆 Boop!",
+        verb="boop mũi",
+        suffix="🐽",
+        gifs=BOOP_GIFS,
+        given_text="boop mũi người khác",
+        received_text="bị boop mũi",
+    ),
+    InteractionSpec(
+        name="handhold",
+        title="🤝 Nắm tay nào~",
+        verb="nắm tay",
+        suffix="💞",
+        gifs=HANDHOLD_GIFS,
+        given_text="nắm tay người khác",
+        received_text="được nắm tay",
+        aliases=("holdhand",),
+    ),
+    InteractionSpec(
+        name="bonk",
+        title="🔨 Bonk!",
+        verb="bonk",
+        suffix="💢",
+        gifs=BONK_GIFS,
+        given_text="bonk người khác",
+        received_text="bị bonk",
+        allow_self=True,
+    ),
+    InteractionSpec(
+        name="bite",
+        title="🦷 Nham nham~",
+        verb="cắn",
+        suffix="🤭",
+        gifs=BITE_GIFS,
+        given_text="cắn người khác",
+        received_text="bị cắn",
+        aliases=("nom",),
+    ),
+    InteractionSpec(
+        name="stare",
+        title="👀 ...",
+        verb="nhìn chằm chằm",
+        suffix="😳",
+        gifs=STARE_GIFS,
+        given_text="nhìn chằm chằm người khác",
+        received_text="bị nhìn chằm chằm",
+    ),
+)
+
+SFW_INTERACTIONS: list[str] = [spec.name for spec in SFW_ACTION_SPECS]
+ACTION_TEXT_GIVEN: dict[str, str] = {
+    spec.name: spec.given_text for spec in SFW_ACTION_SPECS
+}
+ACTION_TEXT_RECEIVED: dict[str, str] = {
+    spec.name: spec.received_text for spec in SFW_ACTION_SPECS
+}
+_SFW_ACTION_BY_NAME: dict[str, InteractionSpec] = {
+    spec.name: spec for spec in SFW_ACTION_SPECS
 }
 
-ACTION_TEXT_RECEIVED = {
-    "kiss": "được hôn",
-    "hug": "được ôm",
-    "pat": "được xoa đầu",
-    "slap": "bị tát",
-    "punch": "bị đấm",
-    "hit": "bị đánh",
-    "poke": "bị chọc",
-    "cuddle": "được cuddle",
-    "snuggle": "được snuggle",
-    "boop": "bị boop mũi",
-    "handhold": "được nắm tay",
-    "bonk": "bị bonk",
-    "bite": "bị cắn",
-    "stare": "bị nhìn chằm chằm",
-}
 
-
-# tránh lặp lại gif gần đây
 class GifPicker:
-    def __init__(self, gifs: list[str], history_size: int = 5):
-        self.gifs = gifs
-        self.recent = deque(maxlen=history_size)
+    """Avoid repeating the same GIF within a short recent window."""
+
+    def __init__(self, gifs: Sequence[str], history_size: int = 5) -> None:
+        self.gifs = list(gifs)
+        self.recent: deque[str] = deque(maxlen=history_size)
 
     def pick(self) -> str:
-        candidates = [g for g in self.gifs if g not in self.recent]
-        gif = random.choice(candidates or self.gifs)
-        self.recent.append(gif)
-        return gif
+        if not self.gifs:
+            raise ValueError("GifPicker requires a non-empty GIF list.")
+        candidates = [gif for gif in self.gifs if gif not in self.recent]
+        chosen = random.choice(candidates or self.gifs)
+        self.recent.append(chosen)
+        return chosen
 
 
 class UserInteractionCog(commands.Cog):
-    def __init__(self, bot: commands.Bot):
+    def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
-        self.kiss_picker = GifPicker(KISS_GIFS, history_size=5)
-        self.hug_picker = GifPicker(HUG_GIFS, history_size=5)
-        self.pat_picker = GifPicker(PAT_GIFS, history_size=5)
-        self.slap_picker = GifPicker(SLAP_GIFS, history_size=5)
-        self.punch_picker = GifPicker(PUNCH_GIFS, history_size=5)
-        self.hit_picker = GifPicker(HIT_GIFS, history_size=5)
-        self.poke_picker = GifPicker(POKE_GIFS, history_size=5)
-        self.cuddle_picker = GifPicker(CUDDLE_GIFS, history_size=5)
-        self.snuggle_picker = GifPicker(SNUGGLE_GIFS, history_size=5)
-        self.boop_picker = GifPicker(BOOP_GIFS, history_size=5)
-        self.handhold_picker = GifPicker(HANDHOLD_GIFS, history_size=5)
-        self.bonk_picker = GifPicker(BONK_GIFS, history_size=5)
-        self.bite_picker = GifPicker(BITE_GIFS, history_size=5)
-        self.stare_picker = GifPicker(STARE_GIFS, history_size=5)
         self.db = bot.db
-
-    def record_action(self, action: str, ctx: commands.Context, member: discord.Member):
-        document = {
-            "message_id": ctx.message.id,
-            "initMember": ctx.author.id,
-            "targetMember": member.id,
-            "action": action,
-            "created_at": discord.utils.utcnow(),
+        self._pickers = {
+            spec.name: GifPicker(spec.gifs, history_size=5)
+            for spec in SFW_ACTION_SPECS
         }
-        self.db["interactions"].insert_one(document)
+        self._register_interaction_commands()
+
+    def _register_interaction_commands(self) -> None:
+        """Register one command per InteractionSpec (no per-action method bodies)."""
+        for spec in SFW_ACTION_SPECS:
+            callback = commands.cooldown(
+                SFW_INTERACTION_COOLDOWN_RATE,
+                SFW_INTERACTION_COOLDOWN_PER,
+                commands.BucketType.user,
+            )(self._make_interaction_callback(spec))
+            command = commands.Command(
+                callback,
+                name=spec.name,
+                aliases=list(spec.aliases),
+                help=spec.help_text,
+            )
+            command.cog = self
+            self.__cog_commands__ = self.__cog_commands__ + (command,)
+
+    def _make_interaction_callback(self, spec: InteractionSpec):
+        # First arg is the cog instance injected by discord.py when command.cog is set.
+        async def callback(
+            cog: UserInteractionCog,
+            ctx: commands.Context,
+            member: discord.Member,
+        ) -> None:
+            await cog._do_interaction(ctx, member, spec)
+
+        callback.__name__ = f"interaction_{spec.name}"
+        callback.__qualname__ = f"UserInteractionCog.interaction_{spec.name}"
+        return callback
+
+    def record_action(
+        self, action: str, ctx: commands.Context, member: discord.Member
+    ) -> None:
+        self.db["interactions"].insert_one(
+            {
+                "message_id": ctx.message.id,
+                "initMember": ctx.author.id,
+                "targetMember": member.id,
+                "action": action,
+                "created_at": discord.utils.utcnow(),
+            }
+        )
 
     async def _send_embed(
         self,
@@ -123,192 +277,160 @@ class UserInteractionCog(commands.Cog):
         title: str,
         description: str,
         gif_url: str | None = None,
-    ):
+    ) -> None:
         embed = discord.Embed(title=title, description=description)
         if gif_url:
             embed.set_image(url=gif_url)
         await ctx.send(embed=embed)
 
+    def _target_guard(
+        self, ctx: commands.Context, member: discord.Member, spec: InteractionSpec
+    ) -> str | None:
+        """Return a user-facing error message, or None if the target is allowed."""
+        if member.bot:
+            if member.id == getattr(self.bot.user, "id", None):
+                return "Đừng tương tác với bot nha, mình không phải thịt đâu 🤖"
+            return "Không thể tương tác với bot khác được đâu 🤖"
+
+        if member.id == ctx.author.id and not spec.allow_self:
+            return (
+                f"Bạn không thể tự **{spec.verb}** chính mình được đâu 😳\n"
+                f"Hãy tag một member khác nhé."
+            )
+        return None
+
     async def _do_interaction(
         self,
         ctx: commands.Context,
         member: discord.Member,
-        *,
-        action: str,
-        title: str,
-        description: str,
-        picker: GifPicker,
+        spec: InteractionSpec,
     ) -> None:
-        self.record_action(action, ctx, member)
+        deny_reason = self._target_guard(ctx, member, spec)
+        if deny_reason is not None:
+            await ctx.reply(deny_reason, mention_author=False)
+            return
+
+        picker = self._pickers[spec.name]
+        self.record_action(spec.name, ctx, member)
+
+        if member.id == ctx.author.id:
+            description = (
+                f"{ctx.author.mention} tự {spec.verb} mình {spec.suffix}"
+            )
+        else:
+            description = (
+                f"{ctx.author.mention} {spec.verb} {member.mention} {spec.suffix}"
+            )
+
         await self._send_embed(
             ctx,
-            title=title,
+            title=spec.title,
             description=description,
             gif_url=picker.pick(),
         )
 
-    @commands.command(name="kiss")
-    async def kiss(self, ctx: commands.Context, member: discord.Member):
-        await self._do_interaction(
-            ctx,
-            member,
-            action="kiss",
-            title="💋 Moah moahhh~",
-            description=f"{ctx.author.mention} hôn {member.mention} 💖",
-            picker=self.kiss_picker,
-        )
+    async def cog_command_error(
+        self, ctx: commands.Context, error: commands.CommandError
+    ) -> None:
+        if isinstance(error, commands.CommandOnCooldown):
+            await ctx.reply(
+                f"Chậm thôi~ đợi **{error.retry_after:.1f}s** rồi tương tác tiếp nhé ⏳",
+                mention_author=False,
+            )
+            return
+        if isinstance(error, commands.MissingRequiredArgument):
+            if ctx.command and ctx.command.name in _SFW_ACTION_BY_NAME:
+                await ctx.reply(
+                    f"Cú pháp: `{ctx.prefix}{ctx.command.name} @user`",
+                    mention_author=False,
+                )
+                return
+        if isinstance(error, commands.MemberNotFound):
+            await ctx.reply(
+                "Không tìm thấy member đó. Hãy tag đúng người nhé.",
+                mention_author=False,
+            )
+            return
+        # Let the global handler deal with unexpected errors.
+        raise error
 
-    @commands.command(name="hug")
-    async def hug(self, ctx: commands.Context, member: discord.Member):
-        await self._do_interaction(
-            ctx,
-            member,
-            action="hug",
-            title="🤗 Ỏoooo, ôm cái nào!",
-            description=f"{ctx.author.mention} ôm {member.mention} 🫂",
-            picker=self.hug_picker,
-        )
+    def _global_avatar_url(self, member: discord.Member | discord.User) -> str:
+        """Discord global avatar (account-level), not the server override."""
+        avatar = member.avatar or member.default_avatar
+        return avatar.url
 
-    @commands.command(name="pat")
-    async def pat(self, ctx: commands.Context, member: discord.Member):
-        await self._do_interaction(
-            ctx,
-            member,
-            action="pat",
-            title="😉 Xoa đầu cái nha~",
-            description=f"{ctx.author.mention} xoa đầu {member.mention} 🌸",
-            picker=self.pat_picker,
-        )
+    def _server_avatar_url(self, member: discord.Member) -> str | None:
+        """Guild-specific avatar, or None if the member has none in this server."""
+        if member.guild_avatar is None:
+            return None
+        return member.guild_avatar.url
 
-    @commands.command(name="slap")
-    async def slap(self, ctx: commands.Context, member: discord.Member):
-        await self._do_interaction(
-            ctx,
-            member,
-            action="slap",
-            title="🤬 Ăn tát đi!",
-            description=f"{ctx.author.mention} tát {member.mention} 🤚🏻",
-            picker=self.slap_picker,
+    async def _send_avatar_embed(
+        self,
+        ctx: commands.Context,
+        member: discord.Member,
+        *,
+        title: str,
+        image_url: str,
+        kind_label: str,
+    ) -> None:
+        embed = discord.Embed(
+            title=title,
+            description=(
+                f"{kind_label} của {member.mention}\n"
+                f"[Mở ảnh gốc]({image_url})"
+            ),
+            color=discord.Color.blurple(),
         )
+        embed.set_image(url=image_url)
+        embed.set_footer(text=f"ID: {member.id}")
+        await ctx.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
 
-    @commands.command(name="punch")
-    async def punch(self, ctx: commands.Context, member: discord.Member):
-        await self._do_interaction(
-            ctx,
-            member,
-            action="punch",
-            title="👊 Một đấm là nằm!",
-            description=f"{ctx.author.mention} đấm {member.mention} 👊🏻",
-            picker=self.punch_picker,
-        )
-
-    @commands.command(name="hit")
-    async def hit(self, ctx: commands.Context, member: discord.Member):
-        await self._do_interaction(
-            ctx,
-            member,
-            action="hit",
-            title="💥 Bốp bốp!",
-            description=f"{ctx.author.mention} đánh {member.mention} 🔨",
-            picker=self.hit_picker,
-        )
-
-    @commands.command(name="poke")
-    async def poke(self, ctx: commands.Context, member: discord.Member):
-        await self._do_interaction(
-            ctx,
-            member,
-            action="poke",
-            title="👉 Chọc chọc!",
-            description=f"{ctx.author.mention} chọc {member.mention} 👉🏻",
-            picker=self.poke_picker,
-        )
-
-    @commands.command(name="cuddle")
-    async def cuddle(self, ctx: commands.Context, member: discord.Member):
-        await self._do_interaction(
-            ctx,
-            member,
-            action="cuddle",
-            title="🥰 Cuddle nè~",
-            description=f"{ctx.author.mention} cuddle {member.mention} 💕",
-            picker=self.cuddle_picker,
-        )
-
-    @commands.command(name="snuggle")
-    async def snuggle(self, ctx: commands.Context, member: discord.Member):
-        await self._do_interaction(
-            ctx,
-            member,
-            action="snuggle",
-            title="🐻 Snuggle chút nha~",
-            description=f"{ctx.author.mention} snuggle {member.mention} 💗",
-            picker=self.snuggle_picker,
-        )
-
-    @commands.command(name="boop")
-    async def boop(self, ctx: commands.Context, member: discord.Member):
-        await self._do_interaction(
-            ctx,
-            member,
-            action="boop",
-            title="👆 Boop!",
-            description=f"{ctx.author.mention} boop mũi {member.mention} 🐽",
-            picker=self.boop_picker,
-        )
-
-    @commands.command(name="handhold", aliases=["holdhand"])
-    async def handhold(self, ctx: commands.Context, member: discord.Member):
-        await self._do_interaction(
-            ctx,
-            member,
-            action="handhold",
-            title="🤝 Nắm tay nào~",
-            description=f"{ctx.author.mention} nắm tay {member.mention} 💞",
-            picker=self.handhold_picker,
-        )
-
-    @commands.command(name="bonk")
-    async def bonk(self, ctx: commands.Context, member: discord.Member):
-        await self._do_interaction(
-            ctx,
-            member,
-            action="bonk",
-            title="🔨 Bonk!",
-            description=f"{ctx.author.mention} bonk {member.mention} 💢",
-            picker=self.bonk_picker,
-        )
-
-    @commands.command(name="bite", aliases=["nom"])
-    async def bite(self, ctx: commands.Context, member: discord.Member):
-        await self._do_interaction(
-            ctx,
-            member,
-            action="bite",
-            title="🦷 Nham nham~",
-            description=f"{ctx.author.mention} cắn {member.mention} 🤭",
-            picker=self.bite_picker,
-        )
-
-    @commands.command(name="stare")
-    async def stare(self, ctx: commands.Context, member: discord.Member):
-        await self._do_interaction(
-            ctx,
-            member,
-            action="stare",
-            title="👀 ...",
-            description=f"{ctx.author.mention} nhìn chằm chằm {member.mention} 😳",
-            picker=self.stare_picker,
-        )
-
-    @commands.command(name="avatar", aliases=["av"])
-    async def avatar(self, ctx: commands.Context, member: discord.Member | None = None):
+    @commands.command(
+        name="avatar",
+        aliases=["av", "global_avatar", "globalav"],
+        help="Xem avatar global (tài khoản Discord) của member.",
+    )
+    async def avatar(
+        self, ctx: commands.Context, member: discord.Member | None = None
+    ) -> None:
         member = member or ctx.author
-        await self._send_embed(
+        await self._send_avatar_embed(
             ctx,
-            title=f"📸 Avatar của {member.name}:",
-            description="",
-            gif_url=member.display_avatar.url,
+            member,
+            title=f"🌐 Avatar global — {member.display_name}",
+            image_url=self._global_avatar_url(member),
+            kind_label="Avatar global",
+        )
+
+    @commands.command(
+        name="server_avatar",
+        aliases=["sav", "guild_avatar", "serverav"],
+        help="Xem avatar server của member (fallback sang global nếu chưa đặt).",
+    )
+    @commands.guild_only()
+    async def server_avatar(
+        self, ctx: commands.Context, member: discord.Member | None = None
+    ) -> None:
+        member = member or ctx.author
+        server_url = self._server_avatar_url(member)
+        if server_url is not None:
+            await self._send_avatar_embed(
+                ctx,
+                member,
+                title=f"🏠 Avatar server — {member.display_name}",
+                image_url=server_url,
+                kind_label="Avatar server",
+            )
+            return
+
+        # No server avatar (common for non-Nitro / unset): show global instead.
+        await self._send_avatar_embed(
+            ctx,
+            member,
+            title=f"🌐 Avatar global — {member.display_name}",
+            image_url=self._global_avatar_url(member),
+            kind_label="Avatar global (không có avatar server)",
         )
 
     @commands.command(name="rank", aliases=["ranking"])
@@ -317,29 +439,25 @@ class UserInteractionCog(commands.Cog):
         ctx: commands.Context,
         mode_or_action: str | None = None,
         interaction_type: str | None = None,
-    ):
-        # mặc định: người CHỦ ĐỘNG
+    ) -> None:
         mode = "given"
-
         if mode_or_action == "r":
             mode = "received"
             action = interaction_type
         else:
             action = mode_or_action
 
-        if action not in (SFW_INTERACTIONS + [None]):
+        if action is not None and action not in _SFW_ACTION_BY_NAME:
             actions_hint = ", ".join(f"`{name}`" for name in SFW_INTERACTIONS)
             await ctx.send(f"Loại tương tác không hợp lệ.\nDùng: {actions_hint}.")
             return
 
         user_field = "$initMember" if mode == "given" else "$targetMember"
-
-        pipeline = [
+        pipeline: list[dict] = [
             {"$group": {"_id": user_field, "count": {"$sum": 1}}},
             {"$sort": {"count": -1}},
             {"$limit": 10},
         ]
-
         if action:
             pipeline.insert(0, {"$match": {"action": action}})
         else:
@@ -347,46 +465,54 @@ class UserInteractionCog(commands.Cog):
 
         top_users = list(self.db["interactions"].aggregate(pipeline))
 
-        lines = []
-        for rank, record in enumerate(top_users, start=1):
+        lines: list[str] = []
+        for rank_index, record in enumerate(top_users, start=1):
             user_id = record["_id"]
             count = record["count"]
-
             user = self.bot.get_user(user_id)
             name = user.mention if user else f"ID {user_id}"
 
             if mode == "given":
-                if action:
-                    text = f"{count} lần {ACTION_TEXT_GIVEN[action]}."
-                else:
-                    text = f"{count} lần tương tác."
+                text = (
+                    f"{count} lần {ACTION_TEXT_GIVEN[action]}."
+                    if action
+                    else f"{count} lần tương tác."
+                )
             else:
-                if action:
-                    text = f"{count} lần {ACTION_TEXT_RECEIVED[action]}."
-                else:
-                    text = f"{count} lần bị tương tác."
-
-            lines.append(f"**{rank}. {name}** – {text}")
+                text = (
+                    f"{count} lần {ACTION_TEXT_RECEIVED[action]}."
+                    if action
+                    else f"{count} lần bị tương tác."
+                )
+            lines.append(f"**{rank_index}. {name}** – {text}")
 
         description = "\n".join(lines) if lines else "Chưa có dữ liệu."
 
         if mode == "given":
-            title = "🏆 Top 10 người tương tác nhiều nhất"
-            if action:
-                title = f"🏆 Top 10 người {ACTION_TEXT_GIVEN[action]} nhiều nhất"
+            title = (
+                f"🏆 Top 10 người {ACTION_TEXT_GIVEN[action]} nhiều nhất"
+                if action
+                else "🏆 Top 10 người tương tác nhiều nhất"
+            )
         else:
-            title = "🏆 Top 10 người bị tương tác nhiều nhất"
-            if action:
-                title = f"🏆 Top 10 người {ACTION_TEXT_RECEIVED[action]} nhiều nhất"
+            title = (
+                f"🏆 Top 10 người {ACTION_TEXT_RECEIVED[action]} nhiều nhất"
+                if action
+                else "🏆 Top 10 người bị tương tác nhiều nhất"
+            )
 
         embed = discord.Embed(title=title, description=description)
         embed.set_author(name="BXH tương tác", icon_url=ctx.author.display_avatar.url)
-        embed.set_thumbnail(url=self.bot.user.display_avatar.url)
+        if self.bot.user is not None:
+            embed.set_thumbnail(url=self.bot.user.display_avatar.url)
         embed.set_image(
-            url="https://cdn.discordapp.com/attachments/1382770560743903246/1456661155236806832/Untitled_design_37.png"
+            url=(
+                "https://cdn.discordapp.com/attachments/"
+                "1382770560743903246/1456661155236806832/Untitled_design_37.png"
+            )
         )
         await ctx.send(embed=embed)
 
 
-async def setup(bot: commands.Bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(UserInteractionCog(bot))

@@ -190,7 +190,8 @@ Most meters accept an optional `@member` (default: author). Scores are determini
 | `bonk @user` | — | Everyone | Bonk |
 | `bite @user` | `nom` | Everyone | Bite |
 | `stare @user` | — | Everyone | Stare |
-| `avatar [@user]` | `av` | Everyone | Show avatar (default: author) |
+| `avatar [@user]` | `av`, `global_avatar`, `globalav` | Everyone | Show Discord global avatar (default: author) |
+| `server_avatar [@user]` | `sav`, `guild_avatar`, `serverav` | Everyone (guild) | Show server avatar, or global avatar if unset |
 | `rank [r] [action]` | `ranking` | Everyone | Interaction leaderboards (global or per-action; `r` = receivers) |
 | `cat` | — | Everyone | Random cat image (external API) |
 | `dog` | — | Everyone | Random dog image (external API) |
@@ -423,7 +424,7 @@ gay, les, ship, penisize, aura, redflag, based, brainrot, clown, cope, cringe, d
 gyatt, ick, mainchar, npc, ohio, rizz, simp, skillissue, touchgrass, yapper,
 femboycard, birthday, birthday set
 kiss, hug, pat, slap, punch, hit, poke, cuddle, snuggle, boop, handhold, bonk, bite, stare,
-avatar, rank, cat, dog, 36
+avatar, server_avatar, rank, cat, dog, 36
 r34, gbr, nsfwrule, bj, rj, hj, frot, fuck, cream, 3some, orgy, ranknsfw, mrank
 locknsfw, unlocknsfw, verified, unverified
 custom_role, update_custom_role, custom_room
