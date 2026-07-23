@@ -329,6 +329,22 @@ class UserInteractionCog(commands.Cog):
             gif_url=picker.pick(),
         )
 
+        if (
+            member.id != ctx.author.id
+            and ctx.guild is not None
+        ):
+            marriage_cog = self.bot.get_cog("MarriageCog")
+            if marriage_cog is not None and hasattr(
+                marriage_cog, "try_grant_couple_xp"
+            ):
+                await marriage_cog.try_grant_couple_xp(
+                    ctx.guild.id,
+                    ctx.author.id,
+                    member.id,
+                    action=spec.name,
+                    channel=ctx.channel,
+                )
+
     async def cog_command_error(
         self, ctx: commands.Context, error: commands.CommandError
     ) -> None:
