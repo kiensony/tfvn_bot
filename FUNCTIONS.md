@@ -300,10 +300,11 @@ Duration range: 10 seconds–30 days; max 20 winners.
 
 ### Other utils
 
-| Command | Access | Description |
-| --- | --- | --- |
-| `random_member <@member\|@role>` | Everyone | Pick a random member (from role members if a role is given) |
-| `save_image <collection> [metadata…]` | Manage Messages | Persist attached images + metadata to Mongo (`images`) |
+| Command | Aliases | Access | Description |
+| --- | --- | --- | --- |
+| `big_speaker <amount> <message>` | `loa`, `speaker` | Everyone (guild) | Spend Trap Coins to re-speak a message in large Discord markdown in the current channel. Fixed prices only: **1 / 2 / 5 / 10 / 20 / 50** TC → `text_size` **1–6** (6 = biggest + bold). Mentions: user only; strips `@everyone`, `@here`, and role pings. 30s cooldown |
+| `random_member <@member\|@role>` | — | Everyone | Pick a random member (from role members if a role is given) |
+| `save_image <collection> [metadata…]` | — | Manage Messages | Persist attached images + metadata to Mongo (`images`) |
 
 **Module:** `cogs.utils.*`
 
@@ -435,7 +436,7 @@ locknsfw, unlocknsfw, verified, unverified
 custom_role, update_custom_role, custom_room
 jobremind, jobremind add
 giveaway, giveaway list, giveaway entries, giveaway end, giveaway reroll
-vote, random_member, save_image
+vote, big_speaker, random_member, save_image
 kick, ban, softban, unsoftban, mute, unmute, timeout, untimeout, warn, check_warn
 nickchange, roleroll, roleunroll
 purge, purge_user, clean_before

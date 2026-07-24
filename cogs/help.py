@@ -70,6 +70,7 @@ class HelpCog(commands.Cog):
                 f"`{self.bot.command_prefix}user_transactions` – Xem 10 giao dịch gần nhất.\n"
                 f"`{self.bot.command_prefix}shop` – Xem cửa hàng Trap Coin.\n"
                 f"`{self.bot.command_prefix}shop inventory` – Xem vật phẩm đã mua.\n"
+                f"`{self.bot.command_prefix}big_speaker <1|2|5|10|20|50> <nội dung>` – Chi TC để bot nói to (cỡ 1–6).\n"
             ),
             inline=False,
         )

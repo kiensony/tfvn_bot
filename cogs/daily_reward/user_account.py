@@ -9,6 +9,8 @@ TRANSACTION_LABELS = {
     "shop_purchase": "Mua vật phẩm",
     "slot_machine_play": "Chơi slot",
     "slot_machine_win": "Thắng slot",
+    "big_speaker": "Big speaker / Loa",
+    "big_speaker_refund": "Hoàn big speaker",
 }
 
 
