@@ -5,11 +5,13 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 import discord  # pyright: ignore[reportMissingImports]
-from discord.ext import commands  # pyright: ignore[reportMissingImports]
-from pymongo import ASCENDING, ReturnDocument
+from discord.ext import commands, tasks  # pyright: ignore[reportMissingImports]
+from pymongo import ASCENDING, DESCENDING, ReturnDocument
 
 from cogs.interaction._marriage_helpers import (
+    MARRIAGE_RANKS,
     XP_PER_INTERACTION,
+    XP_PER_LEVEL,
     days_together,
     level_from_xp,
     level_progress_bar,
@@ -143,6 +145,10 @@ class MarriageCog(commands.Cog):
         self._ensure_indexes()
         # Persistent propose buttons survive restarts.
         bot.add_view(ProposeView(self))
+        self.proposal_expiry_loop.start()
+
+    def cog_unload(self) -> None:
+        self.proposal_expiry_loop.cancel()
 
     @property
     def marriages(self):
@@ -151,6 +157,85 @@ class MarriageCog(commands.Cog):
     @property
     def proposals(self):
         return self.db[PROPOSALS_COLLECTION]
+
+    def _disabled_propose_view(self) -> ProposeView:
+        view = ProposeView(self)
+        for child in view.children:
+            child.disabled = True
+        return view
+
+    def _expired_proposal_embed(self, proposal: dict) -> discord.Embed:
+        return discord.Embed(
+            title="⏰ Lời cầu hôn đã hết hạn",
+            description=(
+                f"<@{proposal['proposer_id']}> → <@{proposal['target_id']}>\n"
+                "Thời gian phản hồi đã kết thúc. Hãy `propose` lại nếu vẫn muốn."
+            ),
+            color=discord.Color.dark_grey(),
+        )
+
+    async def _edit_proposal_message(
+        self, proposal: dict, *, embed: discord.Embed, view: discord.ui.View | None
+    ) -> None:
+        channel_id = proposal.get("channel_id")
+        message_id = proposal.get("message_id")
+        if not channel_id or not message_id:
+            return
+        channel = self.bot.get_channel(channel_id)
+        if channel is None:
+            try:
+                channel = await self.bot.fetch_channel(channel_id)
+            except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+                return
+        if not isinstance(channel, discord.abc.Messageable):
+            return
+        try:
+            message = await channel.fetch_message(message_id)
+            await message.edit(content=None, embed=embed, view=view)
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            logger.debug(
+                "Could not edit proposal message_id=%s", message_id, exc_info=True
+            )
+
+    async def expire_stale_proposals(self, guild_id: int | None = None) -> int:
+        """Mark overdue proposals expired and update their Discord messages."""
+        now = _as_naive_utc(_utcnow())
+        query: dict[str, Any] = {
+            "status": "pending",
+            "expires_at": {"$lte": now},
+        }
+        if guild_id is not None:
+            query["guild_id"] = guild_id
+
+        stale = list(self.proposals.find(query).limit(50))
+        if not stale:
+            return 0
+
+        ids = [doc["_id"] for doc in stale]
+        self.proposals.update_many(
+            {"_id": {"$in": ids}, "status": "pending"},
+            {"$set": {"status": "expired"}},
+        )
+
+        disabled = self._disabled_propose_view()
+        for proposal in stale:
+            await self._edit_proposal_message(
+                proposal,
+                embed=self._expired_proposal_embed(proposal),
+                view=disabled,
+            )
+        return len(stale)
+
+    @tasks.loop(minutes=1)
+    async def proposal_expiry_loop(self) -> None:
+        try:
+            await self.expire_stale_proposals()
+        except Exception:
+            logger.exception("Marriage proposal expiry loop failed")
+
+    @proposal_expiry_loop.before_loop
+    async def before_proposal_expiry_loop(self) -> None:
+        await self.bot.wait_until_ready()
 
     def _ensure_indexes(self) -> None:
         try:
@@ -209,16 +294,6 @@ class MarriageCog(commands.Cog):
                 "$or": [{"proposer_id": user_id}, {"target_id": user_id}],
             }
         )
-
-    def _expire_stale_proposals(self, guild_id: int | None = None) -> None:
-        now = _as_naive_utc(_utcnow())
-        query: dict[str, Any] = {
-            "status": "pending",
-            "expires_at": {"$lte": now},
-        }
-        if guild_id is not None:
-            query["guild_id"] = guild_id
-        self.proposals.update_many(query, {"$set": {"status": "expired"}})
 
     def _eligibility_error(
         self,
@@ -333,7 +408,7 @@ class MarriageCog(commands.Cog):
         self, ctx: commands.Context, member: discord.Member
     ) -> None:
         assert ctx.guild is not None
-        self._expire_stale_proposals(ctx.guild.id)
+        await self.expire_stale_proposals(ctx.guild.id)
 
         error = self._eligibility_error(ctx.guild.id, ctx.author, member)
         if error:
@@ -402,9 +477,23 @@ class MarriageCog(commands.Cog):
             )
             return
 
-        self._expire_stale_proposals(interaction.guild.id)
+        await self.expire_stale_proposals(interaction.guild.id)
         proposal = self.proposals.find_one({"message_id": interaction.message.id})
-        if proposal is None or proposal.get("status") != "pending":
+        if proposal is None:
+            await interaction.response.send_message(
+                "Lời cầu hôn này không còn hiệu lực.",
+                ephemeral=True,
+            )
+            return
+
+        if proposal.get("status") != "pending":
+            if proposal.get("status") == "expired":
+                await interaction.response.edit_message(
+                    content=None,
+                    embed=self._expired_proposal_embed(proposal),
+                    view=self._disabled_propose_view(),
+                )
+                return
             await interaction.response.send_message(
                 "Lời cầu hôn này không còn hiệu lực.",
                 ephemeral=True,
@@ -415,12 +504,14 @@ class MarriageCog(commands.Cog):
         expires_at = proposal.get("expires_at")
         if expires_at is not None and expires_at <= now:
             self.proposals.update_one(
-                {"_id": proposal["_id"]},
+                {"_id": proposal["_id"], "status": "pending"},
                 {"$set": {"status": "expired"}},
             )
-            await interaction.response.send_message(
-                "Lời cầu hôn đã hết hạn.",
-                ephemeral=True,
+            proposal = {**proposal, "status": "expired"}
+            await interaction.response.edit_message(
+                content=None,
+                embed=self._expired_proposal_embed(proposal),
+                view=self._disabled_propose_view(),
             )
             return
 
@@ -444,10 +535,9 @@ class MarriageCog(commands.Cog):
                 ),
                 color=discord.Color.dark_grey(),
             )
-            view = ProposeView(self)
-            for child in view.children:
-                child.disabled = True
-            await interaction.response.edit_message(embed=embed, view=view)
+            await interaction.response.edit_message(
+                embed=embed, view=self._disabled_propose_view()
+            )
             return
 
         # Accept path: re-check monogamy, then create marriage.
@@ -523,10 +613,9 @@ class MarriageCog(commands.Cog):
             ),
             color=rank.color,
         )
-        view = ProposeView(self)
-        for child in view.children:
-            child.disabled = True
-        await interaction.response.edit_message(embed=embed, view=view)
+        await interaction.response.edit_message(
+            embed=embed, view=self._disabled_propose_view()
+        )
 
     @commands.command(
         name="divorce",
@@ -649,38 +738,143 @@ class MarriageCog(commands.Cog):
             raise RuntimeError("Cannot resolve partner without a fallback avatar")
         return _LeftMember(user_id, fallback)  # type: ignore[return-value]
 
-    @commands.command(
+    @commands.group(
         name="marriage",
         aliases=["marry", "marriage_status"],
-        help="Xem tình trạng hôn nhân của bạn hoặc member khác.",
+        invoke_without_command=True,
+        help="Xem tình trạng hôn nhân. Subcommands: help, top.",
     )
     @commands.guild_only()
-    async def marriage_status(
+    async def marriage(
         self, ctx: commands.Context, member: discord.Member | None = None
     ) -> None:
         assert ctx.guild is not None
+        await self.expire_stale_proposals(ctx.guild.id)
+
         target = member or ctx.author
-        marriage = self.find_active_marriage(ctx.guild.id, target.id)
-        if marriage is None:
+        marriage_doc = self.find_active_marriage(ctx.guild.id, target.id)
+        if marriage_doc is None:
             embed = discord.Embed(
                 title="💍 Tình trạng hôn nhân",
                 description=(
                     f"{target.mention} chưa kết hôn trong server này.\n"
-                    f"Dùng `{ctx.prefix}propose @user` để cầu hôn."
+                    f"Dùng `{ctx.prefix}propose @user` để cầu hôn.\n"
+                    f"Xem luật: `{ctx.prefix}marriage help` · "
+                    f"BXH: `{ctx.prefix}marriage top`"
                 ),
                 color=discord.Color.light_grey(),
             )
             await ctx.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
             return
 
-        partner_a = self._resolve_partner(ctx.guild, marriage["user_a"])
-        partner_b = self._resolve_partner(ctx.guild, marriage["user_b"])
+        partner_a = self._resolve_partner(ctx.guild, marriage_doc["user_a"])
+        partner_b = self._resolve_partner(ctx.guild, marriage_doc["user_b"])
         embed = self.build_status_embed(
             requester=ctx.author,
             partner_a=partner_a,
             partner_b=partner_b,
-            marriage=marriage,
+            marriage=marriage_doc,
         )
+        await ctx.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
+
+    @marriage.command(name="help", help="Hướng dẫn hệ thống hôn nhân.")
+    @commands.guild_only()
+    async def marriage_help(self, ctx: commands.Context) -> None:
+        prefix = ctx.prefix
+        embed = discord.Embed(
+            title="💍 Hướng dẫn hôn nhân",
+            description=(
+                "Kết hôn theo **server**, mỗi người **một** hôn nhân đang active.\n"
+                "Tương tác SFW với vợ/chồng để nhận XP và lên hạng."
+            ),
+            color=0xFF69B4,
+        )
+        embed.add_field(
+            name="📜 Lệnh",
+            value=(
+                f"`{prefix}propose @user` – Cầu hôn (Đồng ý / Từ chối, 5 phút).\n"
+                f"`{prefix}marriage [@user]` – Xem tình trạng hôn nhân.\n"
+                f"`{prefix}marriage top` – Bảng xếp hạng cặp đôi.\n"
+                f"`{prefix}marriage help` – Tin nhắn này.\n"
+                f"`{prefix}divorce` – Ly hôn (cần xác nhận)."
+            ),
+            inline=False,
+        )
+        embed.add_field(
+            name="✨ XP & level",
+            value=(
+                f"Mỗi tương tác SFW với bạn đời: **+{XP_PER_INTERACTION} XP** "
+                f"(không tính tự tương tác).\n"
+                f"**{XP_PER_LEVEL} XP** = 1 level "
+                f"(khoảng {XP_PER_LEVEL // XP_PER_INTERACTION} lần tương tác / level).\n"
+                "Level up và lên **hạng** sẽ được bot thông báo."
+            ),
+            inline=False,
+        )
+        rank_lines = [
+            f"{r.emoji} **{r.display}** — từ level {r.min_level}"
+            for r in MARRIAGE_RANKS
+        ]
+        embed.add_field(
+            name="🏅 Hạng",
+            value="\n".join(rank_lines),
+            inline=False,
+        )
+        embed.add_field(
+            name="📌 Lưu ý",
+            value=(
+                "• Không cầu hôn bot / chính mình.\n"
+                "• Đang kết hôn hoặc đang chờ phản hồi thì không propose thêm.\n"
+                "• Lời cầu hôn hết hạn sau 5 phút (tin nhắn sẽ cập nhật tự động).\n"
+                "• Cooldown propose/divorce: 30 giây."
+            ),
+            inline=False,
+        )
+        embed.set_footer(text="Chúc các cặp đôi vui vẻ 💕")
+        await ctx.send(embed=embed)
+
+    @marriage.command(
+        name="top",
+        aliases=["lb", "leaderboard", "rank"],
+        help="BXH các cặp đôi theo XP trong server.",
+    )
+    @commands.guild_only()
+    async def marriage_top(self, ctx: commands.Context) -> None:
+        assert ctx.guild is not None
+        await self.expire_stale_proposals(ctx.guild.id)
+
+        top = list(
+            self.marriages.find({"guild_id": ctx.guild.id, "status": "active"})
+            .sort([("xp", DESCENDING), ("level", DESCENDING), ("married_at", ASCENDING)])
+            .limit(10)
+        )
+        if not top:
+            await ctx.send(
+                "Chưa có cặp đôi nào trong server. "
+                f"Hãy `{ctx.prefix}propose @user` để bắt đầu!"
+            )
+            return
+
+        lines: list[str] = []
+        medals = {1: "🥇", 2: "🥈", 3: "🥉"}
+        for index, marriage_doc in enumerate(top, start=1):
+            xp = int(marriage_doc.get("xp", 0))
+            level = int(marriage_doc.get("level") or level_from_xp(xp))
+            rank = rank_from_level(level)
+            medal = medals.get(index, f"`#{index}`")
+            lines.append(
+                f"{medal} <@{marriage_doc['user_a']}> ❤️ "
+                f"<@{marriage_doc['user_b']}> — "
+                f"{rank.emoji} **{rank.display}** · "
+                f"Lv **{level}** · **{xp}** XP"
+            )
+
+        embed = discord.Embed(
+            title="🏆 BXH cặp đôi",
+            description="\n".join(lines),
+            color=0xFFD700,
+        )
+        embed.set_footer(text=f"{ctx.guild.name} · Top {len(top)} theo XP")
         await ctx.send(embed=embed, allowed_mentions=discord.AllowedMentions.none())
 
     async def try_grant_couple_xp(
