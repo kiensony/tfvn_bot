@@ -1,4 +1,22 @@
-cogs.general
+# Sample development profile for speaker + Trap Coin testing.
+# Copy to dev_cogs.txt (gitignored) and set ENVIRONMENT=development.
+#
+#   cp sample.dev_cogs.txt dev_cogs.txt
+#
+# Commands:
+#   !tf daily
+#   !tf balance / !tf transactions
+#   !tf add_tc @user 100 [reason]
+#   !tf remove_tc @user 10 [reason]
+#   !tf set_tc @user 50 [reason]
+#   !tf check_tc [@user]
+#   !tf big_speaker 4 hello          (size 4 costs 10 TC)
+#   !tf loa 6 BIG TEXT               (size 6 costs 50 TC)
+
+cogs.settings.*
 cogs.help
-cogs.role.role
-cogs.mod.*
+cogs.general
+cogs.operation.heartbeat
+cogs.daily_reward.user_account
+cogs.daily_reward.daily_action
+cogs.utils.big_speaker

@@ -1,4 +1,4 @@
-"""Pure helpers for the big_speaker utility (amount → size, clean, format)."""
+"""Pure helpers for the big_speaker utility (size → cost, clean, format)."""
 
 from __future__ import annotations
 
@@ -6,57 +6,46 @@ import re
 from dataclasses import dataclass
 
 
-AMOUNT_TO_SIZE: dict[int, int] = {
+# text_size 1..6 → Trap Coin cost.
+SIZE_TO_COST: dict[int, int] = {
     1: 1,
     2: 2,
-    5: 3,
-    10: 4,
-    20: 5,
-    50: 6,
+    3: 5,
+    4: 10,
+    5: 20,
+    6: 50,
 }
-ALLOWED_AMOUNTS = frozenset(AMOUNT_TO_SIZE)
+ALLOWED_SIZES = frozenset(SIZE_TO_COST)
 MAX_MESSAGE_LENGTH = 180
 
 ROLE_MENTION_RE = re.compile(r"<@&\d+>")
 EVERYONE_HERE_RE = re.compile(r"@(?:everyone|here)\b", re.IGNORECASE)
 
-# Price list for user-facing error / help text (stable order).
-AMOUNT_SIZE_GUIDE = (
-    (1, 1),
-    (2, 2),
-    (5, 3),
-    (10, 4),
-    (20, 5),
-    (50, 6),
-)
+SEPARATOR_LARGE = "────────────────"
+SEPARATOR_MEGA = "━━━━━━━━━━━━━━━━"
+BIG_SIZE_SEPARATOR_MIN = 5
 
 
 @dataclass(frozen=True)
 class SpeakerTier:
-    amount: int
     text_size: int
+    cost: int
 
 
-def validate_amount(amount: int) -> int:
-    """Return amount if it is an allowed fixed price; else raise ValueError."""
-    if amount not in ALLOWED_AMOUNTS:
-        allowed = ", ".join(str(a) for a, _ in AMOUNT_SIZE_GUIDE)
+def validate_text_size(text_size: int) -> int:
+    """Return text_size if it is 1..6; else raise ValueError."""
+    if text_size not in ALLOWED_SIZES:
+        allowed = ", ".join(str(size) for size in sorted(ALLOWED_SIZES))
         raise ValueError(
-            f"Số TC không hợp lệ. Chỉ chấp nhận: {allowed}."
+            f"Cỡ chữ không hợp lệ. Chỉ chấp nhận: {allowed}."
         )
-    return amount
+    return text_size
 
 
-def amount_to_text_size(amount: int) -> int:
-    """Map an allowed amount to text_size 1..6."""
-    validated = validate_amount(amount)
-    return AMOUNT_TO_SIZE[validated]
-
-
-def resolve_speaker_tier(amount: int) -> SpeakerTier:
-    """Validate amount and return amount + text_size."""
-    validated = validate_amount(amount)
-    return SpeakerTier(amount=validated, text_size=AMOUNT_TO_SIZE[validated])
+def resolve_speaker_tier(text_size: int) -> SpeakerTier:
+    """Validate text_size and return size + TC cost."""
+    size = validate_text_size(text_size)
+    return SpeakerTier(text_size=size, cost=SIZE_TO_COST[size])
 
 
 def sanitize_mentions(text: str) -> str:
@@ -67,11 +56,7 @@ def sanitize_mentions(text: str) -> str:
 
 
 def clean_message(text: str, *, max_len: int = MAX_MESSAGE_LENGTH) -> str:
-    """
-    Collapse whitespace, strip abuse mentions, and enforce length.
-
-    Raises ValueError if the result is empty.
-    """
+    """Collapse whitespace, strip abuse mentions, and enforce length."""
     collapsed = " ".join(text.split())
     sanitized = sanitize_mentions(collapsed)
     cleaned = " ".join(sanitized.split())
@@ -85,25 +70,33 @@ def clean_message(text: str, *, max_len: int = MAX_MESSAGE_LENGTH) -> str:
 
 
 def format_big_speaker(text: str, text_size: int) -> str:
-    """Apply Discord markdown heading/bold for text_size 1..6."""
-    if text_size not in range(1, 7):
-        raise ValueError("text_size must be between 1 and 6.")
+    """Apply Discord markdown for text_size 1..6 (sizes 5–6 get separators)."""
+    size = validate_text_size(text_size)
 
-    if text_size == 1:
-        return f"### {text}"
-    if text_size == 2:
-        return f"### **{text}**"
-    if text_size == 3:
-        return f"## {text}"
-    if text_size == 4:
-        return f"## **{text}**"
-    if text_size == 5:
-        return f"# {text}"
-    # text_size == 6: biggest + bold + speaker emoji
-    return f"# **📢 {text}**"
+    if size == 1:
+        body = f"### {text}"
+    elif size == 2:
+        body = f"### **{text}**"
+    elif size == 3:
+        body = f"## {text}"
+    elif size == 4:
+        body = f"## **{text}**"
+    elif size == 5:
+        body = f"# {text}"
+    else:
+        body = f"# **{text}**"
+
+    if size < BIG_SIZE_SEPARATOR_MIN:
+        return body
+
+    separator = SEPARATOR_MEGA if size >= 6 else SEPARATOR_LARGE
+    return f"{separator}\n{body}\n{separator}"
 
 
-def format_amount_guide() -> str:
-    """Short Vietnamese guide of allowed amounts and sizes."""
-    parts = [f"{amount} TC → cỡ {size}" for amount, size in AMOUNT_SIZE_GUIDE]
+def format_size_guide() -> str:
+    """Short Vietnamese guide of sizes and TC costs."""
+    parts = [
+        f"cỡ {size} → {SIZE_TO_COST[size]} TC"
+        for size in sorted(SIZE_TO_COST)
+    ]
     return " · ".join(parts)

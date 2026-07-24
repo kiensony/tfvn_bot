@@ -146,7 +146,7 @@ tfvn_bot/
         ├── giveaway.py                  Persistent views, entries, scheduling, and rerolls
         ├── vote.py                      Persistent reaction polls and result scheduling
         ├── big_speaker.py               Paid TC big-text re-speak in current channel
-        ├── _big_speaker_helpers.py      Amount→size map, mention sanitize, format helpers
+        ├── _big_speaker_helpers.py      Size 1–6 → TC cost, mention sanitize, format helpers
         ├── random_member.py             Random guild member selection
         └── save_image.py                Discord attachment metadata persistence
 ```

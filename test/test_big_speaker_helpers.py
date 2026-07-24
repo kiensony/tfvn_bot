@@ -1,35 +1,33 @@
 import unittest
 
 from cogs.utils._big_speaker_helpers import (
-    AMOUNT_TO_SIZE,
-    ALLOWED_AMOUNTS,
-    amount_to_text_size,
+    ALLOWED_SIZES,
+    SIZE_TO_COST,
     clean_message,
-    format_amount_guide,
     format_big_speaker,
+    format_size_guide,
     resolve_speaker_tier,
     sanitize_mentions,
-    validate_amount,
+    validate_text_size,
 )
 
 
-class TestAmountToSize(unittest.TestCase):
-    def test_all_fixed_amounts_map_to_sizes_1_through_6(self):
-        expected = {1: 1, 2: 2, 5: 3, 10: 4, 20: 5, 50: 6}
-        self.assertEqual(AMOUNT_TO_SIZE, expected)
-        self.assertEqual(ALLOWED_AMOUNTS, frozenset(expected))
-        for amount, size in expected.items():
-            self.assertEqual(amount_to_text_size(amount), size)
-            tier = resolve_speaker_tier(amount)
-            self.assertEqual(tier.amount, amount)
+class TestSizeToCost(unittest.TestCase):
+    def test_sizes_1_through_6(self):
+        expected = {1: 1, 2: 2, 3: 5, 4: 10, 5: 20, 6: 50}
+        self.assertEqual(SIZE_TO_COST, expected)
+        self.assertEqual(ALLOWED_SIZES, frozenset(expected))
+        for size, cost in expected.items():
+            tier = resolve_speaker_tier(size)
             self.assertEqual(tier.text_size, size)
+            self.assertEqual(tier.cost, cost)
 
-    def test_invalid_amounts_rejected(self):
-        for bad in (0, 3, 4, 15, 25, 100, -1):
+    def test_invalid_sizes_rejected(self):
+        for bad in (0, 7, 10, 50, -1):
             with self.assertRaises(ValueError):
-                validate_amount(bad)
+                validate_text_size(bad)
             with self.assertRaises(ValueError):
-                amount_to_text_size(bad)
+                resolve_speaker_tier(bad)
 
 
 class TestSanitizeMentions(unittest.TestCase):
@@ -81,8 +79,20 @@ class TestFormatBigSpeaker(unittest.TestCase):
         self.assertEqual(format_big_speaker("hi", 2), "### **hi**")
         self.assertEqual(format_big_speaker("hi", 3), "## hi")
         self.assertEqual(format_big_speaker("hi", 4), "## **hi**")
-        self.assertEqual(format_big_speaker("hi", 5), "# hi")
-        self.assertEqual(format_big_speaker("hi", 6), "# **📢 hi**")
+        self.assertEqual(
+            format_big_speaker("hi", 5),
+            "────────────────\n# hi\n────────────────",
+        )
+        self.assertEqual(
+            format_big_speaker("hi", 6),
+            "━━━━━━━━━━━━━━━━\n# **hi**\n━━━━━━━━━━━━━━━━",
+        )
+
+    def test_small_sizes_have_no_separator(self):
+        for size in (1, 2, 3, 4):
+            rendered = format_big_speaker("hi", size)
+            self.assertNotIn("─", rendered)
+            self.assertNotIn("━", rendered)
 
     def test_invalid_size(self):
         with self.assertRaises(ValueError):
@@ -90,10 +100,11 @@ class TestFormatBigSpeaker(unittest.TestCase):
         with self.assertRaises(ValueError):
             format_big_speaker("hi", 7)
 
-    def test_guide_lists_all_prices(self):
-        guide = format_amount_guide()
-        for amount in (1, 2, 5, 10, 20, 50):
-            self.assertIn(f"{amount} TC", guide)
+    def test_guide_lists_all_sizes_and_costs(self):
+        guide = format_size_guide()
+        for size, cost in SIZE_TO_COST.items():
+            self.assertIn(f"cỡ {size}", guide)
+            self.assertIn(f"{cost} TC", guide)
 
 
 if __name__ == "__main__":

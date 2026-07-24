@@ -70,7 +70,7 @@ class HelpCog(commands.Cog):
                 f"`{self.bot.command_prefix}user_transactions` – Xem 10 giao dịch gần nhất.\n"
                 f"`{self.bot.command_prefix}shop` – Xem cửa hàng Trap Coin.\n"
                 f"`{self.bot.command_prefix}shop inventory` – Xem vật phẩm đã mua.\n"
-                f"`{self.bot.command_prefix}big_speaker <1|2|5|10|20|50> <nội dung>` – Chi TC để bot nói to (cỡ 1–6).\n"
+                f"`{self.bot.command_prefix}big_speaker <cỡ 1-6> <nội dung>` – Chi TC để bot nói to (cỡ càng lớn càng tốn TC).\n"
             ),
             inline=False,
         )
@@ -221,6 +221,10 @@ class HelpCog(commands.Cog):
             inline=False,
         )
         community_admin_commands = [
+            f"`{self.bot.command_prefix}add_tc @user <số> [lý do]` – Cộng Trap Coin cho member.\n",
+            f"`{self.bot.command_prefix}remove_tc @user <số> [lý do]` – Trừ Trap Coin của member.\n",
+            f"`{self.bot.command_prefix}set_tc @user <số> [lý do]` – Đặt số dư Trap Coin.\n",
+            f"`{self.bot.command_prefix}check_tc [@user]` – Xem số dư Trap Coin của member.\n",
             f"`{self.bot.command_prefix}shop add_role <id> <giá> @role` – Thêm role vào shop.\n",
         ]
         embed.add_field(

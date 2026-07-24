@@ -11,8 +11,8 @@ from pymongo.errors import PyMongoError
 
 from cogs.utils._big_speaker_helpers import (
     clean_message,
-    format_amount_guide,
     format_big_speaker,
+    format_size_guide,
     resolve_speaker_tier,
 )
 
@@ -108,7 +108,7 @@ class BigSpeakerCog(commands.Cog):
         aliases=["loa", "speaker"],
         help=(
             "Chi TC để bot nói to trong kênh. "
-            "Giá: 1/2/5/10/20/50 TC → cỡ 1–6."
+            "Chọn cỡ 1–6 (cỡ càng lớn càng tốn TC)."
         ),
     )
     @commands.guild_only()
@@ -116,15 +116,15 @@ class BigSpeakerCog(commands.Cog):
     async def big_speaker(
         self,
         ctx: commands.Context,
-        amount: int,
+        text_size: int,
         *,
         message: str,
     ) -> None:
         try:
-            tier = resolve_speaker_tier(amount)
+            tier = resolve_speaker_tier(text_size)
         except ValueError as exc:
             await ctx.send(
-                f"{exc}\nBảng giá: {format_amount_guide()}",
+                f"{exc}\nBảng giá: {format_size_guide()}",
                 allowed_mentions=discord.AllowedMentions.none(),
             )
             return
@@ -151,13 +151,13 @@ class BigSpeakerCog(commands.Cog):
             upsert=True,
         )
         account = self.accounts.find_one_and_update(
-            {"user_id": ctx.author.id, "balance": {"$gte": tier.amount}},
-            {"$inc": {"balance": -tier.amount}},
+            {"user_id": ctx.author.id, "balance": {"$gte": tier.cost}},
+            {"$inc": {"balance": -tier.cost}},
             return_document=ReturnDocument.AFTER,
         )
         if account is None:
             await ctx.send(
-                f"Bạn không có đủ Trap Coin. Cần **{tier.amount:,} TC** "
+                f"Bạn không có đủ Trap Coin. Cần **{tier.cost:,} TC** "
                 f"cho cỡ chữ {tier.text_size}.",
                 allowed_mentions=discord.AllowedMentions.none(),
             )
@@ -166,7 +166,7 @@ class BigSpeakerCog(commands.Cog):
         body = format_big_speaker(cleaned, tier.text_size)
         content = (
             f"{body}\n\n"
-            f"— {ctx.author.display_name} · {tier.amount:,} TC · cỡ {tier.text_size}"
+            f"— {ctx.author.display_name} · {tier.cost:,} TC · cỡ {tier.text_size}"
         )
 
         guild_id = ctx.guild.id if ctx.guild else None
@@ -176,7 +176,7 @@ class BigSpeakerCog(commands.Cog):
             user_id=ctx.author.id,
             guild_id=guild_id,
             channel_id=channel_id,
-            amount=tier.amount,
+            amount=tier.cost,
             text_size=tier.text_size,
             transaction_type="debit",
             tx_type="big_speaker",
@@ -190,7 +190,7 @@ class BigSpeakerCog(commands.Cog):
                 user_id=ctx.author.id,
                 guild_id=guild_id,
                 channel_id=channel_id,
-                amount=tier.amount,
+                amount=tier.cost,
                 text_size=tier.text_size,
             )
             await ctx.send(
@@ -201,8 +201,47 @@ class BigSpeakerCog(commands.Cog):
 
         remaining = int(account.get("balance", 0))
         await ctx.send(
-            f"Đã chi **{tier.amount:,} TC** (cỡ {tier.text_size}). "
+            f"Đã chi **{tier.cost:,} TC** (cỡ {tier.text_size}). "
             f"Số dư còn lại: **{remaining:,} TC**.",
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
+
+    @big_speaker.error
+    async def big_speaker_error(
+        self,
+        ctx: commands.Context,
+        error: commands.CommandError,
+    ) -> None:
+        if isinstance(error, commands.CommandOnCooldown):
+            seconds = max(1, int(error.retry_after + 0.999))
+            await ctx.send(
+                f"{ctx.author.mention}, loa đang cooldown. "
+                f"Thử lại sau **{seconds}** giây.",
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+            return
+        if isinstance(error, commands.MissingRequiredArgument):
+            await ctx.send(
+                f"Cú pháp: `{ctx.prefix}big_speaker <cỡ 1-6> <nội dung>`\n"
+                f"Bảng giá: {format_size_guide()}",
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+            return
+        if isinstance(error, commands.BadArgument):
+            await ctx.send(
+                f"Cỡ chữ không hợp lệ.\nBảng giá: {format_size_guide()}",
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+            return
+        if isinstance(error, commands.NoPrivateMessage):
+            await ctx.send(
+                "Lệnh big speaker chỉ dùng trong server.",
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+            return
+        logger.exception("Unexpected error in big_speaker")
+        await ctx.send(
+            "Đã xảy ra lỗi khi dùng loa.",
             allowed_mentions=discord.AllowedMentions.none(),
         )
 
