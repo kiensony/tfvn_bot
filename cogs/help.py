@@ -125,6 +125,7 @@ class HelpCog(commands.Cog):
                 f"`{self.bot.command_prefix} bonk @user` – Bonk member khác.\n"
                 f"`{self.bot.command_prefix} bite @user` – Cắn member khác.\n"
                 f"`{self.bot.command_prefix} stare @user` – Nhìn chằm chằm member khác.\n"
+                f"`{self.bot.command_prefix} lick @user` – Liếm member khác.\n"
                 f"`{self.bot.command_prefix} avatar @user` – Xem avatar global của member.\n"
                 f"`{self.bot.command_prefix} server_avatar @user` – Xem avatar server của member.\n"
                 f"`{self.bot.command_prefix} propose @user` – Cầu hôn (Đồng ý/Từ chối).\n"

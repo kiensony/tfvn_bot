@@ -142,6 +142,17 @@ STARE_GIFS = [
     "https://cdn.otakugifs.xyz/gifs/angrystare/cH5xxAUe7Y.gif",
 ]
 
+LICK_GIFS = [
+    "https://cdn.otakugifs.xyz/gifs/lick/0c583e8ab3e6b8aa.gif",
+    "https://cdn.otakugifs.xyz/gifs/lick/48e0307890a0e714.gif",
+    "https://cdn.otakugifs.xyz/gifs/lick/545b920d46a96b2b.gif",
+    "https://cdn.otakugifs.xyz/gifs/lick/68de3278a0041fcf.gif",
+    "https://cdn.otakugifs.xyz/gifs/lick/955885f019f05760.gif",
+    "https://cdn.otakugifs.xyz/gifs/lick/NO3S3QP4CQ.gif",
+    "https://cdn.otakugifs.xyz/gifs/lick/bd93022885fb1d22.gif",
+    "https://cdn.otakugifs.xyz/gifs/lick/d2eca216f3627926.gif",
+]
+
 # Meme GIF ASSETS
 
 GIFS_36 = [

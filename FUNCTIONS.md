@@ -194,6 +194,7 @@ Most meters accept an optional `@member` (default: author). Scores are determini
 | `bonk @user` | — | Everyone | Bonk |
 | `bite @user` | `nom` | Everyone | Bite |
 | `stare @user` | — | Everyone | Stare |
+| `lick @user` | — | Everyone | Lick |
 | `avatar [@user]` | `av`, `global_avatar`, `globalav` | Everyone | Show Discord global avatar (default: author) |
 | `server_avatar [@user]` | `sav`, `guild_avatar`, `serverav` | Everyone (guild) | Show server avatar, or global avatar if unset |
 | `propose @user` | — | Everyone (guild) | Propose marriage; partner presses Yes/No (5m); expired proposals update UI) |
@@ -433,7 +434,7 @@ vtv, vtv status, vtv next, vtv hint
 gay, les, ship, penisize, aura, redflag, based, brainrot, clown, cope, cringe, delulu,
 gyatt, ick, mainchar, npc, ohio, rizz, simp, skillissue, touchgrass, yapper,
 femboycard, birthday, birthday set
-kiss, hug, pat, slap, punch, hit, poke, cuddle, snuggle, boop, handhold, bonk, bite, stare,
+kiss, hug, pat, slap, punch, hit, poke, cuddle, snuggle, boop, handhold, bonk, bite, stare, lick,
 avatar, server_avatar, propose, marriage, marriage help, marriage top, divorce, rank, cat, dog, 36
 r34, gbr, nsfwrule, bj, rj, hj, frot, fuck, cream, 3some, orgy, ranknsfw, mrank
 locknsfw, unlocknsfw, verified, unverified
