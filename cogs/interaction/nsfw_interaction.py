@@ -1,10 +1,10 @@
 import asyncio
-import discord  # pyright: ignore[reportMissingImports]
-from datetime import datetime, timedelta
-
-from discord.ext import commands  # pyright: ignore[reportMissingImports]
 import random
 from collections import deque
+from datetime import datetime, timedelta
+
+import discord  # pyright: ignore[reportMissingImports]
+from discord.ext import commands  # pyright: ignore[reportMissingImports]
 
 
 # Tránh lặp gif đcmmmmmmm
@@ -13,7 +13,9 @@ class GifPicker:
         self.gifs = gifs
         self.recent = deque(maxlen=history_size)
 
-    def pick(self) -> str:
+    def pick(self) -> str | None:
+        if not self.gifs:
+            return None
         candidates = [g for g in self.gifs if g not in self.recent]
         gif = random.choice(candidates or self.gifs)
         self.recent.append(gif)
@@ -24,6 +26,10 @@ class NSFWInteractionCog(commands.Cog):
         self.bot = bot
         self.bj_picker = self._load_gif_picker("BLOWJOB_GIFS")
         self.hj_picker = self._load_gif_picker("HANDJOB_GIFS")
+        self.fj_picker = self._load_gif_picker("FOOTJOB_GIFS")
+        self.aj_picker = self._load_gif_picker("ASSJOB_GIFS")
+        self.tj_picker = self._load_gif_picker("THIGHJOB_GIFS")
+        self.spank_picker = self._load_gif_picker("SPANK_GIFS")
         self.rj_picker = self._load_gif_picker("RIMJOB_GIFS")
         self.frot_picker = self._load_gif_picker("FROTTING_GIFS")
         self.fuck_picker = self._load_gif_picker("FUCKING_GIFS")
@@ -33,19 +39,34 @@ class NSFWInteractionCog(commands.Cog):
         self.db = bot.db
         self.KING_ROLE_ID = int(self.bot.global_vars["KING_ROLE_ID"])
         self.QUEEN_ROLE_ID = int(self.bot.global_vars["QUEEN_ROLE_ID"])
-        self.NSFW_INTERACTIONS = ["bj", "rj", "hj", "frot", "fuck", "cream", "3some", "orgy"]
+        self.NSFW_INTERACTIONS = [
+            "bj",
+            "rj",
+            "hj",
+            "fj",
+            "aj",
+            "tj",
+            "spank",
+            "frot",
+            "fuck",
+            "cream",
+            "3some",
+            "orgy",
+        ]
 
     def _load_gif_picker(self, variable_name: str) -> GifPicker:
-        gifs = self.bot.global_vars.get(variable_name)
-        if (
-            not isinstance(gifs, list)
-            or not gifs
-            or any(not isinstance(gif, str) or not gif.strip() for gif in gifs)
-        ):
-            raise ValueError(
-                f"{variable_name} must be a non-empty ARRAY in global_variables."
-            )
-        return GifPicker(gifs.copy(), history_size=len(gifs))
+        """Load GIF list from Mongo global_vars. Blank entries skipped; empty list OK."""
+        raw = self.bot.global_vars.get(variable_name)
+        if not isinstance(raw, list):
+            gifs: list[str] = []
+        else:
+            gifs = [
+                gif.strip()
+                for gif in raw
+                if isinstance(gif, str) and gif.strip()
+            ]
+        history = max(len(gifs), 1)
+        return GifPicker(gifs, history_size=history)
 
     def format_relative_time_vn(self, dt: datetime) -> str:
         now = discord.utils.utcnow()
@@ -116,7 +137,9 @@ class NSFWInteractionCog(commands.Cog):
             "created_at": discord.utils.utcnow(),
         })
         embed = discord.Embed(title=title, description=description)
-        embed.set_image(url=gif_picker.pick())
+        gif_url = gif_picker.pick()
+        if gif_url:
+            embed.set_image(url=gif_url)
         if coefficient > 1:
             embed.set_footer(text=f"Bị {ctx.author.name} {action} x{coefficient} lần")
         await ctx.send(embed=embed)
@@ -155,7 +178,9 @@ class NSFWInteractionCog(commands.Cog):
             "created_at": discord.utils.utcnow(),
         })
         embed = discord.Embed(title=title, description=description)
-        embed.set_image(url=gif_picker.pick())
+        gif_url = gif_picker.pick()
+        if gif_url:
+            embed.set_image(url=gif_url)
         if coefficient > 1:
             embed.set_footer(text=f"Bị {ctx.author.name} {action} x{coefficient} lần")
         await ctx.send(embed=embed)
@@ -179,7 +204,7 @@ class NSFWInteractionCog(commands.Cog):
         gameplay_text = (
             f"🎮 **Cách Chơi Các Lệnh NSFW** 🎮\n"
             f"1. Sử dụng lệnh với cú pháp: `!{self.bot.command_prefix} <lệnh> @tên_thành_viên` (riêng `3some` cần tag 2 người, `orgy` tag 2-10 người).\n"
-            f"2. Các lệnh bao gồm: `bj` (bú cu), `rj` (liếm lồn), `hj` (sục cho), `frot` (đấu kiếm), `fuck` (chịch), `cream` (xuất trong), `3some` (chơi 3some), `orgy` (chơi orgy).\n"
+            f"2. Các lệnh bao gồm: `bj` (bú cu), `rj` (liếm lồn), `hj` (sục cho), `fj` (footjob), `aj` (assjob), `tj` (thighjob), `spank` (vỗ mông), `frot` (đấu kiếm), `fuck` (chịch), `cream` (xuất trong), `3some` (chơi 3some), `orgy` (chơi orgy).\n"
             f"3. Mỗi lệnh có thời gian hồi (cooldown) là 15 giây để tránh spam.\n"
             f"4. Femboy Queen có thể khoá lệnh NSFW của người chơi bất kỳ trong vòng 24 giờ.\n"
             f"5. Femboy King sẽ nhận được hệ số x3 điểm khi sử dụng lệnh NSFW.\n"
@@ -204,6 +229,59 @@ class NSFWInteractionCog(commands.Cog):
     @commands.cooldown(1, 3, commands.BucketType.user)
     async def handjob(self, ctx, member: discord.Member):
         await self._handle_interaction(ctx, member, "hj", "sục cho", "🥰 Sục cho nè~", f"{ctx.author.mention} sục cho {member.mention} 💦", self.hj_picker, self_allowed=True)
+
+    @commands.command(name="fj")
+    @commands.cooldown(1, 3, commands.BucketType.user)
+    async def footjob(self, ctx, member: discord.Member):
+        await self._handle_interaction(
+            ctx,
+            member,
+            "fj",
+            "footjob",
+            "🦶 Footjob nè~",
+            f"{ctx.author.mention} footjob cho {member.mention} 💦",
+            self.fj_picker,
+        )
+
+    @commands.command(name="aj", aliases=["assjob"])
+    @commands.cooldown(1, 3, commands.BucketType.user)
+    async def assjob(self, ctx, member: discord.Member):
+        await self._handle_interaction(
+            ctx,
+            member,
+            "aj",
+            "assjob",
+            "🍑 Assjob nè~",
+            f"{ctx.author.mention} assjob cho {member.mention} 💦",
+            self.aj_picker,
+        )
+
+    @commands.command(name="tj", aliases=["thighjob"])
+    @commands.cooldown(1, 3, commands.BucketType.user)
+    async def thighjob(self, ctx, member: discord.Member):
+        await self._handle_interaction(
+            ctx,
+            member,
+            "tj",
+            "thighjob",
+            "🦵 Thighjob nè~",
+            f"{ctx.author.mention} thighjob cho {member.mention} 💦",
+            self.tj_picker,
+        )
+
+    @commands.command(name="spank")
+    @commands.cooldown(1, 3, commands.BucketType.user)
+    async def spank(self, ctx, member: discord.Member):
+        await self._handle_interaction(
+            ctx,
+            member,
+            "spank",
+            "vỗ mông",
+            "🍑 Vỗ mông cái!",
+            f"{ctx.author.mention} vỗ mông {member.mention} 👋💦",
+            self.spank_picker,
+            self_allowed=True,
+        )
 
     @commands.command(name="frot")
     @commands.cooldown(1, 3, commands.BucketType.user)
@@ -283,6 +361,10 @@ class NSFWInteractionCog(commands.Cog):
     blowjob.error = _cooldown_error
     rimjob.error = _cooldown_error
     handjob.error = _cooldown_error
+    footjob.error = _cooldown_error
+    assjob.error = _cooldown_error
+    thighjob.error = _cooldown_error
+    spank.error = _cooldown_error
     frotting.error = _cooldown_error
     fucking.error = _cooldown_error
     creampie.error = _cooldown_error
@@ -306,6 +388,10 @@ class NSFWInteractionCog(commands.Cog):
             "bj": "bú cu",
             "rj": "liếm lồn",
             "hj": "sục cho member khác",
+            "fj": "footjob cho member khác",
+            "aj": "assjob cho member khác",
+            "tj": "thighjob cho member khác",
+            "spank": "vỗ mông người khác",
             "frot": "đấu kiếm",
             "fuck": "địt member khác",
             "cream": "xuất trong",
@@ -318,6 +404,10 @@ class NSFWInteractionCog(commands.Cog):
             "bj": "được bú cu",
             "rj": "được liếm lồn",
             "hj": "được sục cặc",
+            "fj": "được footjob",
+            "aj": "được assjob",
+            "tj": "được thighjob",
+            "spank": "bị vỗ mông",
             "frot": "được đấu kiếm",
             "fuck": "bị địt",
             "cream": "bị xuất trong",
@@ -336,7 +426,7 @@ class NSFWInteractionCog(commands.Cog):
 
         if action not in (nsfw_interactions + [None]):
             await ctx.send(
-                "Loại tương tác không hợp lệ.\nVui lòng sử dụng: `bj`, `rj`, `hj`, `frot`, `fuck`, `cream`, `3some`, `orgy`."
+                "Loại tương tác không hợp lệ.\nVui lòng sử dụng: `bj`, `rj`, `hj`, `fj`, `aj`, `tj`, `spank`, `frot`, `fuck`, `cream`, `3some`, `orgy`."
             )
             return
 

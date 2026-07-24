@@ -1,22 +1,19 @@
-# Sample development profile for speaker + Trap Coin testing.
+# Sample development profile: interactions + speaker + Trap Coin testing.
 # Copy to dev_cogs.txt (gitignored) and set ENVIRONMENT=development.
 #
 #   cp sample.dev_cogs.txt dev_cogs.txt
 #
-# Commands:
-#   !tf daily
-#   !tf balance / !tf transactions
-#   !tf add_tc @user 100 [reason]
-#   !tf remove_tc @user 10 [reason]
-#   !tf set_tc @user 50 [reason]
-#   !tf check_tc [@user]
-#   !tf big_speaker 4 hello          (size 4 costs 10 TC)
-#   !tf loa 6 BIG TEXT               (size 6 costs 50 TC)
+# SFW: !tf kiss/hug/lick/smack @user, !tf rank, !tf propose, !tf cat
+# NSFW (NSFW channel + GIF arrays in global_variables):
+#   !tf bj/hj/fj/aj/tj/spank/... @user, !tf ranknsfw, !tf nsfwrule
+# Economy: !tf daily, !tf balance, !tf add_tc @user 100
+# Speaker: !tf big_speaker 4 hello
 
 cogs.settings.*
 cogs.help
 cogs.general
 cogs.operation.heartbeat
+cogs.interaction.*
 cogs.daily_reward.user_account
 cogs.daily_reward.daily_action
 cogs.utils.big_speaker

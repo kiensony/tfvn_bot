@@ -153,6 +153,18 @@ LICK_GIFS = [
     "https://cdn.otakugifs.xyz/gifs/lick/d2eca216f3627926.gif",
 ]
 
+# Playful SFW smack (otakugifs smack; distinct from NSFW ass-spank).
+SMACK_GIFS = [
+    "https://cdn.otakugifs.xyz/gifs/smack/42f09810ba12345e.gif",
+    "https://cdn.otakugifs.xyz/gifs/smack/504b9994f7248a46.gif",
+    "https://cdn.otakugifs.xyz/gifs/smack/7537179b546d66db.gif",
+    "https://cdn.otakugifs.xyz/gifs/smack/78c956974f371f70.gif",
+    "https://cdn.otakugifs.xyz/gifs/smack/Xhxvcdkcfx.gif",
+    "https://cdn.otakugifs.xyz/gifs/smack/a3f546a9518843d7.gif",
+    "https://cdn.otakugifs.xyz/gifs/smack/b281eb32b6bb3547.gif",
+    "https://cdn.otakugifs.xyz/gifs/smack/bc7b0879f90cf6f7.gif",
+]
+
 # Meme GIF ASSETS
 
 GIFS_36 = [

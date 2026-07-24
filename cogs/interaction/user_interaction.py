@@ -21,6 +21,7 @@ from assets.gifs import (
     POKE_GIFS,
     PUNCH_GIFS,
     SLAP_GIFS,
+    SMACK_GIFS,
     SNUGGLE_GIFS,
     STARE_GIFS,
 )
@@ -196,6 +197,16 @@ SFW_ACTION_SPECS: tuple[InteractionSpec, ...] = (
         gifs=LICK_GIFS,
         given_text="liếm người khác",
         received_text="bị liếm",
+    ),
+    InteractionSpec(
+        name="smack",
+        title="💢 Đấm yêu nè~",
+        verb="đấm yêu",
+        suffix="💕",
+        gifs=SMACK_GIFS,
+        given_text="đấm yêu người khác",
+        received_text="bị đấm yêu",
+        allow_self=True,
     ),
 )
 
