@@ -128,6 +128,8 @@ class HelpCog(commands.Cog):
                 f"`{self.bot.command_prefix} server_avatar @user` – Xem avatar server của member.\n"
                 f"`{self.bot.command_prefix} propose @user` – Cầu hôn (Đồng ý/Từ chối).\n"
                 f"`{self.bot.command_prefix} marriage` – Xem tình trạng hôn nhân.\n"
+                f"`{self.bot.command_prefix} marriage help` – Luật XP & hạng.\n"
+                f"`{self.bot.command_prefix} marriage top` – BXH cặp đôi.\n"
                 f"`{self.bot.command_prefix} divorce` – Ly hôn (cần xác nhận).\n"
             ),
             inline=False,
