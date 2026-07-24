@@ -95,6 +95,10 @@ No user commands. Event listeners only:
 | `daily` | — | Everyone | Once per UTC day; grants **10** Trap Coins |
 | `user_balance` | `balance` | Everyone | Show current Trap Coin balance |
 | `user_transactions` | `transactions` | Everyone | Last 10 transaction log entries |
+| `add_tc @member <amount> [reason]` | `give_tc`, `grant_tc` | Administrator | Credit Trap Coins (1–1,000,000,000); logs `admin_add_tc` |
+| `remove_tc @member <amount> [reason]` | `sub_tc`, `subtract_tc`, `take_tc` | Administrator | Debit Trap Coins if balance is sufficient; logs `admin_remove_tc` |
+| `set_tc @member <amount> [reason]` | `set_balance` | Administrator | Set absolute balance (0–1,000,000,000); logs delta as `admin_set_tc` |
+| `check_tc [@member]` | `tc_balance` | Administrator | Inspect a member’s Trap Coin balance (default: author) |
 
 ### Shop
 
@@ -300,10 +304,11 @@ Duration range: 10 seconds–30 days; max 20 winners.
 
 ### Other utils
 
-| Command | Access | Description |
-| --- | --- | --- |
-| `random_member <@member\|@role>` | Everyone | Pick a random member (from role members if a role is given) |
-| `save_image <collection> [metadata…]` | Manage Messages | Persist attached images + metadata to Mongo (`images`) |
+| Command | Aliases | Access | Description |
+| --- | --- | --- | --- |
+| `big_speaker <size> <message>` | `loa`, `speaker` | Everyone (guild) | Re-speak a message in large Discord markdown. **`size` is 1–6**; TC cost by size: **1 / 2 / 5 / 10 / 20 / 50**. Sizes 5–6 add separators; 6 is bold H1. Mentions: user only; strips `@everyone`, `@here`, role pings. 30s cooldown |
+| `random_member <@member\|@role>` | — | Everyone | Pick a random member (from role members if a role is given) |
+| `save_image <collection> [metadata…]` | — | Manage Messages | Persist attached images + metadata to Mongo (`images`) |
 
 **Module:** `cogs.utils.*`
 
@@ -420,7 +425,7 @@ hello, invite, verify, ping, beta_preview, server_stats, leave
 setup, setup check
 afk, afk dynamic, afk time, afk clear, afk check
 random_femboy
-daily, user_balance, user_transactions
+daily, user_balance, user_transactions, add_tc, remove_tc, set_tc, check_tc
 shop, shop buy, shop inventory, shop use, shop unequip, shop add_role, shop add_badge, shop remove
 slot, flip_coin, sicbo_start
 noitu, noitu status, noitu hint, noitu end, noitu analyze
@@ -435,7 +440,7 @@ locknsfw, unlocknsfw, verified, unverified
 custom_role, update_custom_role, custom_room
 jobremind, jobremind add
 giveaway, giveaway list, giveaway entries, giveaway end, giveaway reroll
-vote, random_member, save_image
+vote, big_speaker, random_member, save_image
 kick, ban, softban, unsoftban, mute, unmute, timeout, untimeout, warn, check_warn
 nickchange, roleroll, roleunroll
 purge, purge_user, clean_before
