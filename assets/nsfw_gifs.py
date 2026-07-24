@@ -43,12 +43,56 @@ HANDJOB_GIFS = [
 
 FOOTJOB_GIFS = [
     "https://img2.gelbooru.com//images/1b/ad/1badc5d22054103863e4cb81598c4645.gif",
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
+    "https://cdn.hentaigifz.com/115532/self-pleasure-footjob-scaled.webp",
+    "https://cdn.hentaigifz.com/112469/lola-bunny-footjob-scaled.webp",
+    "https://cdn.hentaigifz.com/111150/dark-hentai-goddess-footjob-2-scaled.webp",
+    "https://cdn.hentaigifz.com/111146/dark-hentai-goddess-footjob-1-scaled.webp",
+    "https://cdn.hentaigifz.com/110614/cfnm-hentai-footjob-scaled.webp",
+    "https://cdn.hentaigifz.com/106136/footjob-scaled.webp",
+    "https://cdn.hentaigifz.com/98452/fancy-footjob-scaled.webp",
+    "https://cdn.hentaigifz.com/95112/toga-giving-a-footjob-scaled.webp",
+    "https://cdn.hentaigifz.com/95070/footjob-scaled.webp",
+    "https://cdn.hentaigifz.com/93092/hentai-footjob-scaled.webp",
+    "https://cdn.hentaigifz.com/87370/hot-sombra-footjob-scaled.webp",
+    "https://cdn.hentaigifz.com/87140/awesome-3d-footjob-scaled.webp",
+    "https://cdn.hentaigifz.com/80874/excessive-cum-from-footjob-scaled.webp",
+    "https://cdn.hentaigifz.com/79408/dva-giving-footjob-scaled.webp",
+    "https://cdn.hentaigifz.com/79304/footjob-by-pharah-scaled.webp",
+    "https://cdn.hentaigifz.com/78496/redhead-footjob-scaled.webp",
+]
+
+ASSJOB_GIFS = [
+    "https://cdn.hentaigifz.com/95956/hentai-assjob-scaled.webp",
+    "https://cdn.hentaigifz.com/95600/hentai-assjob-scaled.webp",
+    "https://cdn.hentaigifz.com/94310/brigitte-assjob-scaled.webp",
+    "https://cdn.hentaigifz.com/3146/hentaiassjob0011-scaled.webp",
+    "https://cdn.hentaigifz.com/27561/snowbunnygivesbbcanassjob001-scaled.webp",
+]
+
+THIGHJOB_GIFS = [
+    "https://cdn.hentaigifz.com/113107/thighjob-scaled.webp",
+    "https://cdn.hentaigifz.com/88706/tanline-thighjob-scaled.webp",
+    "https://cdn.hentaigifz.com/84276/elisabeth-pussy-thighjob-dry-humping-on-the-beach-short-4-scaled.webp",
+    "https://cdn.hentaigifz.com/84274/elisabeth-pussy-thighjob-dry-humping-on-the-beach-short-3-scaled.webp",
+    "https://cdn.hentaigifz.com/84262/elisabeth-pussy-thighjob-dry-humping-on-the-beach-short-2-scaled.webp",
+    "https://cdn.hentaigifz.com/84258/elisabeth-pussy-thighjob-dry-humping-on-the-beach-short-1-scaled.webp",
+    "https://cdn.hentaigifz.com/57696/sexy-3d-thighjob-scaled.webp",
+    "https://cdn.hentaigifz.com/57305/hentai-thighjob-cumshot-scaled.webp",
+    "https://cdn.hentaigifz.com/28999/thighjob001-scaled.webp",
+]
+
+# Ass spanking / butt slap media (used by NSFW `spank`).
+SPANK_GIFS = [
+    "https://cdn.hentaigifz.com/109750/chun-li-self-spanking-scaled.webp",
+    "https://cdn.hentaigifz.com/101372/spanking-scaled.webp",
+    "https://cdn.hentaigifz.com/97156/spanking-scaled.webp",
+    "https://cdn.hentaigifz.com/81334/rosario-vampire-spanking-scaled.webp",
+    "https://cdn.hentaigifz.com/76154/spanking-hentai-scaled.webp",
+    "https://cdn.hentaigifz.com/114944/soap-spank-wiggle-scaled.webp",
+    "https://cdn.hentaigifz.com/109166/spank-scaled.webp",
+    "https://cdn.hentaigifz.com/108146/fantasy-of-being-spanked-scaled.webp",
+    "https://cdn.hentaigifz.com/58248/bronya-zaychik-ass-slap-mmd-by-scaled.webp",
+    "https://cdn.hentaigifz.com/29772/diivesmaoassslap001-scaled.webp",
 ]
 
 FROTTING_GIFS = [

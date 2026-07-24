@@ -166,7 +166,7 @@ Common settings include:
 | Area 51 guard | `AREA_51_CHANNEL_ID`, `AREA_51_PRUNE_HOURS` | `STRING` |
 | Beta command access | `BETA_ROLE_IDS` | `ARRAY` |
 | NSFW role controls | `KING_ROLE_ID`, `QUEEN_ROLE_ID` | `STRING` |
-| NSFW interaction media | `BLOWJOB_GIFS`, `HANDJOB_GIFS`, `RIMJOB_GIFS`, `FROTTING_GIFS`, `FUCKING_GIFS`, `CREAMPIE_GIFS`, `THREESOME_GIFS`, `ORGY_GIFS` | `ARRAY` |
+| NSFW interaction media | `BLOWJOB_GIFS`, `HANDJOB_GIFS`, `FOOTJOB_GIFS`, `ASSJOB_GIFS`, `THIGHJOB_GIFS`, `SPANK_GIFS`, `RIMJOB_GIFS`, `FROTTING_GIFS`, `FUCKING_GIFS`, `CREAMPIE_GIFS`, `THREESOME_GIFS`, `ORGY_GIFS` | `ARRAY` |
 
 The booster placement values are optional; without them, Discord creates the resource without placing it under a configured anchor/category. The word-chain move icons also have built-in emoji defaults.
 

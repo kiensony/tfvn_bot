@@ -142,6 +142,29 @@ STARE_GIFS = [
     "https://cdn.otakugifs.xyz/gifs/angrystare/cH5xxAUe7Y.gif",
 ]
 
+LICK_GIFS = [
+    "https://cdn.otakugifs.xyz/gifs/lick/0c583e8ab3e6b8aa.gif",
+    "https://cdn.otakugifs.xyz/gifs/lick/48e0307890a0e714.gif",
+    "https://cdn.otakugifs.xyz/gifs/lick/545b920d46a96b2b.gif",
+    "https://cdn.otakugifs.xyz/gifs/lick/68de3278a0041fcf.gif",
+    "https://cdn.otakugifs.xyz/gifs/lick/955885f019f05760.gif",
+    "https://cdn.otakugifs.xyz/gifs/lick/NO3S3QP4CQ.gif",
+    "https://cdn.otakugifs.xyz/gifs/lick/bd93022885fb1d22.gif",
+    "https://cdn.otakugifs.xyz/gifs/lick/d2eca216f3627926.gif",
+]
+
+# Playful SFW smack (otakugifs smack; distinct from NSFW ass-spank).
+SMACK_GIFS = [
+    "https://cdn.otakugifs.xyz/gifs/smack/42f09810ba12345e.gif",
+    "https://cdn.otakugifs.xyz/gifs/smack/504b9994f7248a46.gif",
+    "https://cdn.otakugifs.xyz/gifs/smack/7537179b546d66db.gif",
+    "https://cdn.otakugifs.xyz/gifs/smack/78c956974f371f70.gif",
+    "https://cdn.otakugifs.xyz/gifs/smack/Xhxvcdkcfx.gif",
+    "https://cdn.otakugifs.xyz/gifs/smack/a3f546a9518843d7.gif",
+    "https://cdn.otakugifs.xyz/gifs/smack/b281eb32b6bb3547.gif",
+    "https://cdn.otakugifs.xyz/gifs/smack/bc7b0879f90cf6f7.gif",
+]
+
 # Meme GIF ASSETS
 
 GIFS_36 = [

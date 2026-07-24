@@ -110,7 +110,7 @@ class VariableSetting(commands.Cog):
                         continue
                     # Additional check: Ensure no empty items (already handled by strip and filter, but explicit)
                     if any(not item for item in value_list):
-                        await ctx.send("❌ Danh sách chứa mục rỗng. Vui lòng thử lại hoặc type `cancel`.")
+                        await ctx.send("❌ Danh sách có mục rỗng. Vui lòng thử lại hoặc type `cancel`.")
                         continue
                     value = value_list  # Store as list
 
