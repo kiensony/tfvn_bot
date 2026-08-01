@@ -58,6 +58,7 @@ Rules are stored in plaintext and shown to administrators by `triggerreply list`
 | --- | --- | --- |
 | `triggerreply add contains <phrase> \| <reply>` | Administrator | Reply when a message includes the phrase |
 | `triggerreply add exact <phrase> \| <reply>` | Administrator | Reply only when the whole message matches |
+| `triggerreply update <ID> <contains\|exact> <phrase> \| <reply>` | Administrator | Replace a rule while preserving its ID |
 | `triggerreply list` | Administrator | List configured rules and their numeric IDs |
 | `triggerreply remove <ID>` | Administrator | Delete a configured rule |
 
@@ -66,6 +67,7 @@ Examples:
 ```text
 !tf triggerreply add contains dit me vnpt | vnpt nhu con cac
 !tf triggerreply add exact [A SECRET CODE] | something
+!tf triggerreply update 2 exact [NEW SECRET CODE] | new response
 ```
 
 **Module:** `cogs.interaction.triggered_reply`

@@ -12,11 +12,26 @@ from cogs.interaction.triggered_reply import TriggeredReplyCog
 
 
 class FakeCollection:
+    def __init__(self) -> None:
+        self.documents: list[dict] = []
+
     def create_index(self, *args, **kwargs) -> None:
         pass
 
     def find(self, *args, **kwargs) -> list[dict]:
-        return []
+        return list(self.documents)
+
+    def find_one_and_update(
+        self,
+        query: dict,
+        update: dict,
+        **kwargs,
+    ) -> dict | None:
+        for document in self.documents:
+            if all(document.get(key) == value for key, value in query.items()):
+                document.update(update.get("$set", {}))
+                return dict(document)
+        return None
 
 
 class FakeDatabase:
@@ -191,6 +206,59 @@ class TestTriggeredReplyListener(unittest.TestCase):
 
         self.bot.get_context.assert_not_awaited()
         message.reply.assert_not_awaited()
+
+
+class TestTriggeredReplyCommands(unittest.TestCase):
+    def setUp(self) -> None:
+        self.bot = Mock()
+        self.bot.db = FakeDatabase()
+        self.rules = self.bot.db["triggered_replies"]
+        self.rules.documents.append(
+            {
+                "guild_id": 123,
+                "rule_id": 7,
+                **parse_rule_spec("contains", "old phrase | old reply"),
+                "created_by": 10,
+            }
+        )
+        self.cog = TriggeredReplyCog(self.bot)
+        self.ctx = Mock()
+        self.ctx.guild = SimpleNamespace(id=123)
+        self.ctx.author = SimpleNamespace(id=99)
+        self.ctx.send = AsyncMock()
+
+    def test_update_preserves_id_and_refreshes_cache(self) -> None:
+        asyncio.run(
+            self.cog.triggerreply_update.callback(
+                self.cog,
+                self.ctx,
+                7,
+                "exact",
+                spec="new phrase | new reply",
+            )
+        )
+
+        stored = self.rules.documents[0]
+        self.assertEqual(stored["rule_id"], 7)
+        self.assertEqual(stored["mode"], "exact")
+        self.assertEqual(stored["trigger"], "new phrase")
+        self.assertEqual(stored["reply"], "new reply")
+        self.assertEqual(stored["updated_by"], 99)
+        self.assertEqual(self.cog.rules_by_guild[123][0]["reply"], "new reply")
+        self.ctx.send.assert_awaited_once()
+
+    def test_update_reports_missing_rule(self) -> None:
+        asyncio.run(
+            self.cog.triggerreply_update.callback(
+                self.cog,
+                self.ctx,
+                999,
+                "exact",
+                spec="new phrase | new reply",
+            )
+        )
+
+        self.ctx.send.assert_awaited_once_with("Không tìm thấy rule đó.")
 
 
 if __name__ == "__main__":
