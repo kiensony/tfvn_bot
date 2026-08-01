@@ -48,6 +48,30 @@ Examples below use that default. Replace with your configured prefix if differen
 
 ---
 
+## Triggered replies
+
+Guild administrators can configure persistent, case-insensitive automatic replies. `contains` matches a phrase anywhere in a message; `exact` requires the entire normalized message to match. Replies cannot generate mentions.
+
+Rules are stored in plaintext and shown to administrators by `triggerreply list`; an `exact` phrase can behave like a secret code but should not be used as an authentication secret.
+
+| Command | Access | Description |
+| --- | --- | --- |
+| `triggerreply add contains <phrase> \| <reply>` | Administrator | Reply when a message includes the phrase |
+| `triggerreply add exact <phrase> \| <reply>` | Administrator | Reply only when the whole message matches |
+| `triggerreply list` | Administrator | List configured rules and their numeric IDs |
+| `triggerreply remove <ID>` | Administrator | Delete a configured rule |
+
+Examples:
+
+```text
+!tf triggerreply add contains dit me vnpt | vnpt nhu con cac
+!tf triggerreply add exact [A SECRET CODE] | something
+```
+
+**Module:** `cogs.interaction.triggered_reply`
+
+---
+
 ## AFK reminders
 
 | Command | Access | Description |
