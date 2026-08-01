@@ -39,9 +39,12 @@ tfvn_bot/
 │   └── nsfw_gifs.py                Legacy NSFW media lists used by migration tooling
 │
 ├── fonts/
-│   ├── NotoSans-Variable.ttf        Bundled Vietnamese-capable quote-card font
-│   ├── OFL.txt                      SIL Open Font License for bundled Noto Sans
-│   └── README.md                    Font source, hash, and bundling notes
+│   ├── NotoSans-Variable.ttf        Primary Vietnamese-capable quote-card font
+│   ├── NotoEmoji-Variable.ttf       Offline fallback for Unicode emoji glyphs
+│   ├── NotoSansSymbols-Variable.ttf Common symbol and music-glyph fallback
+│   ├── NotoSansSymbols2-Regular.ttf Decorative symbol and dingbat fallback
+│   ├── *-OFL.txt / OFL.txt          SIL Open Font licenses for bundled fonts
+│   └── README.md                    Font sources, hashes, and bundling notes
 │
 ├── data/
 │   ├── banned_word_list.txt        Discipline filter terms

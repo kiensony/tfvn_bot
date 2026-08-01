@@ -290,7 +290,7 @@ tfvn_bot/
 │   └── ...
 ├── data/                   # Word lists, filters, and game datasets
 ├── assets/                 # GIF and media constants
-├── fonts/                  # Bundled Noto Sans font and license for quote cards
+├── fonts/                  # Bundled quote-card fonts, licenses, and source notes
 ├── scripts/                # One-off data preparation/migration utilities
 ├── test/                   # Unit tests and development utilities
 ├── Dockerfile

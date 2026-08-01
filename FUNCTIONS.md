@@ -312,7 +312,7 @@ Duration range: 10 seconds–30 days; max 20 winners.
 
 | Command | Aliases | Access | Description |
 | --- | --- | --- | --- |
-| `quote [image] [message_link\|message_id]` | `q`, `quotes` | Everyone (guild) | Quote a replied/current-channel message as a text embed by default. Add `image` before the optional link/ID to generate a PNG card. Both modes use the author's server avatar when available, link to the original message, and have a 5s per-user cooldown |
+| `quote [image] [message_link\|message_id]` | `q`, `quotes` | Everyone (guild) | Quote a replied/current-channel message as a text embed by default. Add `image` before the optional link/ID to generate a PNG card with bundled offline emoji/symbol fallback fonts. Both modes use the author's server avatar when available, link to the original message, and have a 5s per-user cooldown |
 | `big_speaker <size> <message>` | `loa`, `speaker` | Everyone (guild) | Re-speak a message in large Discord markdown. **`size` is 1–6**; TC cost by size: **1 / 2 / 5 / 10 / 20 / 50**. Sizes 5–6 add separators; 6 is bold H1. Mentions: user only; strips `@everyone`, `@here`, role pings. 30s cooldown |
 | `random_member <@member\|@role>` | — | Everyone | Pick a random member (from role members if a role is given) |
 | `save_image <collection> [metadata…]` | — | Manage Messages | Persist attached images + metadata to Mongo (`images`) |

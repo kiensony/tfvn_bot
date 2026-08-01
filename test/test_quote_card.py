@@ -7,7 +7,10 @@ from unittest.mock import AsyncMock, patch
 from PIL import Image
 
 from cogs.utils._quote_card import (
+    BUNDLED_EMOJI_FONT_PATH,
     BUNDLED_FONT_PATH,
+    BUNDLED_SYMBOL_FONT_PATH,
+    BUNDLED_SYMBOLS2_FONT_PATH,
     CARD_HEIGHT,
     CARD_WIDTH,
     MAX_NORMALIZED_TEXT_LENGTH,
@@ -15,6 +18,7 @@ from cogs.utils._quote_card import (
     _truncate_to_width,
     _fit_quote_lines,
     _font_path,
+    _load_fallback_font,
     _load_font,
     _safe_accent,
     _text_block_height,
@@ -72,7 +76,30 @@ class TestQuoteText(unittest.TestCase):
             normalize_quote_text(
                 "  Xin   chào ✨  \n\n<a:waving:123456>  bạn "
             ),
-            "Xin chào :sparkles:\n\n:waving: bạn",
+            "Xin chào ✨\n\n:waving: bạn",
+        )
+
+    def test_demojizes_only_complex_emoji_sequences(self):
+        self.assertEqual(
+            normalize_quote_text(
+                "😀 ✨ ❤️ 👍🏽 🇻🇳 1️⃣ 👨‍👩‍👧‍👦"
+            ),
+            (
+                "😀 ✨ ❤️ :thumbs_up_medium_skin_tone: :Vietnam: "
+                ":keycap_1: :family_man_woman_girl_boy:"
+            ),
+        )
+
+    def test_demojizes_emoji_missing_from_bundled_font(self):
+        self.assertEqual(
+            normalize_quote_text("Newest emoji: 🪉"),
+            "Newest emoji: :harp:",
+        )
+
+    def test_preserves_decorative_symbols_for_font_fallback(self):
+        self.assertEqual(
+            normalize_quote_text("♡  ★  ♪"),
+            "♡ ★ ♪",
         )
 
     def test_rejects_empty_text(self):
@@ -106,10 +133,42 @@ class TestQuoteText(unittest.TestCase):
         )
 
     def test_bundled_font_is_present(self):
-        self.assertTrue(BUNDLED_FONT_PATH.is_file())
+        for path in (
+            BUNDLED_FONT_PATH,
+            BUNDLED_EMOJI_FONT_PATH,
+            BUNDLED_SYMBOL_FONT_PATH,
+            BUNDLED_SYMBOLS2_FONT_PATH,
+        ):
+            with self.subTest(path=path.name):
+                self.assertTrue(path.is_file())
         self.assertEqual(_font_path(False), str(BUNDLED_FONT_PATH))
         self.assertEqual(_font_path(True), str(BUNDLED_FONT_PATH))
         self.assertEqual(_load_font(24, bold=True).getname()[1], "Bold")
+
+    def test_fallback_fonts_replace_tofu_glyphs(self):
+        font = _load_fallback_font(40)
+        runs = [
+            (text, run_font.getname()[0])
+            for text, run_font in font._font_runs("A♡♪😀𐙚")
+        ]
+        self.assertEqual(
+            runs,
+            [
+                ("A", "Noto Sans"),
+                ("♡", "Noto Sans Symbols 2"),
+                ("♪", "Noto Sans Symbols"),
+                ("😀", "Noto Emoji"),
+                ("�", "Noto Sans"),
+            ],
+        )
+        self.assertEqual(
+            "".join(text for text, _ in font._font_runs("Kiên")),
+            "Kiên",
+        )
+        self.assertEqual(
+            "".join(text for text, _ in font._font_runs("1️⃣")),
+            "1",
+        )
 
     def test_normalized_text_is_bounded(self):
         normalized = normalize_quote_text("😀" * 4_000)
@@ -141,10 +200,12 @@ class TestQuoteCardRendering(unittest.TestCase):
 
         output = render_quote_card(
             avatar_bytes=avatar_buffer.getvalue(),
-            display_name="Người dùng thử nghiệm",
-            username="tester",
-            quote_text="Xin chào mọi người! Đây là một câu quote tiếng Việt.",
-            context_label="#general • 01/08/2026 10:00 UTC",
+            display_name="Người dùng ♡ 😀",
+            username="tester♪",
+            quote_text=(
+                "Xin chào ✨ Đây là một câu quote tiếng Việt ★"
+            ),
+            context_label="#general ☾ • 01/08/2026 10:00 UTC",
             accent_rgb=(120, 90, 220),
         )
 
@@ -265,7 +326,7 @@ class TestQuoteCommandModes(unittest.IsolatedAsyncioTestCase):
         with patch(
             "cogs.utils.quote.asyncio.to_thread",
             AsyncMock(return_value=b"png"),
-        ):
+        ) as render_thread:
             await cog.quote.callback(
                 cog,
                 ctx,
@@ -274,6 +335,10 @@ class TestQuoteCommandModes(unittest.IsolatedAsyncioTestCase):
 
         cog._resolve_message.assert_awaited_once_with(ctx, None)
         cog._send_text_quote.assert_not_awaited()
+        self.assertEqual(
+            render_thread.await_args.kwargs["context_label"],
+            "01/08/2026 00:00 UTC",
+        )
         self.assertIn("file", ctx.send.await_args.kwargs)
 
     async def test_image_render_failure_falls_back_to_embed(self):
