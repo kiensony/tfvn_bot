@@ -202,7 +202,7 @@ Commands are invoked with `COMMAND_PREFIX`. With the default prefix, `!tf help`,
 | Moderation | `kick`, `ban`, `softban`, `mute`, `timeout`, `warn`, `case`, `purge`, `slowmode`, `verified` |
 | Operations | `ping`, `server_stats`, `setup check` |
 | Booster tools | `custom_role`, `update_custom_role`, `custom_room` |
-| Social and fun | `kiss`, `hug`, `pat`, `avatar`, `rank`, `ship`, `aura`, `redflag`, and other meter commands |
+| Social and fun | `kiss`, `hug`, `pat`, `avatar`, `quote`, `rank`, `ship`, `aura`, `redflag`, and other meter commands |
 | Optional NSFW | `nsfw`, `r34`, `gbr`, NSFW interactions, rankings, and role-based locks |
 
 This is an overview rather than an exhaustive command reference; the source of truth is each module under `cogs/`.
@@ -268,8 +268,8 @@ Run the unit-test suite from the repository root:
 python -m unittest discover -s test -p "test_*.py"
 ```
 
-The automated tests cover meter formatting, cog flags, and validation helpers
-used by the shop, cases, and setup diagnostics.
+The automated tests cover meter formatting, quote-card rendering, cog flags,
+and validation helpers used by the shop, cases, and setup diagnostics.
 
 ## Project structure
 
@@ -290,6 +290,7 @@ tfvn_bot/
 │   └── ...
 ├── data/                   # Word lists, filters, and game datasets
 ├── assets/                 # GIF and media constants
+├── fonts/                  # Bundled quote-card fonts, licenses, and source notes
 ├── scripts/                # One-off data preparation/migration utilities
 ├── test/                   # Unit tests and development utilities
 ├── Dockerfile

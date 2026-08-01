@@ -105,6 +105,8 @@ class HelpCog(commands.Cog):
             value=(f"`{self.bot.command_prefix} hello` – Chào con bot.\n"
                    f"`{self.bot.command_prefix} cat` – Mèo.\n"
                    f"`{self.bot.command_prefix} dog` – Chó.\n"
+                   f"`{self.bot.command_prefix} quote` – Reply tin nhắn để quote dạng embed.\n"
+                   f"`{self.bot.command_prefix} quote image` – Reply tin nhắn để tạo ảnh quote.\n"
             ),
             inline=False,
         )
