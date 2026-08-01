@@ -48,6 +48,8 @@ tfvn_bot/
 │
 ├── data/
 │   ├── banned_word_list.txt        Discipline filter terms
+│   ├── bot_activity_funny_status.json
+│   │                                 Random Discord custom/action definitions
 │   ├── fake_loading_sentences.txt  Random progress text for fun commands
 │   ├── femboy_role.txt             Role names used by the femboy card command
 │   ├── nsfw_channel.json           Verification-managed NSFW channel definitions
@@ -144,6 +146,7 @@ tfvn_bot/
     │   ├── r34.py                       Age-gated Rule34 API search
     │   └── gelbooru.py                  Age-gated Gelbooru API search
     ├── operation/
+    │   ├── bot_status.py                Random Discord activity and timing rotation
     │   ├── _setup_helpers.py           Pure setup-check result and ID helpers
     │   ├── heartbeat.py                 Latency/health command
     │   ├── server_stats.py              In-memory uptime and command/error counts

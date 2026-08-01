@@ -457,7 +457,9 @@ area51_fire
 setting, setting set_variable, setting get_variable
 ```
 
-**Automatic features:** welcome / goodbye / ban announcements, AFK monitoring, banned-word discipline, booster unboost janitor, birthday announcements, job-reminder loop, giveaway/vote end scheduling, Area 51 honeypot, Lunar New Year greeting, word-game message handling.
+**Automatic features:** random bot activity rotation at random 5–15 minute intervals; welcome / goodbye / ban announcements, AFK monitoring, banned-word discipline, booster unboost janitor, birthday announcements, job-reminder loop, giveaway/vote end scheduling, Area 51 honeypot, Lunar New Year greeting, word-game message handling.
+
+Bot status data uses `type` + `think` for `CUSTOM` entries. All other activity types use `type` + `text` so their action-card text remains prominent.
 
 ---
 
