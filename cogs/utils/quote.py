@@ -1,4 +1,4 @@
-"""Generate a shareable image card from a real Discord message."""
+"""Quote real Discord messages as embeds or shareable image cards."""
 
 from __future__ import annotations
 
@@ -20,6 +20,34 @@ _MESSAGE_LINK = re.compile(
     r"(?P<guild_id>\d+)/(?P<channel_id>\d+)/(?P<message_id>\d+)/?"
 )
 _MESSAGE_ID = re.compile(r"\d{15,22}")
+_EMBED_QUOTE_PREFIX = ">>> "
+_EMBED_DESCRIPTION_LIMIT = 4_096
+
+
+def parse_quote_request(
+    argument: str | None,
+) -> tuple[bool, str | None]:
+    """Return whether image mode was requested and the optional reference."""
+    if argument is None or not argument.strip():
+        return False, None
+
+    parts = argument.strip().split(maxsplit=1)
+    if parts[0].casefold() == "image":
+        reference = parts[1].strip() if len(parts) == 2 else ""
+        return True, reference or None
+    return False, argument.strip()
+
+
+def prepare_embed_quote_text(content: str) -> str:
+    """Validate and bound message text for a Discord embed description."""
+    text = content.strip()
+    if not text:
+        raise ValueError("Tin nhắn không có nội dung chữ để tạo quote.")
+
+    available = _EMBED_DESCRIPTION_LIMIT - len(_EMBED_QUOTE_PREFIX)
+    if len(text) > available:
+        text = text[: available - 1].rstrip() + "…"
+    return text
 
 
 class QuoteLookupError(Exception):
@@ -27,7 +55,7 @@ class QuoteLookupError(Exception):
 
 
 class QuoteCog(commands.Cog):
-    """Create image quotes from messages in the current guild channel."""
+    """Create embed or image quotes from messages in the current channel."""
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
@@ -90,8 +118,9 @@ class QuoteCog(commands.Cog):
             reference = ctx.message.reference
             if reference is None or reference.message_id is None:
                 raise QuoteLookupError(
-                    f"Hãy reply một tin nhắn bằng `{ctx.prefix}quote`, hoặc dùng "
-                    f"`{ctx.prefix}quote <link/ID tin nhắn>`."
+                    f"Hãy reply tin nhắn bằng `{ctx.prefix}quote` (embed) hoặc "
+                    f"`{ctx.prefix}quote image` (ảnh). Bạn cũng có thể thêm "
+                    "link/ID tin nhắn ở cuối lệnh."
                 )
 
             resolved = reference.resolved
@@ -145,7 +174,7 @@ class QuoteCog(commands.Cog):
             )
             return None
 
-    async def _send_embed_fallback(
+    async def _send_text_quote(
         self,
         ctx: commands.Context,
         message: discord.Message,
@@ -156,7 +185,7 @@ class QuoteCog(commands.Cog):
         embed = discord.Embed(
             title="💬 Trích dẫn",
             url=message.jump_url,
-            description=quote_text[:4096],
+            description=f"{_EMBED_QUOTE_PREFIX}{quote_text}",
             color=discord.Color.from_rgb(*self._accent_color(author)),
             timestamp=message.created_at,
         )
@@ -181,7 +210,7 @@ class QuoteCog(commands.Cog):
     @commands.command(
         name="quote",
         aliases=["q", "quotes"],
-        help="Tạo ảnh quote từ tin nhắn được reply hoặc link/ID tin nhắn.",
+        help="Quote dạng embed; thêm `image` để tạo ảnh PNG.",
     )
     @commands.guild_only()
     @commands.cooldown(1, 5, commands.BucketType.user)
@@ -191,18 +220,29 @@ class QuoteCog(commands.Cog):
         *,
         message_reference: str | None = None,
     ) -> None:
+        image_mode, message_reference = parse_quote_request(message_reference)
         try:
             message = await self._resolve_message(ctx, message_reference)
         except QuoteLookupError as exc:
             await ctx.send(str(exc), allowed_mentions=NO_MENTIONS)
             return
 
+        raw_content = message.clean_content
         try:
-            quote_text = normalize_quote_text(message.clean_content)
+            embed_quote_text = prepare_embed_quote_text(raw_content)
         except ValueError as exc:
             await ctx.send(str(exc), allowed_mentions=NO_MENTIONS)
             return
 
+        if not image_mode:
+            await self._send_text_quote(ctx, message, embed_quote_text)
+            return
+
+        try:
+            quote_text = normalize_quote_text(raw_content)
+        except ValueError as exc:
+            await ctx.send(str(exc), allowed_mentions=NO_MENTIONS)
+            return
         author = message.author
         display_name = getattr(author, "display_name", author.name)
         username = getattr(author, "name", display_name)
@@ -226,7 +266,11 @@ class QuoteCog(commands.Cog):
                 )
             except Exception:
                 logger.exception("Failed to render quote card")
-                await self._send_embed_fallback(ctx, message, quote_text)
+                await self._send_text_quote(
+                    ctx,
+                    message,
+                    embed_quote_text,
+                )
                 return
 
         filename = f"quote-{message.id}.png"
@@ -239,7 +283,7 @@ class QuoteCog(commands.Cog):
             )
         except discord.HTTPException:
             logger.exception("Failed to upload quote card; using embed fallback")
-            await self._send_embed_fallback(ctx, message, quote_text)
+            await self._send_text_quote(ctx, message, embed_quote_text)
 
     @quote.error
     async def quote_error(

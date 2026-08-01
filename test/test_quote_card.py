@@ -1,7 +1,8 @@
 import unittest
+from datetime import datetime, timezone
 from io import BytesIO
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 from PIL import Image
 
@@ -21,12 +22,48 @@ from cogs.utils._quote_card import (
     render_quote_card,
     wrap_quote_text,
 )
-from cogs.utils.quote import QuoteCog, QuoteLookupError
+from cogs.utils.quote import (
+    QuoteCog,
+    QuoteLookupError,
+    parse_quote_request,
+    prepare_embed_quote_text,
+)
 
 
 class FixedWidthFont:
     def getlength(self, text: str) -> float:
         return float(len(text))
+
+
+class TestQuoteModes(unittest.TestCase):
+    def test_default_mode_is_text_embed(self):
+        self.assertEqual(parse_quote_request(None), (False, None))
+        self.assertEqual(
+            parse_quote_request("123456789012345678"),
+            (False, "123456789012345678"),
+        )
+
+    def test_image_keyword_selects_png_mode(self):
+        self.assertEqual(parse_quote_request("image"), (True, None))
+        self.assertEqual(
+            parse_quote_request("IMAGE\t123456789012345678"),
+            (True, "123456789012345678"),
+        )
+
+    def test_embed_text_preserves_unicode_emoji(self):
+        self.assertEqual(
+            prepare_embed_quote_text("  Xin chào ✨  "),
+            "Xin chào ✨",
+        )
+
+    def test_embed_text_is_bounded(self):
+        prepared = prepare_embed_quote_text("x" * 5_000)
+        self.assertEqual(len(">>> " + prepared), 4_096)
+        self.assertTrue(prepared.endswith("…"))
+
+    def test_embed_text_rejects_empty_message(self):
+        with self.assertRaises(ValueError):
+            prepare_embed_quote_text(" \n\t ")
 
 
 class TestQuoteText(unittest.TestCase):
@@ -143,6 +180,132 @@ class TestQuoteAvatarSelection(unittest.TestCase):
             display_avatar=display_avatar,
         )
         self.assertIs(QuoteCog._server_avatar(author), display_avatar)
+
+
+class TestTextQuoteSending(unittest.IsolatedAsyncioTestCase):
+    async def test_embed_contains_original_text_and_server_avatar(self):
+        server_avatar = SimpleNamespace(url="https://cdn.example/avatar.png")
+        author = SimpleNamespace(
+            guild_avatar=server_avatar,
+            display_avatar=SimpleNamespace(url="https://cdn.example/global.png"),
+            display_name="Kiên",
+            name="kien",
+        )
+        message = SimpleNamespace(
+            author=author,
+            jump_url="https://discord.com/channels/1/2/3",
+            created_at=datetime(2026, 8, 1, tzinfo=timezone.utc),
+            channel=SimpleNamespace(name="general"),
+        )
+        ctx = SimpleNamespace(send=AsyncMock())
+
+        await QuoteCog(SimpleNamespace())._send_text_quote(
+            ctx,
+            message,
+            "Xin chào ✨",
+        )
+
+        embed = ctx.send.await_args.kwargs["embed"]
+        self.assertEqual(embed.description, ">>> Xin chào ✨")
+        self.assertEqual(embed.author.icon_url, server_avatar.url)
+        self.assertEqual(embed.url, message.jump_url)
+
+
+class AsyncContext:
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, exc_type, exc, traceback):
+        return False
+
+
+class TestQuoteCommandModes(unittest.IsolatedAsyncioTestCase):
+    def _message(self):
+        return SimpleNamespace(
+            id=123456789012345678,
+            clean_content="Xin chào ✨",
+            author=SimpleNamespace(
+                display_name="Kiên",
+                name="kien",
+            ),
+            channel=SimpleNamespace(name="general"),
+            created_at=datetime(2026, 8, 1, tzinfo=timezone.utc),
+            jump_url="https://discord.com/channels/1/2/3",
+        )
+
+    async def test_default_command_uses_text_embed(self):
+        cog = QuoteCog(SimpleNamespace())
+        message = self._message()
+        cog._resolve_message = AsyncMock(return_value=message)
+        cog._send_text_quote = AsyncMock()
+        cog._avatar_bytes = AsyncMock()
+        ctx = SimpleNamespace(send=AsyncMock())
+
+        await cog.quote.callback(cog, ctx, message_reference=None)
+
+        cog._resolve_message.assert_awaited_once_with(ctx, None)
+        cog._send_text_quote.assert_awaited_once_with(
+            ctx,
+            message,
+            "Xin chào ✨",
+        )
+        cog._avatar_bytes.assert_not_awaited()
+
+    async def test_image_keyword_uses_png_mode(self):
+        cog = QuoteCog(SimpleNamespace())
+        message = self._message()
+        cog._resolve_message = AsyncMock(return_value=message)
+        cog._send_text_quote = AsyncMock()
+        cog._avatar_bytes = AsyncMock(return_value=None)
+        ctx = SimpleNamespace(
+            send=AsyncMock(),
+            typing=lambda: AsyncContext(),
+        )
+
+        with patch(
+            "cogs.utils.quote.asyncio.to_thread",
+            AsyncMock(return_value=b"png"),
+        ):
+            await cog.quote.callback(
+                cog,
+                ctx,
+                message_reference="image",
+            )
+
+        cog._resolve_message.assert_awaited_once_with(ctx, None)
+        cog._send_text_quote.assert_not_awaited()
+        self.assertIn("file", ctx.send.await_args.kwargs)
+
+    async def test_image_render_failure_falls_back_to_embed(self):
+        cog = QuoteCog(SimpleNamespace())
+        message = self._message()
+        cog._resolve_message = AsyncMock(return_value=message)
+        cog._send_text_quote = AsyncMock()
+        cog._avatar_bytes = AsyncMock(return_value=None)
+        ctx = SimpleNamespace(
+            send=AsyncMock(),
+            typing=lambda: AsyncContext(),
+        )
+
+        with (
+            patch(
+                "cogs.utils.quote.asyncio.to_thread",
+                AsyncMock(side_effect=RuntimeError("render failed")),
+            ),
+            patch("cogs.utils.quote.logger.exception") as log_exception,
+        ):
+            await cog.quote.callback(
+                cog,
+                ctx,
+                message_reference="image",
+            )
+
+        cog._send_text_quote.assert_awaited_once_with(
+            ctx,
+            message,
+            "Xin chào ✨",
+        )
+        log_exception.assert_called_once_with("Failed to render quote card")
 
 
 class TestQuoteMessageResolution(unittest.IsolatedAsyncioTestCase):

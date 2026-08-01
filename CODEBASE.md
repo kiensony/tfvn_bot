@@ -150,7 +150,7 @@ tfvn_bot/
     └── utils/
         ├── giveaway.py                  Persistent views, entries, scheduling, and rerolls
         ├── vote.py                      Persistent reaction polls and result scheduling
-        ├── quote.py                     Reply/link-based Discord message quote command
+        ├── quote.py                     Text-embed and PNG message quote modes
         ├── _quote_card.py               Quote text wrapping and PNG card rendering
         ├── big_speaker.py               Paid TC big-text re-speak in current channel
         ├── _big_speaker_helpers.py      Size 1–6 → TC cost, mention sanitize, format helpers
