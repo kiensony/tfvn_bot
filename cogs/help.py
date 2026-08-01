@@ -220,6 +220,7 @@ class HelpCog(commands.Cog):
                 f"`{self.bot.command_prefix}case view <số>` – Xem moderation case.\n"
                 f"`{self.bot.command_prefix}case history @user` – Xem lịch sử member.\n"
                 f"`{self.bot.command_prefix}case log_channel [channel]` – Đặt mod-log channel.\n"
+                f"`{self.bot.command_prefix}triggerreply` – Quản lý câu trả lời theo cụm từ.\n"
                 f"`{self.bot.command_prefix}setup check` – Kiểm tra config và permission.\n"
             ),
             inline=False,

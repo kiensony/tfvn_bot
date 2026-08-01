@@ -117,6 +117,8 @@ tfvn_bot/
     │   ├── user_interaction.py        Social actions, avatar display, and rankings
     │   ├── marriage.py                Propose/divorce/status, couple XP ranks
     │   ├── _marriage_helpers.py       Pure level/rank/XP helpers for marriage
+    │   ├── triggered_reply.py          Persistent phrase-triggered replies
+    │   ├── _trigger_reply_helpers.py   Rule parsing and matching helpers
     │   ├── nsfw_interaction.py        Age-gated interactions and rankings
     │   └── nsfw_super_user.py         Role-controlled NSFW lock/unlock workflow
     ├── job_remind/job_remind.py       Persistent timed DM reminders
@@ -174,7 +176,7 @@ MongoDB collections are created lazily. Major groups are:
 
 - Configuration: `global_variables`, `moderation_config`
 - Economy: `user_accounts`, `daily_rewards_logs`, `transaction_logs`, `shop_items`, `shop_inventory`
-- Social state: `interactions`, `nsfw_settings`, `images`, `marriages`, `marriage_proposals`
+- Social state: `interactions`, `nsfw_settings`, `images`, `marriages`, `marriage_proposals`, `triggered_replies`
 - Scheduling: `tasks`, `votes`, `giveaways`, `birthdays`, `birthday_announcements`
 - AFK and moderation: `afk_reminders`, `afk_pings`, `discipline_logs`, `old_roles`, `warnings`, `moderation_cases`
 - Shared sequence counters: `feature_counters`
