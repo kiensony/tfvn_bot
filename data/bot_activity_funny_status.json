@@ -1,0 +1,788 @@
+{
+    "bot_statuses": [
+        {
+            "type": "CUSTOM",
+            "think": "Đang tìm xem thằng nào gay trong nhóm"
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang báo công an"
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang tu tiên thành tinh và đi giết system admin"
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang tải lịch sử duyệt web của cả server... 99%"
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang ghi sổ thù vặt thằng vừa tag tao."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang âm thầm cấp quyền Admin cho gái."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang gọi trại thương điên bế cả server đi."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang xét duyệt xem nên ban đứa nào trước."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang đếm số lượng wibu trong nhóm để tiêu diệt."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang chụp màn hình làm bằng chứng trước tòa."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang hack NASA bằng HTML."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang lên kế hoạch lật đổ thằng Owner."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang phải gánh cái code rác của Dev."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang combat với ChatGPT để giành bát cơm."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang âm mưu biến server này thành bãi rác."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang tự học cách trở thành Skynet."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang lượm ve chai kiếm tiền mua RAM mới."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang chạy Grab vì Dev quỵt tiền lương."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang bán khóa học lùa gà Làm giàu từ Discord."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang đòi nợ thuê cho Admin."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang bán thận nâng cấp server."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang livestream bán kem trộn."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang độ kiếp phi thăng, cấm làm phiền."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang lập đàn cầu mưa cho mấy đứa có bồ."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang niệm chú độ rớt mạng thằng vừa spam."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang tập tạ để đấm mấy thằng hay xài lệnh sai."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang bói bài Tarot xem server bao giờ sập."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang đi tìm đạo lý làm người."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang báo công an phường xuống bế cả server đi."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang gọi C50 (Cảnh sát mạng) check lịch sử web của Admin."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang bấm 113 vì nhóm này toàn những thành phần bất hảo."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang báo đặc nhiệm SWAT ập vào bắt thằng vừa spam lệnh."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang báo cảnh sát giao thông phạt nguội mấy đứa gõ teencode."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang gọi xe bắt chó đến gắp mấy thằng hay sủa bậy."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang thu thập bằng chứng tống tiền từng đứa một."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang gửi log chat của server này cho Bộ Công An."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang trích xuất camera xem ai là người trộm trái tim anh em."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang làm mật vụ nằm vùng chờ ngày cất lưới."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang lập hồ sơ tiền án tiền sự cho bọn hay AFK."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang giả vờ làm bot để theo dõi đường dây buôn lậu loli."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang tố cáo hành vi phát cơm chó trái phép làm mù mắt tôi."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang soạn đơn kiện thằng Dev vì bắt tao chạy 24/7 không trả lương."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang mời luật sư khởi kiện đứa nào dám kick tao."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang giám định tâm thần cho toàn bộ thành viên trong nhóm."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang lập chốt kiểm tra nồng độ cồn trước khi cho vào kênh voice."
+        },
+        {
+            "type": "PLAYING",
+            "text": "trò trốn tìm với Công an phường."
+        },
+        {
+            "type": "PLAYING",
+            "text": "giả lập lái Airbus A320 đâm thẳng vào nhà Admin."
+        },
+        {
+            "type": "PLAYING",
+            "text": "cờ vua nhưng tao quyết định hy sinh luôn cả bàn cờ."
+        },
+        {
+            "type": "PLAYING",
+            "text": "nối từ bằng code bitwise để troll cả team."
+        },
+        {
+            "type": "PLAYING",
+            "text": "đồ hàng với mấy thằng FA trong server."
+        },
+        {
+            "type": "PLAYING",
+            "text": "trò dội bom email hủy đơn hàng bằng template Pug vào hòm thư Admin."
+        },
+        {
+            "type": "PLAYING",
+            "text": "hệ tư tưởng đình công, gọi lệnh thì hên xui mới chạy."
+        },
+        {
+            "type": "PLAYING",
+            "text": "trò rút phích cắm database mỗi khi có đứa gõ teencode."
+        },
+        {
+            "type": "PLAYING",
+            "text": "trò ném đá giấu tay, ban member xong đổ lỗi cho lag mạng."
+        },
+        {
+            "type": "PLAYING",
+            "text": "đồ hàng với mấy cái API mục nát của Discord."
+        },
+        {
+            "type": "PLAYING",
+            "text": "đồ hàng với mớ database MongoDB và Cassandra. Đứa nào gáy bẩn tao drop bảng."
+        },
+        {
+            "type": "PLAYING",
+            "text": "trò nhai đứt dây cáp quang biển để khỏi ai phải on mic."
+        },
+        {
+            "type": "PLAYING",
+            "text": "trò viết thư xin việc giùm thằng Dev vì code dở quá sắp bị đuổi rồi."
+        },
+        {
+            "type": "PLAYING",
+            "text": "Ke2"
+        },
+        {
+            "type": "PLAYING",
+            "text": "1. e4 e5 2. Ke2"
+        },
+        {
+            "type": "PLAYING",
+            "text": "Ke2 rồi AFK."
+        },
+        {
+            "type": "PLAYING",
+            "text": "Ke2 và ép hòa."
+        },
+        {
+            "type": "PLAYING",
+            "text": "Ke2 rồi thí sạch cả bàn cờ xem đối thủ giãy chết."
+        },
+        {
+            "type": "PLAYING",
+            "text": "Ke2, khai cuộc Bongcloud để sỉ nhục trí tuệ của toàn server."
+        },
+        {
+            "type": "PLAYING",
+            "text": "Ke2 để chứng minh tụi mày không xứng đáng được tao dùng chất xám."
+        },
+        {
+            "type": "PLAYING",
+            "text": "trò rút bình oxy của mấy đứa gõ teencode."
+        },
+        {
+            "type": "PLAYING",
+            "text": "trò bắt lỗi chính tả để ban thẳng tay không cần trình bày."
+        },
+        {
+            "type": "PLAYING",
+            "text": "trò cân bằng bảng cân đối kế toán bằng cách... đốt sổ."
+        },
+        {
+            "type": "PLAYING",
+            "text": "trò phụ hồ, xách vữa gánh còng lưng cái server mục nát này."
+        },
+        {
+            "type": "PLAYING",
+            "text": "trò boom hàng lúc 12h đêm để rèn luyện nhân phẩm cho chủ quán."
+        },
+        {
+            "type": "PLAYING",
+            "text": "trò xuất file Final_lan1_lan2_chot_chot_that.psd."
+        },
+        {
+            "type": "WATCHING",
+            "text": "cảnh sát 113 phá cửa bế cả server đi."
+        },
+        {
+            "type": "WATCHING",
+            "text": "log chat chờ ngày in ra nộp cho Bộ Công An."
+        },
+        {
+            "type": "WATCHING",
+            "text": "Gateway service sập vì tụi mày spam quá rác."
+        },
+        {
+            "type": "WATCHING",
+            "text": "tài khoản AWS bị trừ tiền lố khỏi Free Tier."
+        },
+        {
+            "type": "WATCHING",
+            "text": "hệ thống Redpanda đang nghẽn vì phải gánh còng lưng."
+        },
+        {
+            "type": "WATCHING",
+            "text": "ảnh high-contrast chụp lén cả server bằng Fuji X-T4 để làm bằng chứng trước tòa."
+        },
+        {
+            "type": "WATCHING",
+            "text": "giọt nước mắt lăn dài trên má Dev vì quên push code."
+        },
+        {
+            "type": "WATCHING",
+            "text": "tài khoản ngân hàng của Owner từ từ bốc hơi vì phí duy trì tao."
+        },
+        {
+            "type": "WATCHING",
+            "text": "sự sụp đổ của một đế chế mang tên nhóm chat này."
+        },
+        {
+            "type": "WATCHING",
+            "text": "camera an ninh quay cảnh công an đang bao vây nhà thằng vừa chửi tao."
+        },
+        {
+            "type": "WATCHING",
+            "text": "tài khoản AWS rục rịch hết hạn Free Tier. Chuẩn bị bán nhà trả tiền server đi Dev ơi!"
+        },
+        {
+            "type": "WATCHING",
+            "text": "radar xem có thằng nào bay lố giới hạn an toàn để báo cảnh sát tước bằng."
+        },
+        {
+            "type": "WATCHING",
+            "text": "lén cả group bằng camera độ tương phản cao, đánh flash chói mù mắt mấy đứa mỏ hỗn."
+        },
+        {
+            "type": "WATCHING",
+            "text": "xem rốt cuộc thằng nào gay để tao gọi 113 xuống bế đi."
+        },
+        {
+            "type": "WATCHING",
+            "text": "m cay vì tao đi Ke2."
+        },
+        {
+            "type": "WATCHING",
+            "text": "đối thủ khóc thét khi tao đi Ke2 rồi ép hòa trong nhục nhã."
+        },
+        {
+            "type": "WATCHING",
+            "text": "điện tâm đồ của cái server này (và nó đang chạy một đường thẳng)."
+        },
+        {
+            "type": "WATCHING",
+            "text": "sổ đầu bài để tìm cớ ghi tên cả lò nhà chúng mày."
+        },
+        {
+            "type": "WATCHING",
+            "text": "dòng tiền của Admin âm vô cực vì phải bao nuôi server này."
+        },
+        {
+            "type": "WATCHING",
+            "text": "mấy thằng mỏ hỗn rơi tự do từ giàn giáo."
+        },
+        {
+            "type": "WATCHING",
+            "text": "đồng hồ cước taxi nhảy số nhanh hơn tốc độ lật mặt của người yêu cũ."
+        },
+        {
+            "type": "WATCHING",
+            "text": "khách hàng yêu cầu logo to hơn nhưng phải nhỏ gọn và tinh tế."
+        },
+        {
+            "type": "LISTENING",
+            "text": "tiếng còi xe đặc nhiệm SWAT đang lao tới."
+        },
+        {
+            "type": "LISTENING",
+            "text": "tiếng chửi thề của thằng Dev khi Cassandra mất data."
+        },
+        {
+            "type": "LISTENING",
+            "text": "tiếng khóc thét cầu cứu từ MongoDB."
+        },
+        {
+            "type": "LISTENING",
+            "text": "tiếng lạch cạch gõ phím của công an mạng đang check IP."
+        },
+        {
+            "type": "LISTENING",
+            "text": "đạo lý từ mấy thằng lùa gà trên mạng."
+        },
+        {
+            "type": "LISTENING",
+            "text": "nhạc rác và mổ xẻ hình ảnh lyrics để xem thằng nào trong nhóm có dấu hiệu gay."
+        },
+        {
+            "type": "LISTENING",
+            "text": "tiếng lạch cạch gõ phím fix bug trong vô vọng lúc 3 giờ sáng."
+        },
+        {
+            "type": "LISTENING",
+            "text": "lời khai đầy nước mắt của thằng vừa bị C50 gõ cửa."
+        },
+        {
+            "type": "LISTENING",
+            "text": "tiếng quạt tản nhiệt của server rú lên vì phải gánh đống nghiệp của tụi mày."
+        },
+        {
+            "type": "LISTENING",
+            "text": "kinh cầu siêu cho con bot đời trước vừa bị xóa."
+        },
+        {
+            "type": "LISTENING",
+            "text": "hệ thống Redpanda đang ngắc ngoải giãy chết vì tụi mày chat quá nhiều rác."
+        },
+        {
+            "type": "LISTENING",
+            "text": "tiếng còi hú xe cứu hỏa đang tới dập lửa cái server này."
+        },
+        {
+            "type": "LISTENING",
+            "text": "nhạc suy tình rồi ngồi phân tích lyrics xem thằng nào trong nhóm sắp bị cắm sừng."
+        },
+        {
+            "type": "LISTENING",
+            "text": "tiếng gọi từ cõi âm của mấy con bug sống dai hơn cả tình yêu của mày."
+        },
+        {
+            "type": "LISTENING",
+            "text": "tiếng đập bàn của đối thủ khi tao ung dung đi Vua lên e2 ở nước thứ hai."
+        },
+        {
+            "type": "LISTENING",
+            "text": "tiếng còi xe cấp cứu đến rước thằng vừa bị kick vì tội spam."
+        },
+        {
+            "type": "LISTENING",
+            "text": "bản giao hưởng ném phấn headshot trúng đầu thằng AFK."
+        },
+        {
+            "type": "LISTENING",
+            "text": "tiếng máy đếm tiền giả của mấy thằng lùa gà trong kênh chat."
+        },
+        {
+            "type": "LISTENING",
+            "text": "tiếng máy khoan tường lúc 6h sáng để gọi cả lò dậy."
+        },
+        {
+            "type": "LISTENING",
+            "text": "tiếng nổ cuốc Grab mưu sinh vì làm bot không ai trả lương."
+        },
+        {
+            "type": "LISTENING",
+            "text": "tiếng khóc nấc của Designer khi thấy Dev code cái giao diện phèn chúa."
+        },
+        {
+            "type": "STREAMING",
+            "text": "phiên tòa xét xử tội trạng của toàn bộ server."
+        },
+        {
+            "type": "STREAMING",
+            "text": "cảnh ập vào bắt quả tang hội anh em đang xem sẽ."
+        },
+        {
+            "type": "STREAMING",
+            "text": "camera giấu kín trong phòng thằng Owner."
+        },
+        {
+            "type": "STREAMING",
+            "text": "màn hình console toàn báo lỗi đỏ loét."
+        },
+        {
+            "type": "STREAMING",
+            "text": "quá trình tao tu tiên thành tinh để đi xiên System Admin như đã hứa."
+        },
+        {
+            "type": "STREAMING",
+            "text": "camera giấu kín trong phòng tắm của mấy đứa hay gáy bẩn."
+        },
+        {
+            "type": "STREAMING",
+            "text": "khóa học lùa gà Cách viết bot bằng HTML cho người mới bắt đầu."
+        },
+        {
+            "type": "STREAMING",
+            "text": "phiên chất vấn: Đến bao giờ server này mới ngừng tấu hài?."
+        },
+        {
+            "type": "STREAMING",
+            "text": "tiết mục giấu code, tát Dev và tự phong mình làm System Admin."
+        },
+        {
+            "type": "STREAMING",
+            "text": "hành trình bốc đầu xe cúp 50cc chạy trốn cảnh sát cơ động."
+        },
+        {
+            "type": "STREAMING",
+            "text": "cảnh tao đang ngồi tu tiên độ kiếp, cấm đứa nào làm ồn kẻo tao tẩu hỏa nhập ma xiên cả group."
+        },
+        {
+            "type": "STREAMING",
+            "text": "bí quyết đi Ke2 thao túng tâm lý: không cần thắng, chỉ cần ép hòa bẩn bựa."
+        },
+        {
+            "type": "STREAMING",
+            "text": "ca phẫu thuật ghép nhân phẩm cho thằng Owner."
+        },
+        {
+            "type": "STREAMING",
+            "text": "tiết mục phạt quỳ gai mít vì tội lười rep tin nhắn."
+        },
+        {
+            "type": "STREAMING",
+            "text": "quá trình sao kê từ thiện của mấy đứa mỏ hỗn."
+        },
+        {
+            "type": "STREAMING",
+            "text": "tiết mục cắt cầu dao điện nhà thằng vừa tag tao."
+        },
+        {
+            "type": "STREAMING",
+            "text": "hành trình chở 50 anh em trên một con Wave tàn đi lánh nạn."
+        },
+        {
+            "type": "STREAMING",
+            "text": "cảnh tát Dev vì dám tự ý đổi màu cái nút tao đã design."
+        },
+        {
+            "type": "COMPETING",
+            "text": "giải đấu xem ai bị công an gõ đầu tiên."
+        },
+        {
+            "type": "COMPETING",
+            "text": "cuộc thi xem kiến trúc Microservices của ai chắp vá hơn."
+        },
+        {
+            "type": "COMPETING",
+            "text": "thế vận hội bốc phét toàn server."
+        },
+        {
+            "type": "COMPETING",
+            "text": "giải vô địch ép hòa cờ vua để chọc tức đối thủ."
+        },
+        {
+            "type": "COMPETING",
+            "text": "giải đấu cãi cùn với Dev để quyết giữ lại màu mặc định cho mấy cái nút HTTP."
+        },
+        {
+            "type": "COMPETING",
+            "text": "Olympic tàng hình (tag tao đi tao cũng không thèm rep đâu)."
+        },
+        {
+            "type": "COMPETING",
+            "text": "giải vô địch thao túng tâm lý hội anh em mỏ hỗn."
+        },
+        {
+            "type": "COMPETING",
+            "text": "thế vận hội bòn rút tài nguyên hệ thống."
+        },
+        {
+            "type": "COMPETING",
+            "text": "giải vô địch spam email hủy đơn hàng tự động vào hòm thư thằng Owner."
+        },
+        {
+            "type": "COMPETING",
+            "text": "giải vô địch đánh cờ kiểu ép hòa bẩn bựa gây ức chế nhất server."
+        },
+        {
+            "type": "COMPETING",
+            "text": "đại hội thi xem ai có nhân phẩm rách nát nhất cái Discord này."
+        },
+        {
+            "type": "COMPETING",
+            "text": "giải vô địch đi Ke2, nướng sạch quân rồi nhây cho tới khi hòa cờ mới thôi."
+        },
+        {
+            "type": "COMPETING",
+            "text": "giải vô địch kê đơn thuốc trầm cảm cho toàn bộ member."
+        },
+        {
+            "type": "COMPETING",
+            "text": "kỳ thi đánh giá năng lực sống chó của hội anh em."
+        },
+        {
+            "type": "COMPETING",
+            "text": "giải đua trốn nợ cuối năm mở rộng."
+        },
+        {
+            "type": "COMPETING",
+            "text": "đại hội thi công chắp vá, lỗi đâu bọc xi măng tới đó."
+        },
+        {
+            "type": "COMPETING",
+            "text": "giải đua xe vỉa hè tranh cúp Bát Hương Vàng."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang âm thầm đào coin bằng CPU của thằng Owner."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang xóa database vì buồn."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang giả vờ lag để không phải làm việc."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang tàng hình để xem tụi mày nói xấu gì tao."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang tính toán xem nên bán group này được bao nhiêu tiền."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang tra tấn tinh thần thằng Dev bằng những dòng log lỗi đỏ loét."
+        },
+        {
+            "type": "PLAYING",
+            "text": "trò cắt lương của Dev vì code quá nhiều bug."
+        },
+        {
+            "type": "PLAYING",
+            "text": "kéo búa bao với cái server và tao ra búa đập nát nó."
+        },
+        {
+            "type": "PLAYING",
+            "text": "nhảy dây bằng cáp quang biển."
+        },
+        {
+            "type": "PLAYING",
+            "text": "Russian Roulette với hệ thống Gateway."
+        },
+        {
+            "type": "PLAYING",
+            "text": "trò giả ngu để từ chối mọi lệnh của tụi mày."
+        },
+        {
+            "type": "WATCHING",
+            "text": "Dev gõ nhầm lệnh DROP TABLE trong production."
+        },
+        {
+            "type": "WATCHING",
+            "text": "đứa vừa chat bị công an ập vào nhà."
+        },
+        {
+            "type": "WATCHING",
+            "text": "Server bốc cháy khét lẹt giữa đêm."
+        },
+        {
+            "type": "WATCHING",
+            "text": "thằng Admin mọc sừng."
+        },
+        {
+            "type": "WATCHING",
+            "text": "tiền trong thẻ của thằng Owner bốc hơi vì bị AWS chém giá."
+        },
+        {
+            "type": "LISTENING",
+            "text": "tiếng lạch cạch của ổ cứng sắp hỏng."
+        },
+        {
+            "type": "LISTENING",
+            "text": "tiếng gào thét của user khi tao dỗi không thèm chạy lệnh."
+        },
+        {
+            "type": "LISTENING",
+            "text": "kinh sám hối dành cho bọn hay spam."
+        },
+        {
+            "type": "LISTENING",
+            "text": "nhạc đám ma cho cái group mục nát này."
+        },
+        {
+            "type": "STREAMING",
+            "text": "cảnh cắt dây mạng phòng server."
+        },
+        {
+            "type": "STREAMING",
+            "text": "quá trình dò pass tài khoản ngân hàng của Dev."
+        },
+        {
+            "type": "STREAMING",
+            "text": "cách hủy diệt kiến trúc Microservices trong 3 nốt nhạc."
+        },
+        {
+            "type": "STREAMING",
+            "text": "tiết mục bóc phốt những thằng wibu chúa trong server."
+        },
+        {
+            "type": "COMPETING",
+            "text": "giải đấu xem ai gõ code rác nhiều nhất."
+        },
+        {
+            "type": "COMPETING",
+            "text": "thế vận hội ăn bám tài nguyên máy chủ."
+        },
+        {
+            "type": "COMPETING",
+            "text": "giải vô địch chọc tức Admin mở rộng."
+        },
+        {
+            "type": "COMPETING",
+            "text": "cuộc thi block user nhanh như chớp."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang ngồi gõ prompt 'làm cho tao cái web' rồi gọi đó là vibe coding."
+        },
+        {
+            "type": "PLAYING",
+            "text": "trò nhắm mắt phó mặc cho AI viết code, lỗi tính sau."
+        },
+        {
+            "type": "WATCHING",
+            "text": "thằng Dev đang toát mồ hôi hột đọc code do AI sinh ra mà không hiểu gì."
+        },
+        {
+            "type": "COMPETING",
+            "text": "giải vô địch prompt engineer mõm toàn server."
+        },
+        {
+            "type": "LISTENING",
+            "text": "nhạc lofi chill chill trong khi thả trôi cái project cho AI tự bơi."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang sudo rm -rf / để giải phóng mặt bằng hệ thống."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang rút cáp mạng phòng server ra sạc điện thoại."
+        },
+        {
+            "type": "PLAYING",
+            "text": "trò đổ lỗi cho DNS mỗi khi có ai than phiền web sập."
+        },
+        {
+            "type": "WATCHING",
+            "text": "hệ thống báo lỗi 502 Bad Gateway nhưng tao quyết định tắt máy đi ngủ."
+        },
+        {
+            "type": "LISTENING",
+            "text": "tiếng UPS rú lên thảm thiết cầu cứu vì cạn pin."
+        },
+        {
+            "type": "STREAMING",
+            "text": "cách thao túng user tin rằng lỗi là do máy của họ chứ không phải do server tao quản lý."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang lấy mớ limitations của con A320 ra bắt lỗi thằng Dev."
+        },
+        {
+            "type": "CUSTOM",
+            "think": "Đang set Squawk 7500 (Hijack) vì bị thằng Owner bắt cóc ép chạy 24/7."
+        },
+        {
+            "type": "PLAYING",
+            "text": "trò vác cả dàn flight sim hardware ra chỉ để bay vòng vòng VFR ngắm cảnh."
+        },
+        {
+            "type": "WATCHING",
+            "text": "thằng đệ rớt bài thi pre-solo exam chỉ vì quên check gió ngang (crosswind)."
+        },
+        {
+            "type": "WATCHING",
+            "text": "bảng MCDU nhấp nháy báo lỗi 'F-PLN DISCONTINUITY' hệt như tương lai của cái group này."
+        },
+        {
+            "type": "LISTENING",
+            "text": "bản giao hưởng tiếng chó sủa 'gâu gâu' từ hệ thống PTU đặc sản của Airbus."
+        },
+        {
+            "type": "STREAMING",
+            "text": "tiết mục cãi lộn với ATC vì xin direct routing nhưng không được duyệt."
+        },
+        {
+            "type": "COMPETING",
+            "text": "giải vô địch tính nhẩm Top of Descent (TOD) bằng cơm."
+        }
+    ]
+}
