@@ -246,10 +246,8 @@ class QuoteCog(commands.Cog):
         author = message.author
         display_name = getattr(author, "display_name", author.name)
         username = getattr(author, "name", display_name)
-        channel_name = getattr(message.channel, "name", "channel")
-        context_label = (
-            f"#{channel_name}  •  "
-            f"{message.created_at.strftime('%d/%m/%Y %H:%M UTC')}"
+        context_label = message.created_at.strftime(
+            "%d/%m/%Y %H:%M UTC"
         )
 
         async with ctx.typing():
