@@ -25,7 +25,7 @@ COPY --from=builder /app/deps /app/deps
 # Set PYTHONPATH to include the dependencies
 ENV PYTHONPATH=/app/deps
 
-# Copy the entire project (including .env, data/, cogs/, etc.)
+# Copy the project, including the bundled fonts used by quote cards.
 COPY . .
 
 # Set environment variables (override with docker run -e if needed)

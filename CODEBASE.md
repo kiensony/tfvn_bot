@@ -38,6 +38,11 @@ tfvn_bot/
 │   ├── gifs.py                     Welcome and general interaction media URLs
 │   └── nsfw_gifs.py                Legacy NSFW media lists used by migration tooling
 │
+├── fonts/
+│   ├── NotoSans-Variable.ttf        Bundled Vietnamese-capable quote-card font
+│   ├── OFL.txt                      SIL Open Font License for bundled Noto Sans
+│   └── README.md                    Font source, hash, and bundling notes
+│
 ├── data/
 │   ├── banned_word_list.txt        Discipline filter terms
 │   ├── fake_loading_sentences.txt  Random progress text for fun commands
@@ -145,6 +150,8 @@ tfvn_bot/
     └── utils/
         ├── giveaway.py                  Persistent views, entries, scheduling, and rerolls
         ├── vote.py                      Persistent reaction polls and result scheduling
+        ├── quote.py                     Reply/link-based Discord message quote command
+        ├── _quote_card.py               Quote text wrapping and PNG card rendering
         ├── big_speaker.py               Paid TC big-text re-speak in current channel
         ├── _big_speaker_helpers.py      Size 1–6 → TC cost, mention sanitize, format helpers
         ├── random_member.py             Random guild member selection
