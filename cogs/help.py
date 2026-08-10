@@ -1384,10 +1384,11 @@ class HelpCog(commands.Cog):
             beta_commands=self._available_beta_commands(ctx),
             allow_nsfw=allow_nsfw,
         )
-        view.message = await ctx.send(
+        view.message = await ctx.reply(
             embed=view.current_embed(),
             view=view,
             allowed_mentions=discord.AllowedMentions.none(),
+            mention_author=True,
         )
 
     @commands.command(

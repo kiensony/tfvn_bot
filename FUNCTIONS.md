@@ -24,7 +24,7 @@ Examples below use that default. Replace with your configured prefix if differen
 
 | Command | Access | Description |
 | --- | --- | --- |
-| `help [topic]` | Everyone | Full bot catalog covering commands and automatic features even in partial development profiles. Individual command availability still depends on loaded cogs/configuration; only the NSFW topic is channel-gated |
+| `help [topic]` | Everyone | Replies to the invoking message with the full bot catalog, covering commands and automatic features even in partial development profiles. Individual command availability still depends on loaded cogs/configuration; only the NSFW topic is channel-gated |
 | `mod` | Everyone | Opens the same menu focused on moderation; each listed command enforces its own Discord permission |
 | `nsfw` | NSFW channel | Opens the same help menu focused on the NSFW topic; outside NSFW channels the bot warns and deletes the prompt |
 

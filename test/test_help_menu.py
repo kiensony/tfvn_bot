@@ -258,7 +258,7 @@ class TestHelpTopicData(unittest.TestCase):
 
 
 class TestHelpCogCommand(unittest.IsolatedAsyncioTestCase):
-    async def test_initial_help_command_sends_overview_view_and_dropdown(
+    async def test_initial_help_command_replies_with_overview_and_dropdown(
         self,
     ) -> None:
         bot = SimpleNamespace(
@@ -275,14 +275,14 @@ class TestHelpCogCommand(unittest.IsolatedAsyncioTestCase):
             clean_prefix="!tf ",
             guild=None,
             permissions=None,
-            send=AsyncMock(return_value=sent_message),
-            reply=AsyncMock(),
+            send=AsyncMock(),
+            reply=AsyncMock(return_value=sent_message),
         )
 
         await cog.custom_help.callback(cog, ctx, topic=None)
 
-        ctx.send.assert_awaited_once()
-        kwargs = ctx.send.await_args.kwargs
+        ctx.reply.assert_awaited_once()
+        kwargs = ctx.reply.await_args.kwargs
         self.assertIsInstance(kwargs["embed"], discord.Embed)
         self.assertTrue(kwargs["embed"].title.startswith("📖"))
         self.assertIsInstance(kwargs["view"], HelpView)
@@ -307,7 +307,8 @@ class TestHelpCogCommand(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(kwargs["allowed_mentions"].everyone)
         self.assertFalse(kwargs["allowed_mentions"].users)
         self.assertFalse(kwargs["allowed_mentions"].roles)
-        ctx.reply.assert_not_awaited()
+        self.assertTrue(kwargs["mention_author"])
+        ctx.send.assert_not_awaited()
 
     async def test_mod_shortcut_is_readable_without_command_permissions(self) -> None:
         bot = SimpleNamespace(command_prefix="!tf ", global_vars={})
@@ -318,13 +319,13 @@ class TestHelpCogCommand(unittest.IsolatedAsyncioTestCase):
             channel=SimpleNamespace(is_nsfw=lambda: False),
             clean_prefix="!tf ",
             guild=None,
-            send=AsyncMock(return_value=SimpleNamespace(id=123)),
+            reply=AsyncMock(return_value=SimpleNamespace(id=123)),
         )
 
         self.assertEqual(cog.mod_help.checks, [])
         await cog.mod_help.callback(cog, ctx)
 
-        view = ctx.send.await_args.kwargs["view"]
+        view = ctx.reply.await_args.kwargs["view"]
         self.assertEqual(view.selected_topic_key, "moderation")
 
     async def test_slowmode_group_links_to_complete_moderation_help(self) -> None:
