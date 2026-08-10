@@ -1,332 +1,1456 @@
 import asyncio
+from dataclasses import dataclass
 
 import discord  # pyright: ignore[reportMissingImports]
 from discord.ext import commands  # pyright: ignore[reportMissingImports]
 
 from cogs._beta_function import beta_access_denial, is_beta_function
 
+HELP_MENU_TIMEOUT_SECONDS = 180
+HELP_SELECT_CUSTOM_ID = "tfvn:help:topic"
+HELP_SELECT_PLACEHOLDER = "Chọn một chủ đề trợ giúp…"
+
+
+@dataclass(frozen=True)
+class HelpUsage:
+    command_name: str
+    text: str
+
+
+@dataclass(frozen=True)
+class HelpEntry:
+    usages: tuple[HelpUsage, ...]
+    description: str
+    aliases: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class HelpSection:
+    name: str
+    entries: tuple[HelpEntry, ...] = ()
+    note: str | None = None
+
+
+@dataclass(frozen=True)
+class HelpTopic:
+    key: str
+    label: str
+    emoji: str
+    option_description: str
+    title: str
+    description: str
+    color: int
+    sections: tuple[HelpSection, ...]
+    always_available: bool = False
+
+
+def _entry(
+    command_name: str,
+    description: str,
+    usage: str | None = None,
+    *,
+    aliases: tuple[str, ...] = (),
+) -> HelpEntry:
+    return HelpEntry(
+        usages=(HelpUsage(command_name, usage or command_name),),
+        description=description,
+        aliases=aliases,
+    )
+
+
+def _grouped_entry(
+    usages: tuple[tuple[str, str], ...],
+    description: str,
+    *,
+    aliases: tuple[str, ...] = (),
+) -> HelpEntry:
+    return HelpEntry(
+        usages=tuple(HelpUsage(command_name, text) for command_name, text in usages),
+        description=description,
+        aliases=aliases,
+    )
+
+
+HELP_TOPICS = (
+    HelpTopic(
+        key="overview",
+        label="Tổng quan",
+        emoji="📖",
+        option_description="Bắt đầu, lệnh chung và cách dùng menu",
+        title="Hướng dẫn sử dụng TFVN bot",
+        description=(
+            "Danh mục đầy đủ các lệnh và tính năng của bot. Chọn một chủ đề "
+            "bên dưới; khả năng sử dụng thực tế phụ thuộc cog, cấu hình và quyền Discord."
+        ),
+        color=0xFFC0CB,
+        sections=(
+            HelpSection(
+                name="Bắt đầu",
+                entries=(
+                    _entry("help", "Mở menu này hoặc đi thẳng tới một chủ đề.", "help [topic]"),
+                    _entry("hello", "Chào bot."),
+                    _entry("invite", "Lấy liên kết mời bot."),
+                    _entry("verify", "Đi tới kênh xác minh đã cấu hình."),
+                    _entry("ping", "Kiểm tra bot có đang phản hồi hay không."),
+                ),
+            ),
+            HelpSection(
+                name="Lối tắt",
+                entries=(
+                    _entry(
+                        "mod",
+                        "Mở trang quản trị; từng lệnh tự kiểm tra quyền cần thiết.",
+                    ),
+                    _entry(
+                        "nsfw",
+                        "Mở trang lệnh người lớn; chỉ dùng trong kênh NSFW.",
+                    ),
+                ),
+                note=(
+                    "Bạn cũng có thể dùng tên chủ đề sau `help`, ví dụ "
+                    "`help games` hoặc `help community`."
+                ),
+            ),
+            HelpSection(
+                name="Cách đọc cú pháp",
+                note=(
+                    "`<...>` là bắt buộc · `[...]` là tùy chọn · `@user`/`@role` "
+                    "là mention. Lệnh Beta chỉ hiện riêng cho thành viên có Beta role."
+                ),
+            ),
+        ),
+    ),
+    HelpTopic(
+        key="community",
+        label="Cộng đồng",
+        emoji="🫂",
+        option_description="AFK, nhắc việc, sinh nhật, vote và giveaway",
+        title="Cộng đồng & sự kiện",
+        description="Các tiện ích giúp thành viên theo dõi và tham gia hoạt động server.",
+        color=0x5865F2,
+        sections=(
+            HelpSection(
+                name="AFK",
+                entries=(
+                    _entry("afk", "Xem hướng dẫn đặt AFK."),
+                    _entry(
+                        "afk dynamic",
+                        "AFK tới tin nhắn tiếp theo; lý do là tùy chọn.",
+                        "afk dynamic [lý do]",
+                    ),
+                    _entry(
+                        "afk time",
+                        "Bot hỏi thời lượng `d/h/m/s` và lý do.",
+                    ),
+                    _entry("afk clear", "Hủy một phiên AFK có thời hạn sớm."),
+                    _entry(
+                        "afk check",
+                        "Xem rồi đánh dấu đã đọc các lượt nhắc khi AFK; dùng trong server.",
+                    ),
+                ),
+            ),
+            HelpSection(
+                name="Nhắc việc & sinh nhật",
+                entries=(
+                    _entry("jobremind", "Xem hướng dẫn nhắc việc qua DM."),
+                    _entry(
+                        "jobremind add",
+                        "Bot hỏi độ trễ `d/h/m/s` và tên việc, sau đó nhắc qua DM.",
+                    ),
+                    _entry("birthday", "Xem hướng dẫn khai báo sinh nhật."),
+                    _entry(
+                        "birthday set",
+                        "Lưu ngày sinh nhật của bạn.",
+                        "birthday set <ngày> <tháng>",
+                    ),
+                ),
+            ),
+            HelpSection(
+                name="Hoạt động cộng đồng",
+                entries=(
+                    _entry(
+                        "random_femboy",
+                        "Xem ảnh ngẫu nhiên và metadata từ bộ sưu tập femboy.",
+                    ),
+                    _entry(
+                        "vote",
+                        "Tạo vote; bot hỏi thời lượng và các lựa chọn khi cần.",
+                        "vote [yesno|multiple|multiplechoice] [câu hỏi]",
+                    ),
+                    _grouped_entry(
+                        (
+                            ("giveaway", "giveaway"),
+                            (
+                                "giveaway",
+                                "giveaway <thời lượng> [số người thắng] <phần thưởng>",
+                            ),
+                        ),
+                        (
+                            "Không đối số mở hướng dẫn; tạo giveaway 10 giây–30 ngày, "
+                            "1–20 người thắng "
+                            "(Admin/Manage Server/Manage Messages)."
+                        ),
+                        aliases=("ga",),
+                    ),
+                    _entry(
+                        "giveaway list",
+                        "Xem tối đa 25 giveaway đang hoạt động.",
+                        aliases=("giveaway ls", "giveaway active"),
+                    ),
+                    _entry(
+                        "giveaway entries",
+                        "Xem người tham gia bằng ID hoặc reply tin giveaway.",
+                        "giveaway entries [message_id]",
+                        aliases=(
+                            "giveaway entrants",
+                            "giveaway joined",
+                            "giveaway who",
+                        ),
+                    ),
+                    _entry(
+                        "giveaway end",
+                        (
+                            "Host hoặc Admin/Manage Server/Manage Messages kết thúc sớm "
+                            "bằng ID hay reply."
+                        ),
+                        "giveaway end [message_id]",
+                    ),
+                    _entry(
+                        "giveaway reroll",
+                        (
+                            "Host hoặc Admin/Manage Server/Manage Messages chọn lại "
+                            "1–20 người thắng bằng ID hay reply."
+                        ),
+                        "giveaway reroll [message_id] [số người thắng]",
+                        aliases=("giveaway rr",),
+                    ),
+                ),
+            ),
+            HelpSection(
+                name="Cảnh cáo cá nhân",
+                entries=(
+                    _entry(
+                        "check_warn",
+                        "Xem tối đa 10 cảnh cáo gần nhất; mặc định là chính bạn.",
+                        "check_warn [@user]",
+                    ),
+                ),
+            ),
+        ),
+    ),
+    HelpTopic(
+        key="economy",
+        label="Trap Coin & Shop",
+        emoji="🪙",
+        option_description="Số dư, giao dịch, cửa hàng và vật phẩm",
+        title="Trap Coin & cửa hàng",
+        description="Kiếm, kiểm tra và sử dụng Trap Coin trong server.",
+        color=0xF1C40F,
+        sections=(
+            HelpSection(
+                name="Tài khoản",
+                entries=(
+                    _entry("daily", "Nhận 10 Trap Coin một lần mỗi ngày UTC."),
+                    _entry(
+                        "user_balance",
+                        "Xem số dư Trap Coin hiện tại.",
+                        aliases=("balance",),
+                    ),
+                    _entry(
+                        "user_transactions",
+                        "Xem 10 giao dịch gần nhất.",
+                        aliases=("transactions",),
+                    ),
+                ),
+            ),
+            HelpSection(
+                name="Cửa hàng",
+                entries=(
+                    _entry("shop", "Xem vật phẩm đang bán.", aliases=("store",)),
+                    _entry(
+                        "shop buy",
+                        "Mua một vật phẩm; tối đa 2 lần mỗi 5 giây/người.",
+                        "shop buy <item_id>",
+                    ),
+                    _entry(
+                        "shop inventory",
+                        "Xem kho vật phẩm; mặc định là chính bạn.",
+                        "shop inventory [@user]",
+                        aliases=("shop inv",),
+                    ),
+                    _entry("shop use", "Dùng badge hoặc role đã mua.", "shop use <item_id>"),
+                    _entry("shop unequip", "Gỡ badge đang trang bị."),
+                ),
+                note="Các lệnh quản lý số dư và danh mục shop nằm trong chủ đề Quản trị.",
+            ),
+        ),
+    ),
+    HelpTopic(
+        key="games",
+        label="Trò chơi",
+        emoji="🎮",
+        option_description="Casino, Nối Từ và Vua Tiếng Việt",
+        title="Trò chơi",
+        description="Game dùng lệnh và game nhận câu trả lời trực tiếp trong kênh cấu hình.",
+        color=0x2ECC71,
+        sections=(
+            HelpSection(
+                name="Casino",
+                entries=(
+                    _entry("slot", "Quay máy slot; mỗi lượt tốn 5 Trap Coin."),
+                    _entry("flip_coin", "Đặt cược mặt đồng xu.", "flip_coin <head|tail> <số TC>"),
+                    _entry(
+                        "sicbo_start",
+                        (
+                            "Bắt đầu vòng chọn Tài/Xỉu/Bộ ba bằng reaction; "
+                            "hiện không đặt cược hoặc trả Trap Coin."
+                        ),
+                    ),
+                ),
+            ),
+            HelpSection(
+                name="Nối Từ",
+                entries=(
+                    _entry("noitu", "Xem luật trong kênh Nối Từ đã cấu hình."),
+                    _entry("noitu status", "Xem từ hiện tại và các từ đã dùng."),
+                    _entry(
+                        "noitu hint",
+                        "Nhận gợi ý; dùng trong kênh game, cooldown chung 30 giây.",
+                    ),
+                    _entry(
+                        "noitu end",
+                        "Đặt lại ván; bất kỳ member nào trong kênh game đều dùng được.",
+                    ),
+                    _entry(
+                        "noitu analyze",
+                        "Phân tích ván sau khi đã có ít nhất một nước đi của người chơi.",
+                    ),
+                ),
+                note="Tin nhắn thường trong kênh cấu hình cũng được tính là lượt chơi.",
+            ),
+            HelpSection(
+                name="Vua Tiếng Việt",
+                entries=(
+                    _entry("vtv", "Xem luật và câu đố trong kênh đã cấu hình."),
+                    _entry("vtv status", "Xem trạng thái câu đố trong kênh game."),
+                    _entry(
+                        "vtv next",
+                        "Thay câu đố hiện tại; bất kỳ member nào trong kênh game đều dùng được.",
+                    ),
+                    _entry(
+                        "vtv hint",
+                        "Mở một chữ; gần hết chữ sẽ kết thúc và tạo vòng mới.",
+                    ),
+                ),
+                note="Tin nhắn thường trong kênh cấu hình cũng được kiểm tra đáp án.",
+            ),
+        ),
+    ),
+    HelpTopic(
+        key="fun",
+        label="Vui & tương tác",
+        emoji="✨",
+        option_description="Meter, avatar, tương tác và hôn nhân",
+        title="Vui vẻ & tương tác xã hội",
+        description="Các lệnh giải trí, tương tác thành viên và bảng xếp hạng.",
+        color=0x9B59B6,
+        sections=(
+            HelpSection(
+                name="Meter & thẻ vui",
+                entries=(
+                    _entry(
+                        "gay",
+                        "Gay meter; bỏ trống sẽ dùng chính bạn.",
+                        "gay [@user]",
+                    ),
+                    _entry(
+                        "les",
+                        "Lesbian meter; bỏ trống sẽ dùng chính bạn.",
+                        "les [@user]",
+                        aliases=("les_meter", "lesbian"),
+                    ),
+                    _entry(
+                        "penisize",
+                        "Size meter; bỏ trống sẽ dùng chính bạn.",
+                        "penisize [@user]",
+                        aliases=("peni", "peni_size", "ppsize"),
+                    ),
+                    _entry(
+                        "femboycard",
+                        "Tạo thẻ cho chính bạn; cần một role trong danh sách femboy.",
+                    ),
+                    _entry("ship", "Đo mức độ hợp đôi.", "ship @user1 @user2"),
+                    _entry(
+                        "redflag",
+                        "Red/green flag meter; bỏ trống sẽ dùng chính bạn.",
+                        "redflag [@user]",
+                        aliases=("flags",),
+                    ),
+                    _grouped_entry(
+                        (
+                            ("aura", "aura [@user]"),
+                            ("based", "based [@user]"),
+                            ("brainrot", "brainrot [@user]"),
+                            ("clown", "clown [@user]"),
+                            ("cope", "cope [@user]"),
+                            ("cringe", "cringe [@user]"),
+                            ("delulu", "delulu [@user]"),
+                            ("gyatt", "gyatt [@user]"),
+                            ("ick", "ick [@user]"),
+                            ("mainchar", "mainchar [@user]"),
+                            ("npc", "npc [@user]"),
+                            ("ohio", "ohio [@user]"),
+                            ("rizz", "rizz [@user]"),
+                            ("simp", "simp [@user]"),
+                            ("skillissue", "skillissue [@user]"),
+                            ("touchgrass", "touchgrass [@user]"),
+                            ("yapper", "yapper [@user]"),
+                        ),
+                        "Các meter vui khác; nếu bỏ trống sẽ dùng chính bạn.",
+                    ),
+                ),
+            ),
+            HelpSection(
+                name="Tương tác SFW",
+                entries=(
+                    _grouped_entry(
+                        (
+                            ("kiss", "kiss @user"),
+                            ("hug", "hug @user"),
+                            ("pat", "pat @user"),
+                            ("slap", "slap @user"),
+                            ("punch", "punch @user"),
+                            ("hit", "hit @user"),
+                            ("poke", "poke @user"),
+                            ("cuddle", "cuddle @user"),
+                            ("snuggle", "snuggle @user"),
+                            ("boop", "boop @user"),
+                            ("bonk", "bonk @user"),
+                            ("stare", "stare @user"),
+                            ("lick", "lick @user"),
+                            ("smack", "smack @user"),
+                        ),
+                        "Tương tác SFW; cần @user, không nhận bot và cooldown 3 giây/lệnh.",
+                    ),
+                    _entry(
+                        "handhold",
+                        "Nắm tay member; không nhận bot, cooldown 3 giây.",
+                        "handhold @user",
+                        aliases=("holdhand",),
+                    ),
+                    _entry(
+                        "bite",
+                        "Cắn member; không nhận bot, cooldown 3 giây.",
+                        "bite @user",
+                        aliases=("nom",),
+                    ),
+                ),
+                note=(
+                    "Tự tương tác chỉ được phép với pat, slap, punch, hit, poke, bonk và "
+                    "smack."
+                ),
+            ),
+            HelpSection(
+                name="Avatar, media & xếp hạng",
+                entries=(
+                    _entry(
+                        "avatar",
+                        "Xem global avatar; mặc định là chính bạn.",
+                        "avatar [@user]",
+                        aliases=(
+                            "av",
+                            "global_avatar",
+                            "globalav",
+                        ),
+                    ),
+                    _entry(
+                        "server_avatar",
+                        "Xem server avatar, fallback global; chỉ dùng trong server.",
+                        "server_avatar [@user]",
+                        aliases=(
+                            "sav",
+                            "guild_avatar",
+                            "serverav",
+                        ),
+                    ),
+                    _grouped_entry(
+                        (("cat", "cat"), ("dog", "dog"), ("36", "36")),
+                        "Ảnh động vật từ API và meme GIF ngẫu nhiên.",
+                    ),
+                    _grouped_entry(
+                        (
+                            ("rank", "rank"),
+                            ("rank", "rank <action>"),
+                            ("rank", "rank r"),
+                            ("rank", "rank r <action>"),
+                        ),
+                        (
+                            "BXH bot-wide toàn thời gian: chủ động/được tương tác. Action: "
+                            "kiss, hug, pat, slap, punch, hit, poke, cuddle, snuggle, boop, "
+                            "handhold, bonk, bite, stare, lick, smack."
+                        ),
+                        aliases=("ranking",),
+                    ),
+                ),
+            ),
+            HelpSection(
+                name="Hôn nhân",
+                entries=(
+                    _entry(
+                        "propose",
+                        (
+                            "Cầu hôn member khác không phải bot; phản hồi trong 5 phút, "
+                            "cooldown 30 giây."
+                        ),
+                        "propose @user",
+                    ),
+                    _entry(
+                        "marriage",
+                        "Xem hôn nhân của bạn hoặc một member trong server.",
+                        "marriage [@user]",
+                        aliases=("marry", "marriage_status"),
+                    ),
+                    _entry("marriage help", "Xem luật XP và hạng cặp đôi."),
+                    _entry(
+                        "marriage top",
+                        "Top 10 cặp đôi theo XP trong server.",
+                        aliases=(
+                            "marriage lb",
+                            "marriage leaderboard",
+                            "marriage rank",
+                        ),
+                    ),
+                    _entry(
+                        "divorce",
+                        "Ly hôn với xác nhận trong 60 giây; cooldown 30 giây.",
+                    ),
+                ),
+                note=(
+                    "Chỉ dùng trong server. Mỗi người chỉ có một hôn nhân hoặc lời cầu hôn "
+                    "chờ xử lý."
+                ),
+            ),
+        ),
+    ),
+    HelpTopic(
+        key="utilities",
+        label="Tiện ích & Booster",
+        emoji="🧰",
+        option_description="Quote, loa lớn và đặc quyền booster",
+        title="Tiện ích & đặc quyền Booster",
+        description="Công cụ dùng hằng ngày và tài nguyên riêng cho server booster.",
+        color=0x1ABC9C,
+        sections=(
+            HelpSection(
+                name="Tiện ích",
+                entries=(
+                    _entry(
+                        "quote",
+                        (
+                            "Quote reply/link/ID dạng embed; thêm `image` để tạo PNG; "
+                            "cooldown 5 giây/người."
+                        ),
+                        "quote [image] [message_link|message_id]",
+                        aliases=("q", "quotes"),
+                    ),
+                    _entry(
+                        "big_speaker",
+                        "Nói lớn tối đa 180 ký tự; cooldown 30 giây.",
+                        "big_speaker <cỡ 1-6> <nội dung>",
+                        aliases=("loa", "speaker"),
+                    ),
+                    _entry(
+                        "random_member",
+                        "Chọn member được tag hoặc một member ngẫu nhiên trong role.",
+                        "random_member <@member|@role>",
+                    ),
+                ),
+                note="Giá big_speaker theo cỡ 1–6: 1 / 2 / 5 / 10 / 20 / 50 TC.",
+            ),
+            HelpSection(
+                name="Dành cho Booster",
+                entries=(
+                    _entry(
+                        "custom_role",
+                        "Tạo một role riêng; có thể đính kèm icon PNG ≤256 KiB.",
+                        "custom_role <#RRGGBB[,#RRGGBB]> <tên role>",
+                        aliases=("booster_role",),
+                    ),
+                    _entry(
+                        "update_custom_role",
+                        "Cập nhật role đã tạo; hỗ trợ icon PNG ≤256 KiB.",
+                        "update_custom_role <#RRGGBB[,#RRGGBB]> <tên role>",
+                        aliases=("customroleupdate", "boosterroleupdate"),
+                    ),
+                    _entry(
+                        "custom_room",
+                        "Tạo một voice room riêng trong category đã cấu hình.",
+                        "custom_room <tên phòng>",
+                        aliases=("booster_room",),
+                    ),
+                ),
+                note=(
+                    "Mỗi booster có tối đa một custom role và một custom room; tên tối đa "
+                    "100 ký tự và bot cần Manage Roles/Channels."
+                ),
+            ),
+        ),
+    ),
+    HelpTopic(
+        key="automation",
+        label="Tính năng tự động",
+        emoji="⚙️",
+        option_description="Listener, lịch chạy và hệ thống nền không có lệnh",
+        title="Tính năng tự động & chạy nền",
+        description=(
+            "Các hệ thống không có command riêng. Chúng chỉ hoạt động khi cog tương ứng "
+            "được bật và cấu hình đầy đủ."
+        ),
+        color=0x95A5A6,
+        sections=(
+            HelpSection(
+                name="Thông báo & trạng thái",
+                note=(
+                    "• Gửi welcome, goodbye và thông báo ban vào kênh cấu hình.\n"
+                    "• Đổi Discord activity ngẫu nhiên mỗi 5–15 phút.\n"
+                    "• Thông báo sinh nhật một lần trong ngày tại BIRTHDAY_CHANNEL."
+                ),
+            ),
+            HelpSection(
+                name="AFK, nhắc việc & phản hồi",
+                note=(
+                    "• Ghi lại ai mention member đang AFK và tự xóa dynamic AFK khi họ trở lại.\n"
+                    "• Kiểm tra lịch nhắc việc mỗi phút rồi gửi DM.\n"
+                    "• Triggered reply khớp contains/exact, không phân biệt hoa thường "
+                    "và không ping."
+                ),
+            ),
+            HelpSection(
+                name="An toàn & bảo trì",
+                note=(
+                    "• Bộ lọc từ cấm ghi log, cảnh cáo và xóa tin vi phạm.\n"
+                    "• Area 51 theo dõi honeypot, cho phép hủy ban, tự dọn và gửi nhắc định kỳ.\n"
+                    "• Booster janitor dọn custom role/room sau khi member ngừng boost."
+                ),
+            ),
+            HelpSection(
+                name="Dữ liệu tương tác",
+                note=(
+                    "• Giveaway, vote và lời cầu hôn được lên lịch/kết thúc tự động.\n"
+                    "• Nối Từ và Vua Tiếng Việt nhận đáp án từ tin nhắn thường trong kênh game.\n"
+                    "• Tương tác SFW giữa vợ/chồng tự cộng XP và thông báo khi lên hạng."
+                ),
+            ),
+            HelpSection(
+                name="Theo mùa",
+                note=(
+                    "Lời chúc Tết Âm lịch 2026 chạy 16/02 17:00–17/02 17:00 UTC, "
+                    "một lần duy nhất mỗi user trên toàn bot khi tin có `năm mới`, `nmvv`, "
+                    "`2026` hoặc `new year`; hiện đã hết hiệu lực."
+                ),
+            ),
+        ),
+        always_available=True,
+    ),
+    HelpTopic(
+        key="moderation",
+        label="Quản trị",
+        emoji="🛡️",
+        option_description="Quyền, member, cases, cấu hình và vận hành",
+        title="Quản trị & vận hành",
+        description=(
+            "Mọi người có thể đọc trang này; mỗi lệnh vẫn tự kiểm tra quyền Discord, "
+            "role hierarchy, cấu hình và phạm vi server."
+        ),
+        color=0xE74C3C,
+        sections=(
+            HelpSection(
+                name="Kỷ luật member",
+                entries=(
+                    _entry(
+                        "kick",
+                        "Kick member thấp hơn bạn — cần Kick Members.",
+                        "kick @user [lý do]",
+                    ),
+                    _entry(
+                        "ban",
+                        "Ban member thấp hơn bạn — cần Ban Members.",
+                        "ban @user [lý do]",
+                    ),
+                    _entry(
+                        "softban",
+                        "Nhốt bằng role Handcuffed — cần Ban Members.",
+                        "softban @user [lý do]",
+                    ),
+                    _entry(
+                        "unsoftban",
+                        "Gỡ Handcuffed và khôi phục role — cần Ban Members.",
+                        "unsoftban @user [lý do]",
+                    ),
+                    _entry(
+                        "mute",
+                        "Gán role Muted — cần Manage Roles.",
+                        "mute @user [lý do]",
+                    ),
+                    _entry(
+                        "unmute",
+                        "Gỡ role Muted — cần Manage Roles.",
+                        "unmute @user [lý do]",
+                    ),
+                    _entry(
+                        "timeout",
+                        "Timeout 1–40.320 phút — cần Moderate Members.",
+                        "timeout @user <phút> [lý do]",
+                    ),
+                    _entry(
+                        "untimeout",
+                        "Gỡ timeout — cần Moderate Members.",
+                        "untimeout @user [lý do]",
+                    ),
+                    _entry(
+                        "warn",
+                        "Lưu cảnh cáo và moderation case — cần Manage Messages.",
+                        "warn @user [lý do]",
+                    ),
+                    _entry(
+                        "check_warn",
+                        "Xem 10 cảnh cáo gần nhất; member có thể tự xem.",
+                        "check_warn [@user]",
+                    ),
+                ),
+                note="Các thao tác member còn kiểm tra chủ server, self-target và role hierarchy.",
+            ),
+            HelpSection(
+                name="Tên, role & xác minh",
+                entries=(
+                    _entry(
+                        "nickchange",
+                        "Đổi nickname — cần Manage Nicknames.",
+                        "nickchange @user <nickname>",
+                    ),
+                    _entry(
+                        "roleroll",
+                        "Gán role bằng đúng tên — cần Manage Roles.",
+                        "roleroll @user <tên role>",
+                    ),
+                    _entry(
+                        "roleunroll",
+                        "Gỡ role bằng đúng tên — cần Manage Roles.",
+                        "roleunroll @user <tên role>",
+                    ),
+                    _entry(
+                        "verified",
+                        "Gán role xác minh đã cấu hình — cần Manage Roles.",
+                        "verified @user",
+                    ),
+                    _entry(
+                        "unverified",
+                        "Gỡ role xác minh và quyền kênh liên quan — cần Manage Roles.",
+                        "unverified @user",
+                    ),
+                ),
+            ),
+            HelpSection(
+                name="Tin nhắn & kênh",
+                entries=(
+                    _entry(
+                        "purge",
+                        "Xóa số tin gần nhất — cần Manage Messages.",
+                        "purge <số lượng>",
+                    ),
+                    _entry(
+                        "purge_user",
+                        "Xóa số tin gần nhất của một member — cần Manage Messages.",
+                        "purge_user @user <số lượng>",
+                    ),
+                    _entry(
+                        "clean_before",
+                        "Xóa tin cũ hơn số ngày chỉ định — cần Manage Messages.",
+                        "clean_before <số ngày>",
+                    ),
+                    _entry(
+                        "slowmode",
+                        "Nhóm công cụ overwrite — cần Manage Messages.",
+                    ),
+                    _entry(
+                        "slowmode check_bypass",
+                        "Kiểm tra overwrite của bạn hoặc member trong kênh.",
+                        "slowmode check_bypass [@user]",
+                    ),
+                    _entry(
+                        "slowmode immune",
+                        "Miễn slowmode cho member — cần Manage Messages.",
+                        "slowmode immune @user",
+                    ),
+                    _entry(
+                        "slowmode prominent",
+                        "Gỡ miễn slowmode của member — cần Manage Messages.",
+                        "slowmode prominent @user",
+                    ),
+                ),
+            ),
+            HelpSection(
+                name="Moderation cases",
+                entries=(
+                    _entry("case", "Xem hướng dẫn case — cần Manage Messages."),
+                    _entry(
+                        "case view",
+                        "Xem case theo số — cần Manage Messages.",
+                        "case view <số>",
+                    ),
+                    _entry(
+                        "case history",
+                        "Xem 1–10 case gần nhất của member — cần Manage Messages.",
+                        "case history @user [limit]",
+                    ),
+                    _entry(
+                        "case edit",
+                        "Sửa lý do và lưu lịch sử edit — cần Manage Messages.",
+                        "case edit <số> <lý do>",
+                    ),
+                    _entry(
+                        "case status",
+                        "Đặt open/resolved/appealed/void — cần Manage Messages.",
+                        "case status <số> <open|resolved|appealed|void>",
+                    ),
+                    _entry(
+                        "case log_channel",
+                        "Đặt kênh log; mặc định kênh hiện tại — cần Manage Server.",
+                        "case log_channel [#channel]",
+                    ),
+                ),
+            ),
+            HelpSection(
+                name="Chẩn đoán & cấu hình",
+                entries=(
+                    _entry(
+                        "setup",
+                        "Chạy chẩn đoán đầy đủ — cần Manage Server, cooldown 15 giây.",
+                        aliases=("diagnose",),
+                    ),
+                    _entry(
+                        "setup check",
+                        "Kiểm tra DB, cog, IDs, permission và role hierarchy — Manage Server.",
+                    ),
+                    _entry(
+                        "server_stats",
+                        (
+                            "Uptime và số command/error từ lúc chạy — Administrator, "
+                            "cooldown 10 giây/server."
+                        ),
+                    ),
+                    _entry(
+                        "leave",
+                        "Cho bot rời server ngay, không xác nhận — Administrator.",
+                    ),
+                    _entry("setting", "Xem hướng dẫn biến runtime — Administrator."),
+                    _entry(
+                        "setting set_variable",
+                        "Đặt STRING/ARRAY qua hội thoại — Administrator.",
+                        "setting set_variable <NAME>",
+                    ),
+                    _entry(
+                        "setting get_variable",
+                        "Đọc biến runtime — Administrator.",
+                        "setting get_variable <NAME>",
+                    ),
+                ),
+            ),
+            HelpSection(
+                name="Trap Coin & shop admin",
+                entries=(
+                    _entry(
+                        "add_tc",
+                        "Cộng 1–1.000.000.000 TC — Administrator.",
+                        "add_tc @user <số> [lý do]",
+                        aliases=("give_tc", "grant_tc"),
+                    ),
+                    _entry(
+                        "remove_tc",
+                        "Trừ 1–1.000.000.000 TC nếu đủ số dư — Administrator.",
+                        "remove_tc @user <số> [lý do]",
+                        aliases=("sub_tc", "subtract_tc", "take_tc"),
+                    ),
+                    _entry(
+                        "set_tc",
+                        "Đặt số dư 0–1.000.000.000 TC — Administrator.",
+                        "set_tc @user <số> [lý do]",
+                        aliases=("set_balance",),
+                    ),
+                    _entry(
+                        "check_tc",
+                        "Xem số dư member — Administrator.",
+                        "check_tc [@user]",
+                        aliases=("tc_balance",),
+                    ),
+                    _entry(
+                        "shop add_role",
+                        "Thêm role giá 1–1.000.000.000 TC vào shop — cần Manage Server.",
+                        "shop add_role <id> <giá> @role [mô tả]",
+                    ),
+                    _entry(
+                        "shop add_badge",
+                        "Thêm badge giá 1–1.000.000.000 TC — cần Manage Server.",
+                        "shop add_badge <id> <giá> <tên nhiều từ>",
+                    ),
+                    _entry(
+                        "shop remove",
+                        "Ẩn vật phẩm khỏi shop — cần Manage Server.",
+                        "shop remove <item_id>",
+                        aliases=("shop disable",),
+                    ),
+                ),
+                note=(
+                    "Bốn lệnh số dư không nhận bot. Item ID dài 1–32 ký tự, bắt đầu bằng "
+                    "chữ/số và chỉ gồm chữ thường, số, `_`, `-`."
+                ),
+            ),
+            HelpSection(
+                name="Triggered replies",
+                entries=(
+                    _entry(
+                        "triggerreply",
+                        "Xem hướng dẫn rule — guild Administrator.",
+                        aliases=("autoreply",),
+                    ),
+                    _entry(
+                        "triggerreply add",
+                        "Thêm rule; tối đa 100 rule/server — Administrator.",
+                        "triggerreply add <contains|include|exact> <cụm từ> | <trả lời>",
+                    ),
+                    _entry(
+                        "triggerreply list",
+                        "Liệt kê rule và ID — Administrator.",
+                    ),
+                    _entry(
+                        "triggerreply remove",
+                        "Xóa rule theo ID — Administrator.",
+                        "triggerreply remove <ID>",
+                        aliases=("triggerreply delete",),
+                    ),
+                ),
+                note=(
+                    "Alias cha `autoreply` dùng được với mọi subcommand, gồm "
+                    "`autoreply add`, `autoreply list` và `autoreply remove/delete`. "
+                    "Trigger tối đa 200 ký tự; reply tối đa "
+                    "2.000 ký tự và không ping."
+                ),
+            ),
+            HelpSection(
+                name="Media & Area 51",
+                entries=(
+                    _entry(
+                        "save_image",
+                        "Lưu ảnh đính kèm và metadata — cần Manage Messages.",
+                        "save_image <collection> [key value ...]",
+                    ),
+                    _entry(
+                        "area51_fire",
+                        "Gửi cảnh báo Area 51 ngay — Administrator.",
+                        aliases=("area51_bump_now", "area51_remind_now"),
+                    ),
+                ),
+            ),
+        ),
+    ),
+    HelpTopic(
+        key="nsfw",
+        label="NSFW",
+        emoji="🔞",
+        option_description="Nội dung và tương tác chỉ dành cho kênh NSFW",
+        title="Lệnh NSFW",
+        description=(
+            "Chỉ sử dụng trong kênh Discord được đánh dấu NSFW. Các lệnh vẫn áp dụng "
+            "role lock và giới hạn riêng."
+        ),
+        color=0xE91E63,
+        sections=(
+            HelpSection(
+                name="Tìm kiếm & luật",
+                entries=(
+                    _entry("r34", "Tìm nội dung Rule34 bằng tag bắt buộc.", "r34 <tags>"),
+                    _entry("gbr", "Tìm nội dung Gelbooru bằng tag bắt buộc.", "gbr <tags>"),
+                    _entry("nsfwrule", "Xem luật cho các tương tác NSFW."),
+                ),
+            ),
+            HelpSection(
+                name="Tương tác",
+                entries=(
+                    _grouped_entry(
+                        (
+                            ("bj", "bj @user"),
+                            ("rj", "rj @user"),
+                            ("hj", "hj @user"),
+                            ("fj", "fj @user"),
+                            ("spank", "spank @user"),
+                            ("frot", "frot @user"),
+                            ("fuck", "fuck @user"),
+                            ("cream", "cream @user"),
+                        ),
+                        "Tương tác một mục tiêu; cooldown 3 giây mỗi lệnh.",
+                    ),
+                    _entry(
+                        "aj",
+                        "Tương tác một mục tiêu; cooldown 3 giây.",
+                        "aj @user",
+                        aliases=("assjob",),
+                    ),
+                    _entry(
+                        "tj",
+                        "Tương tác một mục tiêu; cooldown 3 giây.",
+                        "tj @user",
+                        aliases=("thighjob",),
+                    ),
+                    _entry(
+                        "3some",
+                        "Hai mục tiêu khác nhau, không gồm người gọi.",
+                        "3some @user1 @user2",
+                        aliases=("threesome",),
+                    ),
+                    _entry(
+                        "orgy",
+                        "Mục tiêu phải khác nhau và không gồm người gọi.",
+                        "orgy @user1 @user2 [@user3 ... @user10]",
+                    ),
+                ),
+                note=(
+                    "Chỉ hj và spank cho phép tự target. NSFW lock chỉ chặn 12 lệnh "
+                    "tương tác trong mục này."
+                ),
+            ),
+            HelpSection(
+                name="Xếp hạng & quyền truy cập",
+                entries=(
+                    _grouped_entry(
+                        (
+                            ("ranknsfw", "ranknsfw"),
+                            ("ranknsfw", "ranknsfw <action>"),
+                            ("ranknsfw", "ranknsfw r"),
+                            ("ranknsfw", "ranknsfw r <action>"),
+                        ),
+                        (
+                            "BXH bot-wide tháng UTC hiện tại: chủ động/được tương tác. "
+                            "Action: bj, rj, hj, fj, aj, tj, spank, frot, fuck, cream, "
+                            "3some, orgy."
+                        ),
+                        aliases=("nsfwrank",),
+                    ),
+                    _entry(
+                        "mrank",
+                        "Top 5 hai chiều của tháng chỉ định — Administrator.",
+                        "mrank <tháng> <năm>",
+                    ),
+                    _entry(
+                        "locknsfw",
+                        "Queen khóa tương tác NSFW của member 24 giờ; cooldown 3 ngày.",
+                        "locknsfw @user",
+                    ),
+                    _entry(
+                        "unlocknsfw",
+                        "Queen gỡ một lock còn hiệu lực do chính mình tạo.",
+                    ),
+                ),
+                note="King role nhân 3 điểm tương tác; chỉ Queen role dùng lock/unlock.",
+            ),
+        ),
+    ),
+)
+
+HELP_TOPIC_MAP = {topic.key: topic for topic in HELP_TOPICS}
+HELP_TOPIC_ALIASES = {
+    "overview": "overview",
+    "general": "overview",
+    "tong quan": "overview",
+    "tổng quan": "overview",
+    "community": "community",
+    "cong dong": "community",
+    "cộng đồng": "community",
+    "economy": "economy",
+    "trap coin": "economy",
+    "shop": "economy",
+    "games": "games",
+    "game": "games",
+    "tro choi": "games",
+    "trò chơi": "games",
+    "fun": "fun",
+    "social": "fun",
+    "vui": "fun",
+    "utilities": "utilities",
+    "utility": "utilities",
+    "tools": "utilities",
+    "booster": "utilities",
+    "automation": "automation",
+    "automatic": "automation",
+    "tu dong": "automation",
+    "tự động": "automation",
+    "moderation": "moderation",
+    "mod": "moderation",
+    "admin": "moderation",
+    "quan tri": "moderation",
+    "quản trị": "moderation",
+    "nsfw": "nsfw",
+}
+
+
+def resolve_help_topic(value: str | None) -> str | None:
+    """Resolve a user-facing topic name to its stable dropdown key."""
+    if value is None:
+        return None
+    normalized = " ".join(value.strip().lower().replace("_", " ").split())
+    return HELP_TOPIC_ALIASES.get(normalized)
+
+
+def _format_command(prefix: str, usage: HelpUsage) -> str:
+    return f"`{prefix}{usage.text}`"
+
+
+def _available_usages(
+    entry: HelpEntry,
+    available_commands: frozenset[str] | None,
+) -> tuple[HelpUsage, ...]:
+    if available_commands is None:
+        return entry.usages
+    return tuple(
+        usage for usage in entry.usages if usage.command_name in available_commands
+    )
+
+
+def render_help_section(
+    section: HelpSection,
+    prefix: str,
+    available_commands: frozenset[str] | None = None,
+) -> str | None:
+    """Render one help section, optionally filtering canonical command names."""
+    lines = []
+    for entry in section.entries:
+        usages = _available_usages(entry, available_commands)
+        if not usages:
+            continue
+        command_list = ", ".join(_format_command(prefix, usage) for usage in usages)
+        if entry.aliases:
+            aliases = ", ".join(f"`{alias}`" for alias in entry.aliases)
+            command_list += f" (alias: {aliases})"
+        lines.append(f"{command_list} — {entry.description}")
+
+    if section.note:
+        lines.append(section.note)
+    return "\n".join(lines) if lines else None
+
+
+def topic_has_available_commands(
+    topic: HelpTopic,
+    available_commands: frozenset[str] | None,
+) -> bool:
+    if available_commands is None or topic.always_available:
+        return True
+    return any(
+        _available_usages(entry, available_commands)
+        for section in topic.sections
+        for entry in section.entries
+    )
+
+
+def available_help_topics(
+    available_commands: frozenset[str] | None,
+    *,
+    allow_nsfw: bool,
+    always_include: tuple[str, ...] = (),
+) -> tuple[HelpTopic, ...]:
+    """Return help topics allowed for this channel and optional command profile."""
+    included = set(always_include)
+    topics = []
+    for topic in HELP_TOPICS:
+        if topic.key == "nsfw" and not allow_nsfw:
+            continue
+        if (
+            topic.key != "overview"
+            and topic.key not in included
+            and not topic_has_available_commands(topic, available_commands)
+        ):
+            continue
+        topics.append(topic)
+    return tuple(topics)
+
+
+def build_help_embed(
+    topic_key: str,
+    prefix: str,
+    *,
+    available_commands: frozenset[str] | None = None,
+    beta_commands: tuple[str, ...] = (),
+) -> discord.Embed:
+    """Build a bounded help embed; unknown topic keys safely use the overview."""
+    topic = HELP_TOPIC_MAP.get(topic_key, HELP_TOPIC_MAP["overview"])
+    embed = discord.Embed(
+        title=f"{topic.emoji} {topic.title}",
+        description=topic.description,
+        color=topic.color,
+    )
+
+    for section in topic.sections:
+        value = render_help_section(section, prefix, available_commands)
+        if value is not None:
+            embed.add_field(name=section.name, value=value, inline=False)
+
+    if not embed.fields:
+        embed.description += "\n\nHiện không có lệnh nào thuộc chủ đề này được tải."
+
+    if topic.key == "overview" and beta_commands:
+        shown_commands = beta_commands[:8]
+        value = ", ".join(f"`{prefix}{name}`" for name in shown_commands)
+        if len(beta_commands) > len(shown_commands):
+            value += f"\n… và {len(beta_commands) - len(shown_commands)} lệnh Beta khác."
+        value += "\nChỉ thành viên có Beta role đã cấu hình mới dùng được."
+        embed.add_field(name="🧪 Beta access", value=value, inline=False)
+
+    display_prefix = prefix.rstrip() or prefix
+    embed.set_footer(
+        text=f"Prefix: {display_prefix} • Menu chỉ dành cho người đã gọi lệnh"
+    )
+    return embed
+
+
+def _is_nsfw_channel(channel: object) -> bool:
+    is_nsfw = getattr(channel, "is_nsfw", None)
+    return bool(is_nsfw()) if callable(is_nsfw) else False
+
+
+class HelpTopicSelect(discord.ui.Select):
+    def __init__(self, help_view: "HelpView") -> None:
+        self.help_view = help_view
+        options = [
+            discord.SelectOption(
+                label=topic.label,
+                value=topic.key,
+                description=topic.option_description,
+                emoji=topic.emoji,
+                default=topic.key == help_view.selected_topic_key,
+            )
+            for topic in help_view.topics
+        ]
+        super().__init__(
+            custom_id=HELP_SELECT_CUSTOM_ID,
+            placeholder=HELP_SELECT_PLACEHOLDER,
+            min_values=1,
+            max_values=1,
+            options=options,
+        )
+
+    def set_selected(self, topic_key: str) -> None:
+        for option in self.options:
+            option.default = option.value == topic_key
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        await self.help_view.select_topic(self.values[0], interaction)
+
+
+class HelpView(discord.ui.View):
+    def __init__(
+        self,
+        *,
+        author_id: int,
+        topics: tuple[HelpTopic, ...],
+        selected_topic_key: str,
+        prefix: str,
+        available_commands: frozenset[str] | None,
+        beta_commands: tuple[str, ...],
+        allow_nsfw: bool,
+    ) -> None:
+        super().__init__(timeout=HELP_MENU_TIMEOUT_SECONDS)
+        self.author_id = author_id
+        self.topics = topics
+        self.topic_map = {topic.key: topic for topic in topics}
+        self.selected_topic_key = (
+            selected_topic_key if selected_topic_key in self.topic_map else "overview"
+        )
+        self.prefix = prefix
+        self.available_commands = available_commands
+        self.beta_commands = beta_commands
+        self.allow_nsfw = allow_nsfw
+        self.message: discord.Message | None = None
+        self.topic_select = HelpTopicSelect(self)
+        self.add_item(self.topic_select)
+
+    def current_embed(self) -> discord.Embed:
+        return build_help_embed(
+            self.selected_topic_key,
+            self.prefix,
+            available_commands=self.available_commands,
+            beta_commands=self.beta_commands,
+        )
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        if interaction.user.id == self.author_id:
+            return True
+        await interaction.response.send_message(
+            "Chỉ người đã mở menu trợ giúp mới có thể đổi chủ đề.",
+            ephemeral=True,
+        )
+        return False
+
+    async def select_topic(
+        self,
+        topic_key: str,
+        interaction: discord.Interaction,
+    ) -> None:
+        if topic_key not in self.topic_map:
+            await interaction.response.send_message(
+                "Chủ đề trợ giúp này không còn khả dụng. Hãy mở lại menu.",
+                ephemeral=True,
+            )
+            return
+
+        if topic_key == "nsfw" and (
+            not self.allow_nsfw or not _is_nsfw_channel(interaction.channel)
+        ):
+            await interaction.response.send_message(
+                "Chủ đề NSFW chỉ khả dụng trong kênh được đánh dấu NSFW.",
+                ephemeral=True,
+            )
+            return
+
+        self.selected_topic_key = topic_key
+        self.topic_select.set_selected(topic_key)
+        await interaction.response.edit_message(embed=self.current_embed(), view=self)
+
+    async def on_timeout(self) -> None:
+        for item in self.children:
+            item.disabled = True
+        if self.message is None:
+            return
+        try:
+            await self.message.edit(view=self)
+        except discord.HTTPException:
+            pass
+
 
 class HelpCog(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
 
-    @commands.command(name="help")
-    async def custom_help(self, ctx: commands.Context, *args):
-        if args:
-            return  # Ignore arguments for now
+    @staticmethod
+    def _command_is_visible(command: commands.Command) -> bool:
+        current: commands.Command | None = command
+        while current is not None:
+            if current.hidden or not current.enabled:
+                return False
+            current = current.parent
+        return True
 
-        # check if user have administrator permission
-
-        # normal command (for all users)
-        title = "📖 Hướng dẫn sử dụng TFVN bot"
-        embed = discord.Embed(
-            title=title,
-            description="Danh sách lệnh hiện có:",
-            color=0xFFC0CB,
-        )
-        beta_commands = sorted(
-            command.qualified_name
-            for command in self.bot.walk_commands()
-            if is_beta_function(command) and not command.hidden
-        )
-        if beta_commands and beta_access_denial(ctx) is None:
-            command_list = ", ".join(
-                f"`{self.bot.command_prefix}{name}`" for name in beta_commands
+    def _available_beta_commands(self, ctx: commands.Context) -> tuple[str, ...]:
+        if beta_access_denial(ctx) is not None:
+            return ()
+        return tuple(
+            sorted(
+                command.qualified_name
+                for command in self.bot.walk_commands()
+                if self._command_is_visible(command) and is_beta_function(command)
             )
-            embed.add_field(
-                name="Beta access:",
-                value=(
-                    f"{command_list}\n"
-                    "Các lệnh này yêu cầu Beta role đã cấu hình."
-                ),
-                inline=False,
-            )
-        # AFK commands
-        embed.add_field(
-            name="AFK:",
-            value=(
-                f"`{self.bot.command_prefix} afk` – Đặt trạng thái AFK (sau đó làm theo hướng dẫn của bot).\n"
-                f"`{self.bot.command_prefix} afk clear` – Hủy trạng thái AFK khi bạn quay lại.\n"
-                f"`{self.bot.command_prefix} afk ping_check` – Xem ai nhắc đến bạn khi đang AFK.\n"
-            ),
-            inline=False,
-        )
-        
-        # Content of the day commands
-        embed.add_field(
-            name="Nội dung trong ngày:",
-            value=(
-                f"`{self.bot.command_prefix} random_femboy` – Xem ngẫu nhiên 1 ảnh femboy và lấy thông tin của femboy đó.\n"
-            ),
-            inline=False,
         )
 
-        # Economy commands
-        embed.add_field(
-            name="Trap Coin & shop:",
-            value=(
-                f"`{self.bot.command_prefix} daily` – Điểm danh hàng ngày và nhận 10 trap coin.\n"
-                f"`{self.bot.command_prefix} user_balance` – Xem số Trap coin hiện có của bạn.\n"
-                f"`{self.bot.command_prefix}user_transactions` – Xem 10 giao dịch gần nhất.\n"
-                f"`{self.bot.command_prefix}shop` – Xem cửa hàng Trap Coin.\n"
-                f"`{self.bot.command_prefix}shop inventory` – Xem vật phẩm đã mua.\n"
-                f"`{self.bot.command_prefix}big_speaker <cỡ 1-6> <nội dung>` – Chi TC để bot nói to (cỡ càng lớn càng tốn TC).\n"
-            ),
-            inline=False,
+    def _context_prefix(self, ctx: commands.Context) -> str:
+        clean_prefix = getattr(ctx, "clean_prefix", None)
+        if isinstance(clean_prefix, str) and clean_prefix:
+            return clean_prefix
+        command_prefix = getattr(self.bot, "command_prefix", "!tf ")
+        return command_prefix if isinstance(command_prefix, str) else "!tf "
+
+    async def _send_help_menu(
+        self,
+        ctx: commands.Context,
+        *,
+        initial_topic_key: str = "overview",
+        allow_nsfw: bool | None = None,
+    ) -> None:
+        if allow_nsfw is None:
+            allow_nsfw = _is_nsfw_channel(ctx.channel)
+
+        # Help is the full bot catalog, even in a partial development profile.
+        available_commands = None
+        topics = available_help_topics(
+            available_commands,
+            allow_nsfw=allow_nsfw,
+            always_include=(initial_topic_key,),
+        )
+        if initial_topic_key not in {topic.key for topic in topics}:
+            initial_topic_key = "overview"
+
+        view = HelpView(
+            author_id=ctx.author.id,
+            topics=topics,
+            selected_topic_key=initial_topic_key,
+            prefix=self._context_prefix(ctx),
+            available_commands=available_commands,
+            beta_commands=self._available_beta_commands(ctx),
+            allow_nsfw=allow_nsfw,
+        )
+        view.message = await ctx.send(
+            embed=view.current_embed(),
+            view=view,
+            allowed_mentions=discord.AllowedMentions.none(),
         )
 
-        # Games commands
-        embed.add_field(
-            name="Trò chơi:",
-            value=(
-                f"`{self.bot.command_prefix} sicbo` – Tài xỉu (đang phát triển cơ chế trả thưởng).\n"
-                f"`{self.bot.command_prefix} slot` – Chơi máy slot (tốn 5 Trap Coins để chơi).\n"
-                f"`{self.bot.command_prefix} flip_coin <head/tail> <n>` – Chơi tung đồng xu (tốn n Trap Coins để chơi).\n"
-            ),
-            inline=False,
+    @commands.command(
+        name="help",
+        help="Mở menu trợ giúp theo chủ đề.",
+    )
+    async def custom_help(
+        self,
+        ctx: commands.Context,
+        *,
+        topic: str | None = None,
+    ) -> None:
+        topic_key = resolve_help_topic(topic) or "overview"
+        allow_nsfw = _is_nsfw_channel(ctx.channel)
+
+        if topic_key == "nsfw" and not allow_nsfw:
+            await ctx.reply("🔞 Hãy mở chủ đề này trong kênh NSFW.")
+            return
+
+        await self._send_help_menu(
+            ctx,
+            initial_topic_key=topic_key,
+            allow_nsfw=allow_nsfw,
         )
 
-        
-
-        # Funny things
-        embed.add_field(
-            name="Mấy thứ vui vui:",
-            value=(
-                f"`{self.bot.command_prefix} gay @user` – Kiểm tra độ gay của người được tag.\n"
-                f"`{self.bot.command_prefix} ship @user1 @user2` – Đo mức độ hợp đôi của hai người dùng.\n"
-                f"`{self.bot.command_prefix} penisize @user` – Đo kích thước peni của người được tag.\n"
-            ),
-            inline=False,
+    @commands.command(
+        name="mod",
+        help="Mở menu trợ giúp quản trị; từng lệnh tự kiểm tra quyền.",
+    )
+    async def mod_help(self, ctx: commands.Context) -> None:
+        await self._send_help_menu(
+            ctx,
+            initial_topic_key="moderation",
         )
 
-        # Interaction commands
-        embed.add_field(
-            name="Tương tác chung:",
-            value=(f"`{self.bot.command_prefix} hello` – Chào con bot.\n"
-                   f"`{self.bot.command_prefix} cat` – Mèo.\n"
-                   f"`{self.bot.command_prefix} dog` – Chó.\n"
-                   f"`{self.bot.command_prefix} quote` – Reply tin nhắn để quote dạng embed.\n"
-                   f"`{self.bot.command_prefix} quote image` – Reply tin nhắn để tạo ảnh quote.\n"
-            ),
-            inline=False,
-        )
-        embed.add_field(
-            name="Tương tác với member khác:",
-            value=(
-                f"`{self.bot.command_prefix} kiss @user` – Hôn member khác.\n"
-                f"`{self.bot.command_prefix} hug @user` – Ôm member khác.\n"
-                f"`{self.bot.command_prefix} pat @user` – Xoa đầu member khác.\n"
-                f"`{self.bot.command_prefix} slap @user` – Tát member khác.\n"
-                f"`{self.bot.command_prefix} punch @user` – Đấm member khác.\n"
-                f"`{self.bot.command_prefix} hit @user` – Đánh member khác.\n"
-                f"`{self.bot.command_prefix} poke @user` – Chọc member khác.\n"
-                f"`{self.bot.command_prefix} cuddle @user` – Cuddle member khác.\n"
-                f"`{self.bot.command_prefix} snuggle @user` – Snuggle member khác.\n"
-                f"`{self.bot.command_prefix} boop @user` – Boop mũi member khác.\n"
-                f"`{self.bot.command_prefix} handhold @user` – Nắm tay member khác.\n"
-                f"`{self.bot.command_prefix} bonk @user` – Bonk member khác.\n"
-                f"`{self.bot.command_prefix} bite @user` – Cắn member khác.\n"
-                f"`{self.bot.command_prefix} stare @user` – Nhìn chằm chằm member khác.\n"
-                f"`{self.bot.command_prefix} lick @user` – Liếm member khác.\n"
-                f"`{self.bot.command_prefix} smack @user` – Đấm yêu member khác.\n"
-                f"`{self.bot.command_prefix} avatar @user` – Xem avatar global của member.\n"
-                f"`{self.bot.command_prefix} server_avatar @user` – Xem avatar server của member.\n"
-                f"`{self.bot.command_prefix} propose @user` – Cầu hôn (Đồng ý/Từ chối).\n"
-                f"`{self.bot.command_prefix} marriage` – Xem tình trạng hôn nhân.\n"
-                f"`{self.bot.command_prefix} marriage help` – Luật XP & hạng.\n"
-                f"`{self.bot.command_prefix} marriage top` – BXH cặp đôi.\n"
-                f"`{self.bot.command_prefix} divorce` – Ly hôn (cần xác nhận).\n"
-            ),
-            inline=False,
-        )
-
-        # Interaction ranking commands
-        embed.add_field(
-            name="BXH tương tác:",
-            value=(
-                f"`{self.bot.command_prefix} rank` – Xem bảng xếp hạng tương tác chung.\n"
-                f"`{self.bot.command_prefix} rank r` – Xem bảng xếp hạng người bị/được tương tác chung.\n"
-                f"`{self.bot.command_prefix} rank <action>` – Xem bảng xếp hạng member theo tương tác riêng.\n"
-                f"`{self.bot.command_prefix} rank r <action>` – Xem bảng xếp hạng member bị/được tương tác riêng.\n"
-            ),
-            inline=False,
-        )
-
-        # NSFW commands
-        embed.add_field(
-            name="NSFW ⚠️⚠️⚠️:",
-            value=(
-                "Chỉ được sử dụng trong channel NSFW!\n"
-                f"`{self.bot.command_prefix} nsfw` – Hướng dẫn lệnh nsfw.\n"
-                f"`{self.bot.command_prefix} verify` – Hướng dẫn chứng thực độ tuổi.\n"
-                f"`{self.bot.command_prefix}verified @user` – Support gán verified role cho member.\n"
-                f"`{self.bot.command_prefix}unverified @user` – Support gỡ verified role khỏi member.\n"
-            ),
-            inline=False,
-        )
-
-        # Wordconnect commands
-        embed.add_field(
-            name="Nối từ:",
-            value=(
-                f"`{self.bot.command_prefix} noitu status` – Xem trạng thái hiện tại trò chơi nối từ.\n"
-                f"`{self.bot.command_prefix} noitu end` – Dừng trò chơi nối từ.\n"
-                f"`{self.bot.command_prefix} noitu hint` – Nhận gợi ý trong trò chơi nối từ.\n"
-                f"`{self.bot.command_prefix} noitu analyze` – Phân tích trong trò chơi nối từ.\n"
-            ),
-            inline=False,
-        )
-
-        embed.set_footer(text="Prefix: " + self.bot.command_prefix)
-
-        await ctx.send(embed=embed)
-
-    @commands.command(name="mod")
-    @commands.has_permissions(administrator=True, moderate_members=True)
-    async def mod_help(self, ctx, *args):
-        if args:
-            return  # Ignore arguments for now
-        title = "Lệnh quản trị viên"
-        embed = discord.Embed(
-            title=title,
-            color=0xFF0000,
-        )
-        embed.add_field(
-            name="Quản lý member:",
-            value=(
-                f"`{self.bot.command_prefix} kick @user [reason]` – Kick member khỏi server.\n"
-                f"`{self.bot.command_prefix} ban @user [reason]` – Ban member khỏi server.\n"
-                f"`{self.bot.command_prefix} mute @user [reason]` – Gán role Muted.\n"
-                f"`{self.bot.command_prefix} unmute @user` – Gỡ mute cho member.\n"
-                f"`{self.bot.command_prefix} nickchange @user [new_nick]` – Đổi nickname cho member.\n"
-                f"`{self.bot.command_prefix} softban @user [reason]` – Softban member khỏi server.\n"
-                f"`{self.bot.command_prefix} timeout @user <duration_minutes> [reason]` – Timeout member trong thời gian nhất định.\n"
-                f"`{self.bot.command_prefix} untimeout @user` – Gỡ timeout cho member.\n"
-                f"`{self.bot.command_prefix} warn @user [reason]` – Cảnh cáo member.\n"
-            ),
-            inline=False,
-        )
-        embed.add_field(
-            name="Quản lý tin nhắn:",
-            value=(
-                f"`{self.bot.command_prefix} purge <n>` – Xoá n tin nhắn gần nhất trong channel hiện tại.\n"
-                f"`{self.bot.command_prefix} purge_user @user <n>` – Xoá n tin nhắn của user trong channel hiện tại.\n"
-            ),
-            inline=False,
-        )
-        embed.add_field(
-            name="Cases & cấu hình:",
-            value=(
-                f"`{self.bot.command_prefix}case view <số>` – Xem moderation case.\n"
-                f"`{self.bot.command_prefix}case history @user` – Xem lịch sử member.\n"
-                f"`{self.bot.command_prefix}case log_channel [channel]` – Đặt mod-log channel.\n"
-                f"`{self.bot.command_prefix}triggerreply` – Quản lý câu trả lời theo cụm từ.\n"
-                f"`{self.bot.command_prefix}setup check` – Kiểm tra config và permission.\n"
-            ),
-            inline=False,
-        )
-        community_admin_commands = [
-            f"`{self.bot.command_prefix}add_tc @user <số> [lý do]` – Cộng Trap Coin cho member.\n",
-            f"`{self.bot.command_prefix}remove_tc @user <số> [lý do]` – Trừ Trap Coin của member.\n",
-            f"`{self.bot.command_prefix}set_tc @user <số> [lý do]` – Đặt số dư Trap Coin.\n",
-            f"`{self.bot.command_prefix}check_tc [@user]` – Xem số dư Trap Coin của member.\n",
-            f"`{self.bot.command_prefix}shop add_role <id> <giá> @role` – Thêm role vào shop.\n",
-        ]
-        embed.add_field(
-            name="Hệ thống cộng đồng:",
-            value="".join(community_admin_commands),
-            inline=False,
-        )
-        await ctx.send(embed=embed)
-    @mod_help.error
-    async def mod_help_error(self, ctx, error):
-        if isinstance(error, commands.MissingPermissions):
-            await ctx.reply("⚠️ Bạn không có quyền sử dụng lệnh này.")
-
-
-
-    @commands.command(name="nsfw")
-    async def nsfw_help(self, ctx, *args):
-        if args:
-            return  # Ignore arguments for now
-        embed = discord.Embed(
-            title="Lệnh NSFW",
-            color=0xFFC0CB,
-        )
-        embed.add_field(
-            name="Tìm kiếm nội dung NSFW:",
-            value=(
-                f"`{self.bot.command_prefix} r34 <tags>` – Tìm kiếm ảnh/video trên Rule34.\n"
-                f"`{self.bot.command_prefix} gbr <tags>` – Tìm kiếm ảnh/video trên Gelbooru.\n"
-            ),
-            inline=False,
-        )
-        embed.add_field(
-            name="Luật chơi các tương tác:",
-            value=(
-                f"`{self.bot.command_prefix} nsfwrule` – Luật chơi các tương tác.\n"
-            ),
-            inline=False,
-        )
-        # embed.add_field(
-        #     name="Tự sướng:",
-        #     value=(
-        #         f"`{self.bot.command_prefix} solo` – Tự sướng (mông/lồn/cặc).\n"
-        #         f"`{self.bot.command_prefix} blowjob` – Tự blowjob.\n"
-        #         f"`{self.bot.command_prefix} rimjob` – Tự rimjob (liếm lồn).\n"
-        #         f"`{self.bot.command_prefix} handjob` – Tự handjob.\n"
-        #         # f"`!tf footjob` – Tự footjob.\n"
-        #         # f"`!tf finger` – Tự móc lồn.\n"
-        #     ),
-        #     inline=False,
-        # )
-        embed.add_field(
-            name="Chịch member khác:",
-            value=(
-                f"`{self.bot.command_prefix} bj @user` - Blowjob cho member khác.\n"
-                f"`{self.bot.command_prefix} rj @user` - Rimjob (liếm lồn) cho member khác.\n"
-                f"`{self.bot.command_prefix} hj @user` - Handjob cho member khác.\n"
-                f"`{self.bot.command_prefix} fj @user` - Footjob cho member khác.\n"
-                f"`{self.bot.command_prefix} aj @user` - Assjob cho member khác.\n"
-                f"`{self.bot.command_prefix} tj @user` - Thighjob cho member khác.\n"
-                f"`{self.bot.command_prefix} spank @user` - Vỗ mông member khác.\n"
-                # "`!tf finger @user - Móc member khác.\n"
-                f"`{self.bot.command_prefix} frot @user` - Frotting với member khác.\n"
-                f"`{self.bot.command_prefix} fuck @user` - Làm tình với member khác.\n"
-                f"`{self.bot.command_prefix} cream @user` - Creampie member khác.\n"
-                f"`{self.bot.command_prefix} 3some @user1 @user2` - Chơi 3some với 2 member.\n"
-                f"`{self.bot.command_prefix} orgy @user1 ... @user10` - Chơi orgy với 2-10 member.\n"
-            ),
-            inline=False,
-        )
-        embed.add_field(
-            name="Bảng xếp hạng - vinh danh kẻ dâm:",
-            value=(
-                f"`{self.bot.command_prefix} ranknsfw` - Xem bảng xếp hạng tổng thể quỷ sếch.\n"
-                f"`{self.bot.command_prefix} ranknsfw r` - Xem bảng xếp hạng tổng người bị sếch.\n"
-                f"`{self.bot.command_prefix} ranknsfw <action>` - Xem bảng xếp hạng quỷ sếch theo tương tác.\n"
-                f"`{self.bot.command_prefix} ranknsfw r <action>` - Xem bảng xếp hạng người bị sếch theo tương tác.\n"
-            ),
-            inline=False,
-        )
-        embed.add_field(
-            name="Chỉ dành cho Femboy Queen",
-            value=(
-                f"`{self.bot.command_prefix} locknsfw @user` - Khoá lệnh NSFW cho member khác.\n"
-                f"`{self.bot.command_prefix} unlocknsfw` - Mở khoá lệnh NSFW \n"
-            ),
-            inline=False,
-        )
-        if not ctx.channel.is_nsfw():
-            await ctx.message.add_reaction("⚠️")
+    @commands.command(
+        name="nsfw",
+        help="Mở menu trợ giúp NSFW trong kênh phù hợp.",
+    )
+    async def nsfw_help(self, ctx: commands.Context) -> None:
+        if not _is_nsfw_channel(ctx.channel):
+            try:
+                await ctx.message.add_reaction("⚠️")
+            except discord.HTTPException:
+                pass
             warn_msg = await ctx.reply("🔞 Dùng lệnh này trong channel NSFW nhé.")
             await asyncio.sleep(5)
-            await warn_msg.delete()
-            await ctx.message.delete()
+            try:
+                await warn_msg.delete()
+            except discord.HTTPException:
+                pass
+            try:
+                await ctx.message.delete()
+            except discord.HTTPException:
+                pass
             return
-        else:
-            await ctx.reply(embed=embed)
+
+        await self._send_help_menu(
+            ctx,
+            initial_topic_key="nsfw",
+            allow_nsfw=True,
+        )
 
 
-async def setup(bot):
+async def setup(bot: commands.Bot) -> None:
     await bot.add_cog(HelpCog(bot))

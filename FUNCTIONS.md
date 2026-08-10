@@ -24,9 +24,9 @@ Examples below use that default. Replace with your configured prefix if differen
 
 | Command | Access | Description |
 | --- | --- | --- |
-| `help` | Everyone | User help embed: AFK, economy, games, fun meters, interactions, NSFW overview, word connect |
-| `mod` | Administrator + Moderate Members | Moderator help embed (kick/ban/mute/timeout/warn/purge/cases/setup) |
-| `nsfw` | Everyone (reply only in NSFW) | NSFW help embed; outside NSFW channels the bot warns and deletes the prompt |
+| `help [topic]` | Everyone | Full bot catalog covering commands and automatic features even in partial development profiles. Individual command availability still depends on loaded cogs/configuration; only the NSFW topic is channel-gated |
+| `mod` | Everyone | Opens the same menu focused on moderation; each listed command enforces its own Discord permission |
+| `nsfw` | NSFW channel | Opens the same help menu focused on the NSFW topic; outside NSFW channels the bot warns and deletes the prompt |
 
 ---
 
@@ -39,7 +39,7 @@ Examples below use that default. Replace with your configured prefix if differen
 | `verify` | Everyone | Points the user to the verification channel (`VERIFY_CHANNEL` env) |
 | `ping` | Everyone | Heartbeat / liveness reply |
 | `beta_preview` | Beta | Confirms the member has a configured Beta role |
-| `server_stats` | Administrator | In-memory uptime, command, and error counts since process start |
+| `server_stats` | Administrator | In-memory uptime, command, and error counts since process start; 10s per-guild cooldown |
 | `leave` | Administrator | Makes the bot leave the current guild |
 | `setup` / `diagnose` | Manage Guild (subcommands) | Setup diagnostics group |
 | `setup check` | Manage Guild | Checks database, permissions, IDs, and cog health |
@@ -54,12 +54,12 @@ Guild administrators can configure persistent, case-insensitive automatic replie
 
 Rules are stored in plaintext and shown to administrators by `triggerreply list`; an `exact` phrase can behave like a secret code but should not be used as an authentication secret.
 
-| Command | Access | Description |
-| --- | --- | --- |
-| `triggerreply add contains <phrase> \| <reply>` | Administrator | Reply when a message includes the phrase |
-| `triggerreply add exact <phrase> \| <reply>` | Administrator | Reply only when the whole message matches |
-| `triggerreply list` | Administrator | List configured rules and their numeric IDs |
-| `triggerreply remove <ID>` | Administrator | Delete a configured rule |
+| Command | Aliases | Access | Description |
+| --- | --- | --- | --- |
+| `triggerreply` | `autoreply` | Administrator | Show the command guide |
+| `triggerreply add <contains\|include\|exact> <phrase> \| <reply>` | `autoreply add` | Administrator | Add a contains/exact rule |
+| `triggerreply list` | `autoreply list` | Administrator | List configured rules and their numeric IDs |
+| `triggerreply remove <ID>` | `triggerreply delete`, `autoreply remove`, `autoreply delete` | Administrator | Delete a configured rule |
 
 Examples:
 
@@ -119,23 +119,25 @@ No user commands. Event listeners only:
 | `daily` | — | Everyone | Once per UTC day; grants **10** Trap Coins |
 | `user_balance` | `balance` | Everyone | Show current Trap Coin balance |
 | `user_transactions` | `transactions` | Everyone | Last 10 transaction log entries |
-| `add_tc @member <amount> [reason]` | `give_tc`, `grant_tc` | Administrator | Credit Trap Coins (1–1,000,000,000); logs `admin_add_tc` |
-| `remove_tc @member <amount> [reason]` | `sub_tc`, `subtract_tc`, `take_tc` | Administrator | Debit Trap Coins if balance is sufficient; logs `admin_remove_tc` |
-| `set_tc @member <amount> [reason]` | `set_balance` | Administrator | Set absolute balance (0–1,000,000,000); logs delta as `admin_set_tc` |
-| `check_tc [@member]` | `tc_balance` | Administrator | Inspect a member’s Trap Coin balance (default: author) |
+| `add_tc @member <amount> [reason]` | `give_tc`, `grant_tc` | Administrator | Credit a non-bot member 1–1,000,000,000 Trap Coins; logs `admin_add_tc` |
+| `remove_tc @member <amount> [reason]` | `sub_tc`, `subtract_tc`, `take_tc` | Administrator | Debit a non-bot member 1–1,000,000,000 Trap Coins if the balance is sufficient; logs `admin_remove_tc` |
+| `set_tc @member <amount> [reason]` | `set_balance` | Administrator | Set a non-bot member’s balance to 0–1,000,000,000; logs delta as `admin_set_tc` |
+| `check_tc [@member]` | `tc_balance` | Administrator | Inspect a non-bot member’s Trap Coin balance (default: author) |
 
 ### Shop
 
 | Command | Aliases | Access | Description |
 | --- | --- | --- | --- |
 | `shop` | `store` | Everyone | List enabled catalog items |
-| `shop buy <item_id>` | — | Everyone | Purchase a catalog item |
+| `shop buy <item_id>` | — | Everyone | Purchase a catalog item; 2 calls per 5 seconds per user |
 | `shop inventory [@member]` | `inv` | Everyone | View owned shop items |
 | `shop use <item_id>` | — | Everyone | Equip badge or apply purchased role |
 | `shop unequip` | — | Everyone | Clear active badge |
-| `shop add_role <id> <price> @role [description]` | — | Manage Guild | Add/update a sellable role |
-| `shop add_badge <id> <price> <display name>` | — | Manage Guild | Add/update a badge item |
+| `shop add_role <id> <price> @role [description]` | — | Manage Guild | Add/update a sellable role priced 1–1,000,000,000 TC |
+| `shop add_badge <id> <price> <display name>` | — | Manage Guild | Add/update a badge item priced 1–1,000,000,000 TC |
 | `shop remove <item_id>` | `disable` | Manage Guild | Hide an item from the shop |
+
+Shop item IDs are 1–32 lowercase letters, digits, `_`, or `-`, and must start with a letter or digit.
 
 **Module:** `cogs.daily_reward.*`, `cogs.economy.shop`
 
@@ -227,12 +229,14 @@ Most meters accept an optional `@member` (default: author). Scores are determini
 | `marriage help` | — | Everyone (guild) | Rules: XP, ranks, cooldowns |
 | `marriage top` | `lb`, `leaderboard`, `rank` | Everyone (guild) | Top 10 couples by XP |
 | `divorce` | — | Everyone (guild) | End active marriage after confirm buttons |
-| `rank [r] [action]` | `ranking` | Everyone | Interaction leaderboards (global or per-action; `r` = receivers) |
+| `rank [r] [action]` | `ranking` | Everyone | All-time bot-wide interaction leaderboards (`r` = receivers); action can be kiss, hug, pat, slap, punch, hit, poke, cuddle, snuggle, boop, handhold, bonk, bite, stare, lick, or smack |
 | `cat` | — | Everyone | Random cat image (external API) |
 | `dog` | — | Everyone | Random dog image (external API) |
 | `36` | — | Everyone | Static meme GIF reply |
 
 **Module:** `cogs.interaction.user_interaction`, `cat`, `dog`, `meme_interaction`
+
+All 16 SFW interactions require a non-bot target and have a 3-second per-command, per-user cooldown. Self-target is allowed only for `pat`, `slap`, `punch`, `hit`, `poke`, `bonk`, and `smack`.
 
 ---
 
@@ -244,10 +248,10 @@ Most meters accept an optional `@member` (default: author). Scores are determini
 
 | Command | Access | Description |
 | --- | --- | --- |
-| `r34 [tags]` | NSFW channel | Rule34 image/video search |
-| `gbr [tags]` | NSFW channel | Gelbooru image/video search |
+| `r34 <tags>` | NSFW channel | Rule34 image/video search |
+| `gbr <tags>` | NSFW channel | Gelbooru image/video search |
 
-### Interactions (NSFW channel, cooldown 1/3s per user)
+### Interactions (NSFW channel, 3-second per-command, per-user cooldown)
 
 | Command | Aliases | Description |
 | --- | --- | --- |
@@ -264,15 +268,15 @@ Most meters accept an optional `@member` (default: author). Scores are determini
 | `cream @user` | — | Creampie |
 | `3some @user1 @user2` | `threesome` | Threesome with two others |
 | `orgy @user1 … @userN` | — | Orgy with 2–10 other members |
-| `ranknsfw [r] [action]` | `nsfwrank` | NSFW interaction leaderboards |
-| `mrank` | — | Administrator monthly NSFW ranking |
+| `ranknsfw [r] [action]` | `nsfwrank` | Current-UTC-month bot-wide leaderboards; action can be bj, rj, hj, fj, aj, tj, spank, frot, fuck, cream, 3some, or orgy |
+| `mrank <month> <year>` | — | Administrator monthly NSFW ranking |
 
 ### Super-user controls
 
 | Command | Access | Description |
 | --- | --- | --- |
-| `locknsfw @user` | Role-gated (King/Queen style) | Lock NSFW commands for a member |
-| `unlocknsfw` | Role-gated | Unlock NSFW commands |
+| `locknsfw @user` | Configured Queen role | Lock a member's NSFW interaction commands for 24 hours; successful use has a 3-day cooldown |
+| `unlocknsfw` | Configured Queen role | End an active interaction lock created by the same Queen |
 
 ### Verification helpers (moderation)
 
@@ -318,11 +322,11 @@ Most meters accept an optional `@member` (default: author). Scores are determini
 
 | Command | Aliases | Access | Description |
 | --- | --- | --- | --- |
-| `giveaway <duration> [winners] <prize>` | `ga` | Admin / Manage Messages / Manage Server | Start giveaway (e.g. `1h30m`, `2d`); persistent join/leave buttons |
+| `giveaway <duration> [winners] <prize>` | `ga` | Administrator / Manage Guild / Manage Messages | Start giveaway (e.g. `1h30m`, `2d`); persistent join/leave buttons |
 | `giveaway list` | `ls`, `active` | Everyone (guild) | List active giveaways |
 | `giveaway entries [message_id]` | `entrants`, `joined`, `who` | Everyone (guild) | Who joined a giveaway |
-| `giveaway end [message_id]` | — | Host/mod | End early and pick winners |
-| `giveaway reroll [message_id]` | `rr` | Host/mod | Reroll winners |
+| `giveaway end [message_id]` | — | Host or Administrator / Manage Guild / Manage Messages | End early and pick winners; accepts an ID or replied giveaway message |
+| `giveaway reroll [message_id] [winner_count]` | `rr` | Host or Administrator / Manage Guild / Manage Messages | Reroll 1–20 winners; accepts an ID or replied ended giveaway message |
 
 Duration range: 10 seconds–30 days; max 20 winners.
 
@@ -330,7 +334,7 @@ Duration range: 10 seconds–30 days; max 20 winners.
 
 | Command | Access | Description |
 | --- | --- | --- |
-| `vote [yesno\|multiple] [question]` | Everyone | Interactive poll (asks for duration; multiple-choice collects options). Ends on schedule with results |
+| `vote [yesno\|multiple\|multiplechoice] [question]` | Everyone | Interactive poll (asks for duration; multiple-choice collects options). Ends on schedule with results |
 
 ### Other utils
 
@@ -339,7 +343,7 @@ Duration range: 10 seconds–30 days; max 20 winners.
 | `quote [image] [message_link\|message_id]` | `q`, `quotes` | Everyone (guild) | Quote a replied/current-channel message as a text embed by default. Add `image` before the optional link/ID to generate a PNG card with bundled offline emoji/symbol fallback fonts. Both modes use the author's server avatar when available, link to the original message, and have a 5s per-user cooldown |
 | `big_speaker <size> <message>` | `loa`, `speaker` | Everyone (guild) | Re-speak a message in large Discord markdown. **`size` is 1–6**; TC cost by size: **1 / 2 / 5 / 10 / 20 / 50**. Sizes 5–6 add separators; 6 is bold H1. Mentions: user only; strips `@everyone`, `@here`, role pings. 30s cooldown |
 | `random_member <@member\|@role>` | — | Everyone | Pick a random member (from role members if a role is given) |
-| `save_image <collection> [metadata…]` | — | Manage Messages | Persist attached images + metadata to Mongo (`images`) |
+| `save_image <collection> [key value ...]` | — | Manage Messages | Persist attached images + optional metadata pairs to Mongo (`images`) |
 
 **Module:** `cogs.utils.*`
 
@@ -354,16 +358,16 @@ Duration range: 10 seconds–30 days; max 20 winners.
 | `kick @user [reason]` | Kick Members | Kick member; records moderation case |
 | `ban @user [reason]` | Ban Members | Ban member; records case |
 | `softban @user [reason]` | Ban Members | Soft-ban / handcuff role workflow (stores previous roles) |
-| `unsoftban @user` | Ban Members | Restore roles after softban |
+| `unsoftban @user [reason]` | Ban Members | Restore roles after softban |
 | `mute @user [reason]` | Manage Roles | Assign Muted role |
-| `unmute @user` | Manage Roles | Remove Muted role |
+| `unmute @user [reason]` | Manage Roles | Remove Muted role |
 | `timeout @user <minutes> [reason]` | Moderate Members | Discord timeout |
-| `untimeout @user` | Moderate Members | Clear timeout |
+| `untimeout @user [reason]` | Moderate Members | Clear timeout |
 | `warn @user [reason]` | Manage Messages | Store warning + case |
 | `check_warn [@user]` | Everyone (guild) | Recent warnings (default: self) |
-| `nickchange @user [new_nick]` | Manage Nicknames | Change member nickname |
-| `roleroll @user @role` | Manage Roles | Give role |
-| `roleunroll @user @role` | Manage Roles | Remove role |
+| `nickchange @user <new_nick>` | Manage Nicknames | Change member nickname |
+| `roleroll @user <role name>` | Manage Roles | Give role by exact name |
+| `roleunroll @user <role name>` | Manage Roles | Remove role by exact name |
 
 ### Messages & channel controls
 
@@ -373,9 +377,9 @@ Duration range: 10 seconds–30 days; max 20 winners.
 | `purge_user @user <n>` | Manage Messages | Delete last *n* messages from a user in channel |
 | `clean_before <days>` | Manage Messages | Delete messages older than *n* days |
 | `slowmode` | Manage Messages | Slowmode guide group |
-| `slowmode check_bypass [@member]` | Manage Messages | Check channel permission overwrites |
+| `slowmode check_bypass [@member]` | Everyone | Check channel permission overwrites |
 | `slowmode immune @member` | Manage Messages | Exempt member from slowmode |
-| `slowmode prominent @member` | Manage Messages | Apply “prominent” permission profile for slowmode |
+| `slowmode prominent @member` | Manage Messages | Remove the member's slowmode bypass overwrite |
 
 ### Cases
 
@@ -383,10 +387,10 @@ Duration range: 10 seconds–30 days; max 20 winners.
 | --- | --- | --- |
 | `case` | Manage Messages | Usage guide |
 | `case view <number>` | Manage Messages | View case by number |
-| `case history @user` | Manage Messages | Case history for a member |
+| `case history @user [limit]` | Manage Messages | Last 1–10 cases for a member |
 | `case edit <number> <reason>` | Manage Messages | Edit case reason |
 | `case status <number> <open\|resolved\|appealed\|void>` | Manage Messages | Update case status |
-| `case log_channel [#channel]` | Manage Guild | Set/view mod-log channel |
+| `case log_channel [#channel]` | Manage Guild | Set the mod-log channel (defaults to current channel) |
 
 ### Area 51 guard
 
@@ -454,6 +458,7 @@ These modules support features but are not discovered as extensions (leading `_`
 help, mod, nsfw
 hello, invite, verify, ping, beta_preview, server_stats, leave
 setup, setup check
+triggerreply, triggerreply add, triggerreply list, triggerreply remove
 afk, afk dynamic, afk time, afk clear, afk check
 random_femboy
 daily, user_balance, user_transactions, add_tc, remove_tc, set_tc, check_tc

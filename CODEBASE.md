@@ -64,6 +64,7 @@ tfvn_bot/
 │
 ├── test/
 │   ├── test_community_features.py  Pure validation/time/helper regression tests
+│   ├── test_help_menu.py           Help catalog completeness, limits, gates, and UI tests
 │   ├── test_meter_number_bars.py   unittest coverage for signed meter formatting
 │   └── word_stardardlize.py        Manual normalization utility; not auto-discovered as a test
 │
@@ -72,7 +73,7 @@ tfvn_bot/
     ├── _beta_function.py           Multi-role Beta command access guard
     ├── _feature_flags.py           DISABLED_COGS pattern parsing
     ├── general.py                  hello, invite, and verification-channel pointers
-    ├── help.py                     User, moderator, and NSFW help embeds
+    ├── help.py                     Full-catalog dropdown help UI with an NSFW channel gate
     ├── afk_remind/
     │   ├── afk_set.py              Timed/dynamic AFK setup, clearing, and ping review
     │   └── afk_monitor.py          AFK mention capture and return detection

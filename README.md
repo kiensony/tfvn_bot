@@ -192,20 +192,29 @@ The current implementation alternates between its primary and secondary credenti
 
 ## Command overview
 
-Commands are invoked with `COMMAND_PREFIX`. With the default prefix, `!tf help`, `!tf mod`, and `!tf nsfw` display the built-in user, moderator, and age-restricted help menus.
+Commands are invoked with `COMMAND_PREFIX`. With the default prefix, `!tf help [topic]`
+opens the bot's full command catalog split into overview, community, economy,
+games, fun/social, utilities/booster, automatic features, and moderation topics.
+The catalog remains complete in partial development profiles; individual commands
+still depend on loaded cogs, configuration, and Discord permissions. Only the NSFW
+topic is hidden outside NSFW-marked channels. `!tf mod` and `!tf nsfw` open the same
+menu focused on their respective topics.
 
 | Area | Representative commands |
 | --- | --- |
-| General | `help`, `hello`, `invite`, `verify`, `ping`, `server_stats` |
+| General | `help [topic]`, `hello`, `invite`, `verify`, `ping`, `server_stats` |
 | Community | `afk`, `jobremind add`, `birthday set`, `vote`, `giveaway` |
 | Economy and games | `daily`, `user_balance`, `user_transactions`, `shop`, `slot`, `flip_coin`, `sicbo_start`, `noitu`, `vtv` |
 | Moderation | `kick`, `ban`, `softban`, `mute`, `timeout`, `warn`, `case`, `purge`, `slowmode`, `verified` |
 | Operations | `ping`, `server_stats`, `setup check` |
 | Booster tools | `custom_role`, `update_custom_role`, `custom_room` |
 | Social and fun | `kiss`, `hug`, `pat`, `avatar`, `quote`, `rank`, `ship`, `aura`, `redflag`, configurable `triggerreply`, and other meter commands |
+| Automatic features | Announcements, AFK monitoring, reminders, content filtering, scheduled cleanup, and persistent interaction handling |
 | Optional NSFW | `nsfw`, `r34`, `gbr`, NSFW interactions, rankings, and role-based locks |
 
-This is an overview rather than an exhaustive command reference; the source of truth is each module under `cogs/`.
+This table is only an overview. The in-Discord dropdown and [FUNCTIONS.md](FUNCTIONS.md)
+provide the complete user-facing catalog; each module under `cogs/` remains the
+implementation source of truth.
 
 ## Community systems
 
@@ -268,8 +277,9 @@ Run the unit-test suite from the repository root:
 python -m unittest discover -s test -p "test_*.py"
 ```
 
-The automated tests cover meter formatting, quote-card rendering, cog flags,
-and validation helpers used by the shop, cases, and setup diagnostics.
+The automated tests cover the categorized help menu, meter formatting,
+quote-card rendering, cog flags, and validation helpers used by the shop,
+cases, and setup diagnostics.
 
 ## Project structure
 
