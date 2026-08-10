@@ -730,13 +730,13 @@ HELP_TOPICS = (
                     ),
                     _entry(
                         "roleroll",
-                        "Gán role bằng đúng tên — cần Manage Roles.",
-                        "roleroll @user <tên role>",
+                        "Mở menu chọn role để gán — cần Manage Roles.",
+                        "roleroll @user",
                     ),
                     _entry(
                         "roleunroll",
-                        "Gỡ role bằng đúng tên — cần Manage Roles.",
-                        "roleunroll @user <tên role>",
+                        "Mở menu chọn role để gỡ — cần Manage Roles.",
+                        "roleunroll @user",
                     ),
                     _entry(
                         "verified",

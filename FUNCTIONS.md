@@ -366,8 +366,8 @@ Duration range: 10 seconds–30 days; max 20 winners.
 | `warn @user [reason]` | Manage Messages | Store warning + case |
 | `check_warn [@user]` | Everyone (guild) | Recent warnings (default: self) |
 | `nickchange @user <new_nick>` | Manage Nicknames | Change member nickname |
-| `roleroll @user <role name>` | Manage Roles | Give role by exact name |
-| `roleunroll @user <role name>` | Manage Roles | Remove role by exact name |
+| `roleroll @user` | Manage Roles | Open a role dropdown, then assign the selected role |
+| `roleunroll @user` | Manage Roles | Open a role dropdown, then remove the selected role |
 
 ### Messages & channel controls
 
