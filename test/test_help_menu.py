@@ -109,6 +109,10 @@ class TestHelpTopicData(unittest.TestCase):
             rendered_topics["moderation"],
         )
         self.assertIn(
+            "`!tf rolecopy @source @target`",
+            rendered_topics["moderation"],
+        )
+        self.assertIn(
             "`!tf setup` (alias: `diagnose`)",
             rendered_topics["moderation"],
         )

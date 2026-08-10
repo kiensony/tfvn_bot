@@ -368,6 +368,7 @@ Duration range: 10 seconds–30 days; max 20 winners.
 | `nickchange @user <new_nick>` | Manage Nicknames | Change member nickname |
 | `roleroll @user` | Manage Roles | Open a role dropdown, then assign the selected role |
 | `roleunroll @user` | Manage Roles | Open a role dropdown, then remove the selected role |
+| `rolecopy @source @target` | Manage Roles | Add eligible source roles missing from the target; preserve existing target roles and never mention/ping copied roles |
 
 ### Messages & channel controls
 
@@ -478,7 +479,7 @@ jobremind, jobremind add
 giveaway, giveaway list, giveaway entries, giveaway end, giveaway reroll
 vote, quote, big_speaker, random_member, save_image
 kick, ban, softban, unsoftban, mute, unmute, timeout, untimeout, warn, check_warn
-nickchange, roleroll, roleunroll
+nickchange, roleroll, roleunroll, rolecopy
 purge, purge_user, clean_before
 slowmode, slowmode check_bypass, slowmode immune, slowmode prominent
 case, case view, case history, case edit, case status, case log_channel

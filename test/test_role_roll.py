@@ -1,7 +1,7 @@
 import inspect
 import unittest
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, call
 
 import discord
 from discord.ext import commands
@@ -13,6 +13,7 @@ from cogs.mod.role import (
     RoleRollView,
     RoleUnrollView,
     RollCog,
+    plan_role_copy,
     role_assignment_denial,
     role_removal_denial,
 )
@@ -27,13 +28,17 @@ class FakeRole:
         *,
         default: bool = False,
         managed: bool = False,
+        name: str | None = None,
     ) -> None:
         self.guild = guild
         self.id = role_id
         self.position = position
         self.managed = managed
         self.mention = f"<@&{role_id}>"
+        self.name = name if name is not None else f"role-{role_id}"
         self._default = default
+        self.edit = AsyncMock()
+        self.delete = AsyncMock()
 
     def is_default(self) -> bool:
         return self._default
@@ -60,6 +65,7 @@ class FakeMember:
         self.name = name or f"member-{member_id}"
         self.add_roles = AsyncMock()
         self.remove_roles = AsyncMock()
+        self.edit = AsyncMock()
 
     def __str__(self) -> str:
         return self.name
@@ -197,6 +203,81 @@ class TestRoleRemovalDenial(unittest.TestCase):
             role_removal_denial(guild, moderator, target, role),
             f"{target.mention} không có role {role.mention}.",
         )
+
+
+class TestRoleCopyPlan(unittest.TestCase):
+    def test_selects_only_safe_missing_roles_in_source_order(self) -> None:
+        guild, moderator, target, _ = make_role_context()
+        default_role = FakeRole(guild, guild.id, 0, default=True)
+        eligible_high = FakeRole(guild, 201, 50)
+        managed_role = FakeRole(guild, 202, 10, managed=True)
+        already_present = FakeRole(guild, 203, 30)
+        moderator_high = FakeRole(
+            guild,
+            204,
+            moderator.top_role.position,
+        )
+        bot_high = FakeRole(guild, 205, guild.me.top_role.position)
+        eligible_low = FakeRole(guild, 206, 10)
+        source = FakeMember(
+            66,
+            FakeRole(guild, 600, 60),
+            roles=[
+                default_role,
+                eligible_high,
+                managed_role,
+                already_present,
+                moderator_high,
+                bot_high,
+                eligible_low,
+            ],
+            name="source",
+        )
+        target_only = FakeRole(guild, 207, 15)
+        target.roles = [already_present, target_only]
+
+        plan = plan_role_copy(guild, moderator, source, target)
+
+        self.assertEqual(plan.eligible, (eligible_high, eligible_low))
+        self.assertEqual(plan.already_present, (already_present,))
+        self.assertEqual(
+            plan.unmanageable,
+            (default_role, managed_role, moderator_high, bot_high),
+        )
+
+    def test_guild_owner_bypasses_moderator_hierarchy(self) -> None:
+        guild, moderator, target, _ = make_role_context()
+        above_moderator = FakeRole(guild, 201, 90)
+        source = FakeMember(
+            66,
+            FakeRole(guild, 600, 60),
+            roles=[above_moderator],
+            name="source",
+        )
+
+        non_owner_plan = plan_role_copy(guild, moderator, source, target)
+        self.assertEqual(non_owner_plan.unmanageable, (above_moderator,))
+
+        guild.owner_id = moderator.id
+        owner_plan = plan_role_copy(guild, moderator, source, target)
+
+        self.assertEqual(owner_plan.eligible, (above_moderator,))
+        self.assertEqual(owner_plan.unmanageable, ())
+
+
+class TestRoleCopyCommandConfiguration(unittest.TestCase):
+    def test_cooldown_and_concurrency_are_scoped_safely(self) -> None:
+        command = RollCog.copy_roles
+
+        self.assertTrue(command.cooldown_after_parsing)
+        self.assertEqual(command._buckets._type, commands.BucketType.user)
+        self.assertIsNotNone(command._max_concurrency)
+        self.assertEqual(command._max_concurrency.number, 1)
+        self.assertEqual(
+            command._max_concurrency.per,
+            commands.BucketType.guild,
+        )
+        self.assertFalse(command._max_concurrency.wait)
 
 
 class TestRoleRollCommand(unittest.IsolatedAsyncioTestCase):
@@ -602,6 +683,351 @@ class TestRoleUnrollView(unittest.IsolatedAsyncioTestCase):
             )
         )
         view.stop()
+
+
+class TestRoleCopyCommand(unittest.IsolatedAsyncioTestCase):
+    async def test_additive_success_copies_only_eligible_roles(self) -> None:
+        guild, moderator, target, _ = make_role_context()
+        default_role = FakeRole(guild, guild.id, 0, default=True)
+        eligible_one = FakeRole(guild, 201, 20, name="Helpers")
+        already_present = FakeRole(guild, 202, 30)
+        eligible_two = FakeRole(
+            guild,
+            203,
+            40,
+            name="@everyone **ops** <@&123456789012345678>",
+        )
+        target_only = FakeRole(guild, 204, 15)
+        source = FakeMember(
+            66,
+            FakeRole(guild, 600, 60),
+            roles=[
+                default_role,
+                eligible_one,
+                already_present,
+                eligible_two,
+            ],
+            name="source",
+        )
+        original_source_roles = tuple(source.roles)
+        target.roles = [already_present, target_only]
+        original_target_roles = tuple(target.roles)
+
+        async def append_role(role, *, reason: str) -> None:
+            target.roles.append(role)
+
+        target.add_roles.side_effect = append_role
+        ctx = SimpleNamespace(
+            guild=guild,
+            author=moderator,
+            reply=AsyncMock(),
+        )
+        cog = RollCog(SimpleNamespace())
+        audit_reason = (
+            f"rolecopy source={source.id} target={target.id} "
+            f"moderator={moderator.id}"
+        )
+
+        await cog.copy_roles.callback(cog, ctx, source, target)
+
+        self.assertEqual(
+            target.add_roles.await_args_list,
+            [
+                call(eligible_one, reason=audit_reason),
+                call(eligible_two, reason=audit_reason),
+            ],
+        )
+        target.remove_roles.assert_not_awaited()
+        target.edit.assert_not_awaited()
+        source.add_roles.assert_not_awaited()
+        source.remove_roles.assert_not_awaited()
+        source.edit.assert_not_awaited()
+        self.assertEqual(tuple(source.roles), original_source_roles)
+        self.assertEqual(
+            tuple(target.roles),
+            original_target_roles + (eligible_one, eligible_two),
+        )
+        self.assertIn(target_only, target.roles)
+        self.assertIn(eligible_one, target.roles)
+        self.assertIn(eligible_two, target.roles)
+        ctx.reply.assert_awaited_once()
+        args = ctx.reply.await_args.args
+        kwargs = ctx.reply.await_args.kwargs
+        self.assertEqual(
+            args[0],
+            (
+                f"Đã sao chép **2** role từ {source.mention} "
+                f"sang {target.mention}.\n"
+                "Bỏ qua: 1 role đích đã có · "
+                "1 role không thể quản lý."
+            ),
+        )
+        self.assertNotIn("<@&", args[0])
+        self.assertNotIn("@everyone", args[0])
+        self.assertNotIn(eligible_one.mention, args[0])
+        self.assertNotIn(eligible_two.mention, args[0])
+        self.assertNotIn(eligible_one.name, args[0])
+        self.assertNotIn(eligible_two.name, args[0])
+        for role in original_source_roles + original_target_roles:
+            role.edit.assert_not_awaited()
+            role.delete.assert_not_awaited()
+        self.assertFalse(kwargs["allowed_mentions"].everyone)
+        self.assertFalse(kwargs["allowed_mentions"].users)
+        self.assertFalse(kwargs["allowed_mentions"].roles)
+        self.assertFalse(kwargs["allowed_mentions"].replied_user)
+        self.assertFalse(kwargs["mention_author"])
+
+    async def test_same_member_is_a_no_op(self) -> None:
+        guild, moderator, target, _ = make_role_context()
+        target.roles = [FakeRole(guild, 201, 20)]
+        ctx = SimpleNamespace(
+            guild=guild,
+            author=moderator,
+            reply=AsyncMock(),
+        )
+        cog = RollCog(SimpleNamespace())
+
+        await cog.copy_roles.callback(cog, ctx, target, target)
+
+        ctx.reply.assert_awaited_once_with(
+            "Member nguồn và member đích phải khác nhau.",
+            mention_author=False,
+        )
+        target.add_roles.assert_not_awaited()
+        target.remove_roles.assert_not_awaited()
+
+    async def test_no_eligible_roles_is_a_no_op_with_safe_summary(self) -> None:
+        guild, moderator, target, _ = make_role_context()
+        default_role = FakeRole(guild, guild.id, 0, default=True)
+        already_present = FakeRole(guild, 201, 20)
+        target_only = FakeRole(guild, 202, 10)
+        source = FakeMember(
+            66,
+            FakeRole(guild, 600, 60),
+            roles=[default_role, already_present],
+            name="source",
+        )
+        target.roles = [already_present, target_only]
+        original_target_roles = tuple(target.roles)
+        ctx = SimpleNamespace(
+            guild=guild,
+            author=moderator,
+            reply=AsyncMock(),
+        )
+        cog = RollCog(SimpleNamespace())
+
+        await cog.copy_roles.callback(cog, ctx, source, target)
+
+        target.add_roles.assert_not_awaited()
+        target.remove_roles.assert_not_awaited()
+        self.assertEqual(tuple(target.roles), original_target_roles)
+        ctx.reply.assert_awaited_once()
+        args = ctx.reply.await_args.args
+        kwargs = ctx.reply.await_args.kwargs
+        self.assertEqual(
+            args[0],
+            (
+                f"Không có role mới nào được sao chép từ {source.mention} "
+                f"sang {target.mention}.\n"
+                "Bỏ qua: 1 role đích đã có · "
+                "1 role không thể quản lý."
+            ),
+        )
+        self.assertFalse(kwargs["allowed_mentions"].everyone)
+        self.assertFalse(kwargs["allowed_mentions"].users)
+        self.assertFalse(kwargs["allowed_mentions"].roles)
+        self.assertFalse(kwargs["allowed_mentions"].replied_user)
+        self.assertFalse(kwargs["mention_author"])
+
+    async def test_missing_bot_manage_roles_is_a_no_op(self) -> None:
+        guild, moderator, target, role = make_role_context()
+        guild.me.guild_permissions.manage_roles = False
+        source = FakeMember(
+            66,
+            FakeRole(guild, 600, 60),
+            roles=[role],
+            name="source",
+        )
+        ctx = SimpleNamespace(
+            guild=guild,
+            author=moderator,
+            reply=AsyncMock(),
+        )
+        cog = RollCog(SimpleNamespace())
+
+        await cog.copy_roles.callback(cog, ctx, source, target)
+
+        ctx.reply.assert_awaited_once_with(
+            "Bot không có quyền Manage Roles để sao chép role.",
+            mention_author=False,
+        )
+        target.add_roles.assert_not_awaited()
+        target.remove_roles.assert_not_awaited()
+
+    async def test_forbidden_aborts_after_partial_success(self) -> None:
+        guild, moderator, target, _ = make_role_context()
+        first = FakeRole(guild, 201, 20, name="Copied Role")
+        failed = FakeRole(guild, 202, 30, name="Failed Role")
+        not_attempted = FakeRole(guild, 203, 40, name="Later Role")
+        source = FakeMember(
+            66,
+            FakeRole(guild, 600, 60),
+            roles=[first, failed, not_attempted],
+            name="source",
+        )
+        original_source_roles = tuple(source.roles)
+        original_target_roles = tuple(target.roles)
+        target.add_roles.side_effect = [None, make_forbidden_exception()]
+        ctx = SimpleNamespace(
+            guild=guild,
+            author=moderator,
+            reply=AsyncMock(),
+        )
+        cog = RollCog(SimpleNamespace())
+        audit_reason = (
+            f"rolecopy source={source.id} target={target.id} "
+            f"moderator={moderator.id}"
+        )
+
+        with self.assertLogs("cogs.mod.role", level="WARNING") as captured:
+            await cog.copy_roles.callback(cog, ctx, source, target)
+
+        self.assertEqual(
+            target.add_roles.await_args_list,
+            [
+                call(first, reason=audit_reason),
+                call(failed, reason=audit_reason),
+            ],
+        )
+        target.remove_roles.assert_not_awaited()
+        target.edit.assert_not_awaited()
+        source.add_roles.assert_not_awaited()
+        source.remove_roles.assert_not_awaited()
+        source.edit.assert_not_awaited()
+        self.assertEqual(tuple(source.roles), original_source_roles)
+        self.assertEqual(tuple(target.roles), original_target_roles)
+        ctx.reply.assert_awaited_once()
+        args = ctx.reply.await_args.args
+        kwargs = ctx.reply.await_args.kwargs
+        self.assertEqual(
+            args[0],
+            (
+                f"Đã sao chép **1** role từ {source.mention} "
+                f"sang {target.mention}.\n"
+                "Lỗi: 1 role · Chưa thử: 1 role.\n"
+                "Đã dừng vì bot không còn đủ quyền hoặc "
+                "thứ bậc role đã thay đổi."
+            ),
+        )
+        self.assertNotIn("<@&", args[0])
+        for role in original_source_roles:
+            self.assertNotIn(role.mention, args[0])
+            self.assertNotIn(role.name, args[0])
+            role.edit.assert_not_awaited()
+            role.delete.assert_not_awaited()
+        self.assertFalse(kwargs["allowed_mentions"].everyone)
+        self.assertFalse(kwargs["allowed_mentions"].users)
+        self.assertFalse(kwargs["allowed_mentions"].roles)
+        self.assertFalse(kwargs["mention_author"])
+        self.assertTrue(
+            any("rolecopy forbidden" in message for message in captured.output)
+        )
+
+    async def test_http_error_is_logged_and_reported(self) -> None:
+        guild, moderator, target, role = make_role_context()
+        source = FakeMember(
+            66,
+            FakeRole(guild, 600, 60),
+            roles=[role],
+            name="source",
+        )
+        target.add_roles.side_effect = make_http_exception()
+        ctx = SimpleNamespace(
+            guild=guild,
+            author=moderator,
+            reply=AsyncMock(),
+        )
+        cog = RollCog(SimpleNamespace())
+
+        with self.assertLogs("cogs.mod.role", level="ERROR") as captured:
+            await cog.copy_roles.callback(cog, ctx, source, target)
+
+        target.add_roles.assert_awaited_once_with(
+            role,
+            reason=(
+                f"rolecopy source={source.id} target={target.id} "
+                f"moderator={moderator.id}"
+            ),
+        )
+        target.remove_roles.assert_not_awaited()
+        ctx.reply.assert_awaited_once()
+        args = ctx.reply.await_args.args
+        kwargs = ctx.reply.await_args.kwargs
+        self.assertEqual(
+            args[0],
+            (
+                f"Không có role mới nào được sao chép từ {source.mention} "
+                f"sang {target.mention}.\n"
+                "Lỗi: 1 role · Chưa thử: 0 role.\n"
+                "Đã dừng vì Discord từ chối cập nhật role."
+            ),
+        )
+        self.assertFalse(kwargs["allowed_mentions"].everyone)
+        self.assertFalse(kwargs["allowed_mentions"].users)
+        self.assertFalse(kwargs["allowed_mentions"].roles)
+        self.assertFalse(kwargs["mention_author"])
+        self.assertTrue(
+            any("rolecopy failed" in message for message in captured.output)
+        )
+
+    async def test_error_handler_reports_missing_permissions(self) -> None:
+        cog = RollCog(SimpleNamespace())
+        ctx = SimpleNamespace(reply=AsyncMock())
+
+        await cog.copy_roles_error(
+            ctx,
+            commands.MissingPermissions(["manage_roles"]),
+        )
+
+        ctx.reply.assert_awaited_once_with(
+            "Bạn không có quyền Manage Roles để sao chép role.",
+            mention_author=False,
+        )
+
+    async def test_error_handler_shows_usage_for_missing_member(self) -> None:
+        cog = RollCog(SimpleNamespace())
+        ctx = SimpleNamespace(clean_prefix="!tf ", reply=AsyncMock())
+        parameter = commands.Parameter(
+            "target",
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+        )
+
+        await cog.copy_roles_error(
+            ctx,
+            commands.MissingRequiredArgument(parameter),
+        )
+
+        ctx.reply.assert_awaited_once_with(
+            "Cách dùng: `!tf rolecopy @source @target`",
+            mention_author=False,
+        )
+
+    async def test_error_handler_reports_guild_copy_in_progress(self) -> None:
+        cog = RollCog(SimpleNamespace())
+        ctx = SimpleNamespace(reply=AsyncMock())
+
+        await cog.copy_roles_error(
+            ctx,
+            commands.MaxConcurrencyReached(
+                1,
+                commands.BucketType.guild,
+            ),
+        )
+
+        ctx.reply.assert_awaited_once_with(
+            "Một lệnh rolecopy khác đang chạy trong server. Hãy thử lại sau.",
+            mention_author=False,
+        )
 
 
 if __name__ == "__main__":

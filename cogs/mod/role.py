@@ -1,4 +1,5 @@
 import logging
+from dataclasses import dataclass
 
 import discord
 from discord.ext import commands
@@ -10,17 +11,16 @@ ROLE_ROLL_SELECT_CUSTOM_ID = "roleroll:role"
 ROLE_UNROLL_SELECT_CUSTOM_ID = "roleunroll:role"
 ROLE_MENU_TIMEOUT_SECONDS = 60
 ROLE_ROLL_TIMEOUT_SECONDS = ROLE_MENU_TIMEOUT_SECONDS
+ROLE_COPY_COOLDOWN_SECONDS = 15
 
 
-def _role_change_denial(
+def _role_manageability_denial(
     guild: discord.Guild,
     moderator: discord.Member,
-    target: discord.Member,
     role: discord.Role,
     *,
-    remove: bool,
+    action: str,
 ) -> str | None:
-    action = "gỡ" if remove else "gán"
     if role.guild.id != guild.id:
         return "Role đã chọn không thuộc server này."
     if role.is_default():
@@ -41,6 +41,26 @@ def _role_change_denial(
         return f"Bạn không còn quyền Manage Roles để {action} role."
     if moderator.id != guild.owner_id and role >= moderator.top_role:
         return f"Bạn chỉ có thể {action} role thấp hơn role cao nhất của mình."
+    return None
+
+
+def _role_change_denial(
+    guild: discord.Guild,
+    moderator: discord.Member,
+    target: discord.Member,
+    role: discord.Role,
+    *,
+    remove: bool,
+) -> str | None:
+    action = "gỡ" if remove else "gán"
+    denial = _role_manageability_denial(
+        guild,
+        moderator,
+        role,
+        action=action,
+    )
+    if denial is not None:
+        return denial
 
     if remove and role not in target.roles:
         return f"{target.mention} không có role {role.mention}."
@@ -79,6 +99,83 @@ def role_removal_denial(
         role,
         remove=True,
     )
+
+
+@dataclass(frozen=True)
+class RoleCopyPlan:
+    eligible: tuple[discord.Role, ...]
+    already_present: tuple[discord.Role, ...]
+    unmanageable: tuple[discord.Role, ...]
+
+
+def plan_role_copy(
+    guild: discord.Guild,
+    moderator: discord.Member,
+    source: discord.Member,
+    target: discord.Member,
+) -> RoleCopyPlan:
+    """Classify source roles for an additive, hierarchy-safe copy."""
+    eligible: list[discord.Role] = []
+    already_present: list[discord.Role] = []
+    unmanageable: list[discord.Role] = []
+
+    for role in source.roles:
+        denial = _role_manageability_denial(
+            guild,
+            moderator,
+            role,
+            action="gán",
+        )
+        if denial is not None:
+            unmanageable.append(role)
+        elif role in target.roles:
+            already_present.append(role)
+        else:
+            eligible.append(role)
+
+    return RoleCopyPlan(
+        eligible=tuple(eligible),
+        already_present=tuple(already_present),
+        unmanageable=tuple(unmanageable),
+    )
+
+
+def _format_role_copy_result(
+    source: discord.Member,
+    target: discord.Member,
+    plan: RoleCopyPlan,
+    copied: list[discord.Role],
+    failed: list[discord.Role],
+    not_attempted: list[discord.Role],
+    stop_reason: str | None,
+) -> str:
+    if copied:
+        lines = [
+            (
+                f"Đã sao chép **{len(copied)}** role từ {source.mention} "
+                f"sang {target.mention}."
+            )
+        ]
+    else:
+        lines = [
+            f"Không có role mới nào được sao chép từ {source.mention} "
+            f"sang {target.mention}."
+        ]
+
+    skipped_parts: list[str] = []
+    if plan.already_present:
+        skipped_parts.append(f"{len(plan.already_present)} role đích đã có")
+    if plan.unmanageable:
+        skipped_parts.append(f"{len(plan.unmanageable)} role không thể quản lý")
+    if skipped_parts:
+        lines.append("Bỏ qua: " + " · ".join(skipped_parts) + ".")
+    if failed or not_attempted:
+        lines.append(
+            f"Lỗi: {len(failed)} role · Chưa thử: {len(not_attempted)} role."
+        )
+    if stop_reason is not None:
+        lines.append(stop_reason)
+    return "\n".join(lines)
 
 
 class RoleChangeSelect(discord.ui.RoleSelect):
@@ -435,6 +532,207 @@ class RollCog(commands.Cog):
             error,
             command_name="roleunroll",
             remove=True,
+        )
+
+    @commands.command(
+        name="rolecopy",
+        help="Sao chép thêm các role đủ điều kiện giữa hai thành viên.",
+        cooldown_after_parsing=True,
+    )
+    @commands.guild_only()
+    @commands.has_guild_permissions(manage_roles=True)
+    @commands.max_concurrency(
+        1,
+        per=commands.BucketType.guild,
+        wait=False,
+    )
+    @commands.cooldown(
+        1,
+        ROLE_COPY_COOLDOWN_SECONDS,
+        commands.BucketType.user,
+    )
+    async def copy_roles(
+        self,
+        ctx: commands.Context,
+        source: discord.Member,
+        target: discord.Member,
+    ) -> None:
+        if source.id == target.id:
+            await ctx.reply(
+                "Member nguồn và member đích phải khác nhau.",
+                mention_author=False,
+            )
+            return
+
+        bot_member = ctx.guild.me
+        if bot_member is None or not bot_member.guild_permissions.manage_roles:
+            await ctx.reply(
+                "Bot không có quyền Manage Roles để sao chép role.",
+                mention_author=False,
+            )
+            return
+
+        plan = plan_role_copy(ctx.guild, ctx.author, source, target)
+        if not plan.eligible:
+            await ctx.reply(
+                _format_role_copy_result(
+                    source,
+                    target,
+                    plan,
+                    copied=[],
+                    failed=[],
+                    not_attempted=[],
+                    stop_reason=None,
+                ),
+                allowed_mentions=discord.AllowedMentions.none(),
+                mention_author=False,
+            )
+            return
+
+        copied: list[discord.Role] = []
+        failed: list[discord.Role] = []
+        not_attempted: list[discord.Role] = []
+        newly_present: list[discord.Role] = []
+        newly_unmanageable: list[discord.Role] = []
+        stop_reason: str | None = None
+        audit_reason = (
+            f"rolecopy source={source.id} target={target.id} "
+            f"moderator={ctx.author.id}"
+        )
+
+        for index, role in enumerate(plan.eligible):
+            manageability_denial = _role_manageability_denial(
+                ctx.guild,
+                ctx.author,
+                role,
+                action="gán",
+            )
+            if manageability_denial is not None:
+                newly_unmanageable.append(role)
+                continue
+            if role in target.roles:
+                newly_present.append(role)
+                continue
+
+            try:
+                await target.add_roles(role, reason=audit_reason)
+            except discord.NotFound:
+                failed.append(role)
+                not_attempted.extend(plan.eligible[index + 1 :])
+                stop_reason = (
+                    "Đã dừng vì member hoặc role không còn tồn tại trong server."
+                )
+                logger.warning(
+                    "rolecopy resource missing source=%s target=%s role=%s moderator=%s",
+                    source.id,
+                    target.id,
+                    role.id,
+                    ctx.author.id,
+                )
+                break
+            except discord.Forbidden:
+                failed.append(role)
+                not_attempted.extend(plan.eligible[index + 1 :])
+                stop_reason = (
+                    "Đã dừng vì bot không còn đủ quyền hoặc thứ bậc role đã thay đổi."
+                )
+                logger.warning(
+                    "rolecopy forbidden source=%s target=%s role=%s moderator=%s",
+                    source.id,
+                    target.id,
+                    role.id,
+                    ctx.author.id,
+                )
+                break
+            except discord.HTTPException:
+                failed.append(role)
+                not_attempted.extend(plan.eligible[index + 1 :])
+                stop_reason = "Đã dừng vì Discord từ chối cập nhật role."
+                logger.exception(
+                    "rolecopy failed source=%s target=%s role=%s moderator=%s",
+                    source.id,
+                    target.id,
+                    role.id,
+                    ctx.author.id,
+                )
+                break
+            else:
+                copied.append(role)
+
+        result_plan = RoleCopyPlan(
+            eligible=plan.eligible,
+            already_present=plan.already_present + tuple(newly_present),
+            unmanageable=plan.unmanageable + tuple(newly_unmanageable),
+        )
+        await ctx.reply(
+            _format_role_copy_result(
+                source,
+                target,
+                result_plan,
+                copied,
+                failed,
+                not_attempted,
+                stop_reason,
+            ),
+            allowed_mentions=discord.AllowedMentions.none(),
+            mention_author=False,
+        )
+
+    @copy_roles.error
+    async def copy_roles_error(
+        self,
+        ctx: commands.Context,
+        error: commands.CommandError,
+    ) -> None:
+        if isinstance(error, commands.MissingPermissions):
+            await ctx.reply(
+                "Bạn không có quyền Manage Roles để sao chép role.",
+                mention_author=False,
+            )
+            return
+        if isinstance(error, commands.MissingRequiredArgument):
+            await ctx.reply(
+                f"Cách dùng: `{ctx.clean_prefix}rolecopy @source @target`",
+                mention_author=False,
+            )
+            return
+        if isinstance(error, commands.MemberNotFound):
+            await ctx.reply(
+                "Mình không tìm thấy một trong hai thành viên trong server.",
+                mention_author=False,
+            )
+            return
+        if isinstance(error, commands.BadArgument):
+            await ctx.reply(
+                "Hãy mention member nguồn và member đích hợp lệ.",
+                mention_author=False,
+            )
+            return
+        if isinstance(error, commands.NoPrivateMessage):
+            await ctx.reply(
+                "Lệnh rolecopy chỉ dùng được trong server.",
+                mention_author=False,
+            )
+            return
+        if isinstance(error, commands.CommandOnCooldown):
+            await ctx.reply(
+                f"Hãy thử lại rolecopy sau {error.retry_after:.1f} giây.",
+                mention_author=False,
+            )
+            return
+        if isinstance(error, commands.MaxConcurrencyReached):
+            await ctx.reply(
+                "Một lệnh rolecopy khác đang chạy trong server. Hãy thử lại sau.",
+                mention_author=False,
+            )
+            return
+        logger.error(
+            "Unhandled rolecopy command error",
+            exc_info=(type(error), error, error.__traceback__),
+        )
+        await ctx.reply(
+            "Đã xảy ra lỗi khi sao chép role.",
+            mention_author=False,
         )
 
 

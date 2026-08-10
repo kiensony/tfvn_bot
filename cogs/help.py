@@ -739,6 +739,14 @@ HELP_TOPICS = (
                         "roleunroll @user",
                     ),
                     _entry(
+                        "rolecopy",
+                        (
+                            "Sao chép thêm role đủ điều kiện; giữ nguyên role hiện có "
+                            "và không hiển thị/ping role — cần Manage Roles."
+                        ),
+                        "rolecopy @source @target",
+                    ),
+                    _entry(
                         "verified",
                         "Gán role xác minh đã cấu hình — cần Manage Roles.",
                         "verified @user",
