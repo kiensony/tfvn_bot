@@ -293,9 +293,9 @@ All 16 SFW interactions require a non-bot target and have a 3-second per-command
 
 | Command | Aliases | Access | Description |
 | --- | --- | --- | --- |
-| `custom_role <color> <name>` | `booster_role` | Booster | Create booster custom role (`#RRGGBB` or gradient `#RRGGBB,#RRGGBB`; optional PNG icon attachment) |
-| `update_custom_role <color> <name>` | `customroleupdate`, `boosterroleupdate` | Booster | Update existing booster role |
-| `custom_room <name>` | `booster_room` | Booster | Create private voice room under configured category |
+| `custom_role <color> <name>` | `booster_role` | Booster | Create a booster custom role (`#RRGGBB` or gradient `#RRGGBB,#RRGGBB`; optional PNG icon). Run without arguments for preset/custom colors, preview, and confirmation UI; the existing argument form remains supported |
+| `update_custom_role <color> <name>` | `customroleupdate`, `boosterroleupdate` | Booster | Update the existing booster role. Run without arguments for the same guided color editor; the existing argument form remains supported |
+| `custom_room <name>` | `booster_room` | Booster | Create a private voice room under the configured category. Run without arguments for a guided name/user-limit preview; the existing name argument remains supported |
 
 **Background (`janitor_unboosted`):** scheduled cleanup of custom roles/rooms after boost expires.
 
@@ -366,8 +366,9 @@ Duration range: 10 seconds–30 days; max 20 winners.
 | `warn @user [reason]` | Manage Messages | Store warning + case |
 | `check_warn [@user]` | Everyone (guild) | Recent warnings (default: self) |
 | `nickchange @user <new_nick>` | Manage Nicknames | Change member nickname |
-| `roleroll @user <role name>` | Manage Roles | Give role by exact name |
-| `roleunroll @user <role name>` | Manage Roles | Remove role by exact name |
+| `roleroll @user` | Manage Roles | Open a role dropdown, then assign the selected role |
+| `roleunroll @user` | Manage Roles | Open a role dropdown, then remove the selected role |
+| `rolecopy @source @target` | Manage Roles | Add eligible source roles missing from the target; preserve existing target roles and never mention/ping copied roles |
 
 ### Messages & channel controls
 
@@ -478,7 +479,7 @@ jobremind, jobremind add
 giveaway, giveaway list, giveaway entries, giveaway end, giveaway reroll
 vote, quote, big_speaker, random_member, save_image
 kick, ban, softban, unsoftban, mute, unmute, timeout, untimeout, warn, check_warn
-nickchange, roleroll, roleunroll
+nickchange, roleroll, roleunroll, rolecopy
 purge, purge_user, clean_before
 slowmode, slowmode check_bypass, slowmode immune, slowmode prominent
 case, case view, case history, case edit, case status, case log_channel

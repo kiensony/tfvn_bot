@@ -101,7 +101,15 @@ class TestHelpTopicData(unittest.TestCase):
             rendered_topics["moderation"],
         )
         self.assertIn(
-            "`!tf roleroll @user <tên role>`",
+            "`!tf roleroll @user`",
+            rendered_topics["moderation"],
+        )
+        self.assertIn(
+            "`!tf roleunroll @user`",
+            rendered_topics["moderation"],
+        )
+        self.assertIn(
+            "`!tf rolecopy @source @target`",
             rendered_topics["moderation"],
         )
         self.assertIn(

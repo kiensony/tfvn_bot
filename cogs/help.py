@@ -572,19 +572,19 @@ HELP_TOPICS = (
                 entries=(
                     _entry(
                         "custom_role",
-                        "Tạo một role riêng; có thể đính kèm icon PNG ≤256 KiB.",
+                        "Tạo role riêng; gọi không tham số để chọn màu/gradient bằng giao diện xem trước, hoặc dùng cú pháp cũ. Có thể đính kèm icon PNG ≤256 KiB.",
                         "custom_role <#RRGGBB[,#RRGGBB]> <tên role>",
                         aliases=("booster_role",),
                     ),
                     _entry(
                         "update_custom_role",
-                        "Cập nhật role đã tạo; hỗ trợ icon PNG ≤256 KiB.",
+                        "Cập nhật role; gọi không tham số để mở giao diện màu có xem trước, hoặc dùng cú pháp cũ. Hỗ trợ icon PNG ≤256 KiB.",
                         "update_custom_role <#RRGGBB[,#RRGGBB]> <tên role>",
                         aliases=("customroleupdate", "boosterroleupdate"),
                     ),
                     _entry(
                         "custom_room",
-                        "Tạo một voice room riêng trong category đã cấu hình.",
+                        "Tạo voice room riêng; gọi không tham số để chọn tên và giới hạn người bằng giao diện xem trước, hoặc nhập tên như cũ.",
                         "custom_room <tên phòng>",
                         aliases=("booster_room",),
                     ),
@@ -730,13 +730,21 @@ HELP_TOPICS = (
                     ),
                     _entry(
                         "roleroll",
-                        "Gán role bằng đúng tên — cần Manage Roles.",
-                        "roleroll @user <tên role>",
+                        "Mở menu chọn role để gán — cần Manage Roles.",
+                        "roleroll @user",
                     ),
                     _entry(
                         "roleunroll",
-                        "Gỡ role bằng đúng tên — cần Manage Roles.",
-                        "roleunroll @user <tên role>",
+                        "Mở menu chọn role để gỡ — cần Manage Roles.",
+                        "roleunroll @user",
+                    ),
+                    _entry(
+                        "rolecopy",
+                        (
+                            "Sao chép thêm role đủ điều kiện; giữ nguyên role hiện có "
+                            "và không hiển thị/ping role — cần Manage Roles."
+                        ),
+                        "rolecopy @source @target",
                     ),
                     _entry(
                         "verified",
