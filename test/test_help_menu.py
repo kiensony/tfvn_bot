@@ -201,6 +201,7 @@ class TestHelpTopicData(unittest.TestCase):
             "TRAP_COIN": "economy",
             " TrÒ   ChƠi ": "games",
             "booster": "utilities",
+            "TU_TIEN": "cultivation",
             "TỰ_ĐỘNG": "automation",
             "ADMIN": "moderation",
             "nsfw": "nsfw",
@@ -305,6 +306,7 @@ class TestHelpCogCommand(unittest.IsolatedAsyncioTestCase):
                 "overview",
                 "community",
                 "economy",
+                "cultivation",
                 "games",
                 "fun",
                 "utilities",
@@ -499,21 +501,47 @@ def source_command_inventory() -> tuple[
             for node in ast.walk(tree)
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
         ]
-        groups: dict[str, str] = {}
+        group_specs: dict[str, tuple[str | None, str]] = {}
 
         for function in functions:
             for decorator in function.decorator_list:
                 target, call = decorator_parts(decorator)
-                if not (
-                    isinstance(target, ast.Attribute)
-                    and isinstance(target.value, ast.Name)
-                    and target.value.id == "commands"
-                    and target.attr == "group"
+                if not isinstance(target, ast.Attribute) or not isinstance(
+                    target.value, ast.Name
                 ):
                     continue
-                groups[function.name] = (
-                    keyword_string(call, "name") or function.name
+                if target.value.id == "commands" and target.attr == "group":
+                    parent = None
+                elif target.attr == "group":
+                    parent = target.value.id
+                else:
+                    continue
+                group_specs[function.name] = (
+                    parent,
+                    keyword_string(call, "name") or function.name,
                 )
+
+        resolved_groups: dict[str, str] = {}
+
+        def resolve_group(function_name: str) -> str | None:
+            if function_name in resolved_groups:
+                return resolved_groups[function_name]
+            spec = group_specs.get(function_name)
+            if spec is None:
+                return None
+            parent, public_name = spec
+            if parent is None:
+                qualified = public_name
+            else:
+                parent_name = resolve_group(parent)
+                if parent_name is None:
+                    return None
+                qualified = f"{parent_name} {public_name}"
+            resolved_groups[function_name] = qualified
+            return qualified
+
+        for group_function in group_specs:
+            resolve_group(group_function)
 
         for function in functions:
             is_beta = any(
@@ -536,8 +564,10 @@ def source_command_inventory() -> tuple[
                     and target.attr in {"command", "group"}
                 ):
                     qualified_name = public_name
-                elif target.attr == "command" and target.value.id in groups:
-                    qualified_name = f"{groups[target.value.id]} {public_name}"
+                elif target.attr in {"command", "group"}:
+                    parent_name = resolve_group(target.value.id)
+                    if parent_name is not None:
+                        qualified_name = f"{parent_name} {public_name}"
 
                 if qualified_name is None:
                     continue

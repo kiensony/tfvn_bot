@@ -286,6 +286,181 @@ HELP_TOPICS = (
         ),
     ),
     HelpTopic(
+        key="cultivation",
+        label="Tiên Lộ",
+        emoji="☯️",
+        option_description="Bế quan, đột phá, trang bị và thí luyện",
+        title="Tiên Lộ — Tu Tiên AFK",
+        description=(
+            "Tu luyện khi offline, xây dựng nhân vật và chinh phục PvE. Dùng "
+            "`tutien` (alias `cultivate`) để mở bảng điều khiển cá nhân. "
+            "Hệ thống không có PvP hoặc giao dịch trực tiếp giữa người chơi."
+        ),
+        color=0x8E44AD,
+        sections=(
+            HelpSection(
+                name="Bắt đầu & Bế Quan",
+                entries=(
+                    _entry(
+                        "tutien",
+                        "Mở bảng điều khiển Tiên Lộ chỉ người gọi được sử dụng.",
+                        aliases=("cultivate",),
+                    ),
+                    _entry("tutien batdau", "Khởi tạo hồ sơ và bắt đầu Bế Quan."),
+                    _entry(
+                        "tutien thucong",
+                        "Nhận thưởng AFK nếu đã tích lũy ít nhất 10 phút rồi tiếp tục Bế Quan.",
+                    ),
+                    _entry(
+                        "tutien huong",
+                        "Chọn Cân Bằng, Tĩnh Tu hoặc Khai Khoáng.",
+                        "tutien huong <canbang|tinhtu|khaikhoang>",
+                    ),
+                    _entry(
+                        "tutien dongphu",
+                        "Xem cấp, sản lượng, sức chứa và giá nâng Động Phủ.",
+                    ),
+                    _entry(
+                        "tutien dongphu nangcap",
+                        "Mua cấp Động Phủ kế tiếp nếu đủ Linh Thạch.",
+                    ),
+                ),
+                note=(
+                    "Bế Quan và Bí Cảnh không thể chạy cùng lúc. Phần thưởng được tính "
+                    "từ timestamp nên vẫn tích lũy khi bot ngừng hoạt động."
+                ),
+            ),
+            HelpSection(
+                name="Cảnh giới, phái & thiên phú",
+                entries=(
+                    _entry(
+                        "tutien dotpha",
+                        "Thử đột phá khi đủ Tu Vi, Linh Thạch và tầng tháp yêu cầu.",
+                    ),
+                    _entry(
+                        "tutien phai",
+                        "Xem phái hoặc chọn Kiếm Tu, Thể Tu, Đan Tu khi đạt Luyện Khí 1.",
+                        "tutien phai [kiem|the|dan]",
+                    ),
+                    _entry(
+                        "tutien phai reset",
+                        "Đặt lại phái và hoàn toàn bộ điểm với phí cùng cooldown 7 ngày.",
+                    ),
+                    _entry(
+                        "tutien thienphu",
+                        "Xem talent ID, hiệu ứng, cấp hiện tại và điểm còn lại.",
+                    ),
+                    _entry(
+                        "tutien thienphu tang",
+                        "Cộng một hoặc nhiều điểm vào talent thuộc phái đã chọn.",
+                        "tutien thienphu tang <talent_id> [points]",
+                    ),
+                ),
+                note=(
+                    "Tiểu cảnh giới luôn đột phá thành công. Đại cảnh giới dùng soft pity: "
+                    "70%, +10 điểm phần trăm mỗi lần thất bại và lần thứ tư chắc chắn thành công. "
+                    "Thất bại giữ Tu Vi/trang bị, chờ 1 giờ và mất phí Linh Thạch cơ bản 25%; "
+                    "Thiên Phú Hộ Mạch có thể giảm phí đến 10%."
+                ),
+            ),
+            HelpSection(
+                name="Hồ sơ & riêng tư",
+                entries=(
+                    _entry(
+                        "tutien profile",
+                        "Xem hồ sơ toàn bot của bạn hoặc một member công khai.",
+                        "tutien profile [@member]",
+                    ),
+                    _entry(
+                        "tutien top",
+                        "Top hồ sơ công khai trong số member nhìn thấy ở server hiện tại.",
+                    ),
+                    _entry(
+                        "tutien riengtu",
+                        "Xem hoặc đặt hồ sơ công khai/riêng tư.",
+                        "tutien riengtu [public|private]",
+                    ),
+                ),
+            ),
+            HelpSection(
+                name="Chợ, kho & trang bị",
+                entries=(
+                    _entry(
+                        "tutien choden",
+                        "Xem vật phẩm cơ bản và bốn ưu đãi luân phiên theo ngày ICT.",
+                    ),
+                    _entry(
+                        "tutien mua",
+                        "Mua vật phẩm từ Chợ Đen.",
+                        "tutien mua <item_id>",
+                    ),
+                    _entry("tutien kho", "Xem nguyên liệu và trang bị đang sở hữu."),
+                    _entry(
+                        "tutien trangbi",
+                        "Trang bị vật phẩm thuộc một trong bốn ô cố định.",
+                        "tutien trangbi <item_id>",
+                    ),
+                    _entry(
+                        "tutien phanra",
+                        "Phân rã trang bị thành mảnh chế tạo.",
+                        "tutien phanra <item_id>",
+                    ),
+                    _entry(
+                        "tutien luyen",
+                        "Xem công thức hoặc chế tạo vật phẩm theo công thức bảo đảm.",
+                        "tutien luyen [recipe_id]",
+                    ),
+                ),
+                note="Chợ không có reroll trả phí; trang bị không có độ bền hoặc chỉ số ngẫu nhiên.",
+            ),
+            HelpSection(
+                name="Tháp Thí Luyện & Bí Cảnh",
+                entries=(
+                    _entry(
+                        "tutien thiluyen",
+                        "Đánh tầng kế tiếp trong tháp 30 tầng; mỗi tầng chỉ nhận thưởng một lần.",
+                        "tutien thiluyen [tang]",
+                    ),
+                    _entry("tutien bicanh", "Xem hướng dẫn Bí Cảnh."),
+                    _entry(
+                        "tutien bicanh start",
+                        "Bắt đầu chuyến đi 2/4/8 giờ với một hướng săn thưởng.",
+                        "tutien bicanh start <linhduoc|cokhoang|yeuthuson> <2|4|8>",
+                    ),
+                    _entry(
+                        "tutien bicanh claim",
+                        "Nhận thưởng chuyến đi đã hoàn tất.",
+                    ),
+                    _entry(
+                        "tutien bicanh cancel",
+                        "Hủy chuyến đi đang chạy mà không nhận thưởng.",
+                    ),
+                ),
+                note=(
+                    "Khi Bí Cảnh kết thúc, nhân vật tự trở lại hướng Bế Quan trước đó. "
+                    "Boss có pity trang bị hiển thị; lần đủ điều kiện thứ 10 chắc chắn có đồ."
+                ),
+            ),
+            HelpSection(
+                name="Đổi Trap Coin",
+                entries=(
+                    _entry("tutien doido", "Xem tỷ giá và hạn mức đổi trong tuần."),
+                    _entry(
+                        "tutien doido mua",
+                        "Đổi tối đa 50 TC/tuần; 1 TC nhận 10 Linh Thạch.",
+                        "tutien doido mua <số TC>",
+                    ),
+                    _entry(
+                        "tutien doido ban",
+                        "Đổi Linh Thạch để nhận tối đa 20 TC/tuần; 20 Linh Thạch đổi 1 TC.",
+                        "tutien doido ban <so_linh_thach>",
+                    ),
+                ),
+                note="Hạn mức đặt lại lúc 00:00 thứ Hai theo múi giờ Asia/Ho_Chi_Minh.",
+            ),
+        ),
+    ),
+    HelpTopic(
         key="games",
         label="Trò chơi",
         emoji="🎮",
@@ -1076,6 +1251,13 @@ HELP_TOPIC_ALIASES = {
     "economy": "economy",
     "trap coin": "economy",
     "shop": "economy",
+    "cultivation": "cultivation",
+    "cultivate": "cultivation",
+    "tutien": "cultivation",
+    "tu tien": "cultivation",
+    "tu tiên": "cultivation",
+    "tien lo": "cultivation",
+    "tiên lộ": "cultivation",
     "games": "games",
     "game": "games",
     "tro choi": "games",

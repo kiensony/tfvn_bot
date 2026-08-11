@@ -143,6 +143,81 @@ Shop item IDs are 1–32 lowercase letters, digits, `_`, or `-`, and must start 
 
 ---
 
+## Tiên Lộ — Tu Tiên AFK
+
+Tiên Lộ is a global, persistent cultivation game. Rewards are calculated from
+timestamps when they are collected, so Bế Quan continues through bot restarts
+without a background reward task. A player may run either Bế Quan or Bí Cảnh,
+never both at the same time.
+
+| Command | Aliases | Access | Description |
+| --- | --- | --- | --- |
+| `tutien` | `cultivate` | Everyone | Open the owner-only Tiên Lộ dashboard |
+| `tutien batdau` | — | Everyone | Create a cultivation profile and begin Bế Quan |
+| `tutien thucong` | — | Everyone | Collect at least 10 minutes of AFK rewards, then automatically resume the selected focus |
+| `tutien huong <canbang\|tinhtu\|khaikhoang>` | — | Everyone | Select balanced, Tu Vi-focused, or Linh Thạch-focused cultivation |
+| `tutien dotpha` | — | Everyone | Attempt the next breakthrough when resource and tower requirements are met |
+| `tutien phai [kiem\|the\|dan]` | — | Everyone | View the current class or choose Kiếm Tu, Thể Tu, or Đan Tu at Luyện Khí 1 |
+| `tutien phai reset` | — | Everyone | Clear the class and refund all talent points for a realm-scaled fee; seven-day cooldown |
+| `tutien thienphu` | — | Everyone | View talent IDs, effects, ranks, and unallocated points |
+| `tutien thienphu tang <talent_id> [points]` | — | Everyone | Allocate one or more points to a talent belonging to the selected class |
+| `tutien dongphu` | — | Everyone | View cave level, bonuses, capacity, and the next upgrade price |
+| `tutien dongphu nangcap` | — | Everyone | Buy the next cave level when enough Linh Thạch is available |
+| `tutien choden` | — | Everyone | View permanent stock and four deterministic offers for the current ICT date |
+| `tutien mua <item_id>` | — | Everyone | Buy one market item with Linh Thạch |
+| `tutien kho` | — | Everyone | View materials and owned equipment |
+| `tutien trangbi <item_id>` | — | Everyone | Equip an owned item in its fixed slot |
+| `tutien phanra <item_id>` | — | Everyone | Salvage one equipment item into crafting fragments |
+| `tutien luyen [recipe_id]` | — | Everyone | View fixed recipes or craft one guaranteed item |
+| `tutien thiluyen [tang]` | — | Everyone | Challenge the next uncleared floor of the 30-floor tower |
+| `tutien bicanh` | — | Everyone | Show the expedition guide and current status |
+| `tutien bicanh start <linhduoc\|cokhoang\|yeuthuson> <2\|4\|8>` | — | Everyone | Begin a timed expedition in the selected zone |
+| `tutien bicanh claim` | — | Everyone | Collect a finished expedition |
+| `tutien bicanh cancel` | — | Everyone | Cancel an active expedition without rewards and resume Bế Quan |
+| `tutien doido` | — | Everyone | Show exchange rates and remaining weekly limits |
+| `tutien doido mua <amount_tc>` | — | Everyone | Spend up to 50 TC/week at 1 TC = 10 Linh Thạch |
+| `tutien doido ban <so_linh_thach>` | — | Everyone | Sell Linh Thạch at 20 per TC, receiving at most 20 TC/week |
+| `tutien profile [@member]` | — | Everyone | View your profile or another member's public global profile |
+| `tutien top` | — | Everyone | Rank public profiles among visible members of the current guild |
+| `tutien riengtu [public\|private]` | — | Everyone | View or explicitly set profile visibility |
+
+### Progression rules
+
+- Available realms are Phàm Nhân, Luyện Khí 1–9, four Trúc Cơ stages, and four
+  Kim Đan stages. Excess Tu Vi remains after a successful breakthrough.
+- Base AFK storage is 24 hours. Each purchased Động Phủ level adds four hours and
+  5% production; level seven reaches the cave's maximum upgrade bonus.
+- Cân Bằng earns 100% Tu Vi / 100% Linh Thạch, Tĩnh Tu earns 125% / 60%, and
+  Khai Khoáng earns 75% / 150%.
+- Minor breakthroughs are guaranteed. Major breakthroughs begin at 70%, gain
+  ten percentage points of pity after each failure, and succeed on the fourth
+  attempt at the latest. Failure preserves Tu Vi, equipment, and realm progress,
+  charges a base 25% of the Linh Thạch cost (reducible to 10% through Thể Tu's
+  Hộ Mạch talent), and starts a one-hour retry cooldown.
+- Each class has three five-rank talents. Talent/class resets refund allocated
+  points, cost `1,000 × current realm index` Linh Thạch, and have a seven-day
+  cooldown.
+- Equipment has four fixed slots and visible deterministic stats. The shop has no
+  paid reroll; crafting is guaranteed; boss equipment is guaranteed on the tenth
+  eligible clear through a visible pity counter.
+- Weekly exchange limits reset Monday at 00:00 `Asia/Ho_Chi_Minh`. The unequal
+  buy/sell rates prevent exchange arbitrage.
+
+The dashboard and its components are restricted to the invoking member. Replies
+mention only that member; an unauthorized component click receives an ephemeral
+denial. Profiles are global, but private profiles are absent from guild
+leaderboards.
+
+**Persistence:** versioned `user_accounts.cultivation` state, append-only
+`cultivation_events`, and TC exchange records in `transaction_logs`. Trap Coin
+remains in `user_accounts.balance` so an exchange updates both currencies in one
+account write.
+
+**Module:** `cogs.cultivation.cultivation`,
+`cogs.cultivation._cultivation_helpers`
+
+---
+
 ## Minigames
 
 | Command | Access | Description |
@@ -464,6 +539,13 @@ afk, afk dynamic, afk time, afk clear, afk check
 random_femboy
 daily, user_balance, user_transactions, add_tc, remove_tc, set_tc, check_tc
 shop, shop buy, shop inventory, shop use, shop unequip, shop add_role, shop add_badge, shop remove
+tutien, tutien batdau, tutien thucong, tutien huong, tutien dotpha,
+tutien phai, tutien phai reset, tutien thienphu, tutien thienphu tang,
+tutien dongphu, tutien dongphu nangcap, tutien choden, tutien mua, tutien kho,
+tutien trangbi, tutien phanra, tutien luyen, tutien thiluyen,
+tutien bicanh, tutien bicanh start, tutien bicanh claim, tutien bicanh cancel,
+tutien doido, tutien doido mua, tutien doido ban,
+tutien profile, tutien top, tutien riengtu
 slot, flip_coin, sicbo_start
 noitu, noitu status, noitu hint, noitu end, noitu analyze
 vtv, vtv status, vtv next, vtv hint

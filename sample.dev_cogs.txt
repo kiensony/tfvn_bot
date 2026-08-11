@@ -7,6 +7,7 @@
 # NSFW (NSFW channel + GIF arrays in global_variables):
 #   !tf bj/hj/fj/aj/tj/spank/... @user, !tf ranknsfw, !tf nsfwrule
 # Economy: !tf daily, !tf balance, !tf add_tc @user 100
+# Tiên Lộ: !tf tutien batdau, !tf tutien thucong, !tf tutien bicanh
 # Speaker: !tf big_speaker 4 hello
 
 cogs.settings.*
@@ -16,4 +17,5 @@ cogs.operation.heartbeat
 cogs.interaction.*
 cogs.daily_reward.user_account
 cogs.daily_reward.daily_action
+cogs.cultivation.cultivation
 cogs.utils.big_speaker

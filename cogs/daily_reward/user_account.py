@@ -20,6 +20,8 @@ TRANSACTION_LABELS = {
     "admin_add_tc": "Admin cộng TC",
     "admin_remove_tc": "Admin trừ TC",
     "admin_set_tc": "Admin đặt TC",
+    "cultivation_exchange_buy": "Tiên Lộ: mua Linh Thạch",
+    "cultivation_exchange_sell": "Tiên Lộ: bán Linh Thạch",
 }
 
 
