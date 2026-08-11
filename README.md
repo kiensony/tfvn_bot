@@ -168,7 +168,7 @@ Common settings include:
 | NSFW role controls | `KING_ROLE_ID`, `QUEEN_ROLE_ID` | `STRING` |
 | NSFW interaction media | `BLOWJOB_GIFS`, `HANDJOB_GIFS`, `FOOTJOB_GIFS`, `ASSJOB_GIFS`, `THIGHJOB_GIFS`, `SPANK_GIFS`, `RIMJOB_GIFS`, `FROTTING_GIFS`, `FUCKING_GIFS`, `CREAMPIE_GIFS`, `THREESOME_GIFS`, `ORGY_GIFS` | `ARRAY` |
 
-The booster placement values are optional; without them, Discord creates the resource without placing it under a configured anchor/category. The word-chain move icons also have built-in emoji defaults.
+The booster role anchor is optional; without it, Discord keeps the custom role at its default position. `BOOSTER_CUSTOM_VOICE_CATEGORY_ID` is required for custom rooms so their private category placement and permission overwrites are deterministic. The word-chain move icons also have built-in emoji defaults.
 
 The shop and moderation cases keep guild-specific configuration in their own
 MongoDB collections. Configure them with their admin

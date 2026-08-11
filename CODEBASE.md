@@ -83,6 +83,7 @@ tfvn_bot/
     │   ├── goodbye.py              Member-leave announcement
     │   └── banned.py               Member-ban announcement
     ├── booster/
+    │   ├── _custom_resource_ui.py Guided booster role/room views, selects, and modals
     │   ├── _role_colors.py         Solid/gradient role-color parsing helper
     │   ├── create_custom_role.py   Booster-owned custom role creation
     │   ├── update_custom_role.py   Booster custom role edits

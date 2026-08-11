@@ -293,9 +293,9 @@ All 16 SFW interactions require a non-bot target and have a 3-second per-command
 
 | Command | Aliases | Access | Description |
 | --- | --- | --- | --- |
-| `custom_role <color> <name>` | `booster_role` | Booster | Create booster custom role (`#RRGGBB` or gradient `#RRGGBB,#RRGGBB`; optional PNG icon attachment) |
-| `update_custom_role <color> <name>` | `customroleupdate`, `boosterroleupdate` | Booster | Update existing booster role |
-| `custom_room <name>` | `booster_room` | Booster | Create private voice room under configured category |
+| `custom_role <color> <name>` | `booster_role` | Booster | Create a booster custom role (`#RRGGBB` or gradient `#RRGGBB,#RRGGBB`; optional PNG icon). Run without arguments for preset/custom colors, preview, and confirmation UI; the existing argument form remains supported |
+| `update_custom_role <color> <name>` | `customroleupdate`, `boosterroleupdate` | Booster | Update the existing booster role. Run without arguments for the same guided color editor; the existing argument form remains supported |
+| `custom_room <name>` | `booster_room` | Booster | Create a private voice room under the configured category. Run without arguments for a guided name/user-limit preview; the existing name argument remains supported |
 
 **Background (`janitor_unboosted`):** scheduled cleanup of custom roles/rooms after boost expires.
 
