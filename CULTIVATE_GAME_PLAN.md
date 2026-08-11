@@ -10,6 +10,24 @@ breakthroughs, and exchange a limited amount of Trap Coin each week.
 PvP, player trading, Tông Môn, player theft, and paid or Booster cultivation
 advantages are intentionally outside this release.
 
+## Product Boundaries and Player Loop
+
+- Each Discord user has one global cultivation profile, shared across guilds and
+  stored beside that user's existing Trap Coin balance.
+- Cultivation uses separate Tu Vi, Linh Thạch, materials, talent points, and
+  equipment. Only the capped exchange described below bridges it to Trap Coin.
+- Bế Quan is an explicit active session. The game does not award progress from
+  messages, voice presence, server boosting, or merely owning a profile.
+- `tutien batdau` is idempotent and never overwrites an existing profile.
+- Opening the dashboard or viewing a profile is read-only. Mutations happen only
+  through an explicit command, button, or select action.
+- A normal loop is: start Bế Quan, return to Thu Công, spend resources on a
+  deterministic build choice, attempt eligible PvE/progression, then resume the
+  chosen focus.
+
+Profiles may be hidden from other members. Recognition through profiles and the
+current-guild leaderboard never grants material power.
+
 ## Core Progression
 
 ### Realms and resources
@@ -39,6 +57,12 @@ advantages are intentionally outside this release.
 | Cân Bằng | 100% | 100% |
 | Tĩnh Tu | 125% | 60% |
 | Khai Khoáng | 75% | 150% |
+
+Changing focus, stage, cave production, or equipped production gear first settles
+elapsed time using the old values. The new values never apply retroactively.
+Accrual uses integer basis-point arithmetic and persists fractional remainders, so
+splitting one interval into several valid settlements does not create or destroy
+resources. Future or malformed timestamps grant no speculative reward.
 
 - Động Phủ starts at level one and ends at level seven. Each purchased level adds
   5% production; upgrade costs are
@@ -89,7 +113,8 @@ All three acquisition paths are included:
   with no paid rerolls.
 - Guaranteed crafting recipes using expedition materials.
 - Boss drops with a visible pity counter. The tenth eligible clear guarantees
-  gear; duplicate gear is automatically converted into crafting fragments.
+  gear; duplicate gear is automatically converted into crafting fragments. In
+  this release, eligible equipment encounters occur in Yêu Thú Sơn expeditions.
 
 ### Tower and expeditions
 
@@ -138,6 +163,26 @@ only the invoking member, while denied component interactions are ephemeral.
 Profiles are global. `tutien top` compares only visible members in the current
 guild, and private profiles are excluded.
 
+### Dashboard and interaction safety
+
+- The dashboard edits its existing message and exposes common claim,
+  breakthrough, cave, tower, and focus actions. Every operation remains available
+  through the prefix-command fallbacks above.
+- Only the member who opened the dashboard may operate its components.
+  Unauthorized interactions receive an ephemeral denial and never mutate state.
+- Controls are disabled when the transient view times out.
+- Replies use a message reply that mentions only the invoking member. Usernames,
+  profile targets, and leaderboard entries cannot create additional pings.
+- Private profiles remain visible to their owner, are rejected for other profile
+  lookups, and do not appear on the current-guild leaderboard.
+
+### Explicit exclusions
+
+There is no PvP, duelling, raiding, theft, resource loss caused by another
+player, player trading, Tông Môn, paid reroll, loot box, casino stake, paid
+breakthrough attempt, or Booster advantage. TC cannot directly buy Tu Vi,
+talent points, equipment rolls, cooldown removal, or improved success odds.
+
 ## Persistence and Reliability
 
 - Store a versioned `cultivation` object inside `user_accounts`; Trap Coin remains
@@ -152,6 +197,35 @@ guild, and private profiles are excluded.
   balances automatically.
 - Keep realm, item, recipe, shop, tower, expedition, and talent definitions in
   data tables so future content does not require a persistence-schema rewrite.
+
+The nested state records realm/stage, resources and rounding remainders, focus,
+session timestamps, cave level, path/talents, equipment/inventory/materials,
+tower and gear-drop pity, breakthrough cooldown/pity, expedition state, exchange
+week usage, privacy, recent request receipts, and a monotonic version.
+
+All mutations normalize this state, compute a complete candidate transition, and
+replace it only when the stored cultivation version still matches. TC debits add
+an account-balance lower-bound condition to the same atomic update. A stale write
+is recomputed from fresh state and retried at most three times. Recent request IDs
+in the account protect immediate retries; the append-only event receipt keeps old
+successfully audited requests idempotent as well.
+
+The account document is authoritative. Gameplay and TC audit inserts occur after
+the account update and are best-effort, so an unavailable audit collection never
+rolls back the valid resource transition. The bounded account receipt history
+still protects immediate retries while audit storage is unavailable. TC-changing
+actions record their resulting balance in `transaction_logs`.
+
+### Recovery and rollout
+
+- Startup creates or verifies the unique `user_accounts.user_id` index. If
+  duplicate documents prevent it, Tiên Lộ fails closed, logs the duplicate IDs,
+  and leaves balances untouched for manual review.
+- Missing or null cultivation state can be initialized without replacing other
+  account fields. Malformed nested values are bounded by normalization helpers.
+- Offline recovery is timestamp-based; restarts require no timer reconstruction.
+- A completed expedition cannot be cancelled and discarded. It must be claimed,
+  and late claims resume the previous Bế Quan focus from the expedition end time.
 
 ## Documentation and Development Integration
 

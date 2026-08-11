@@ -293,7 +293,8 @@ HELP_TOPICS = (
         title="Tiên Lộ — Tu Tiên AFK",
         description=(
             "Tu luyện khi offline, xây dựng nhân vật và chinh phục PvE. Dùng "
-            "`tutien` (alias `cultivate`) để mở bảng điều khiển cá nhân."
+            "`tutien` (alias `cultivate`) để mở bảng điều khiển cá nhân. "
+            "Hệ thống không có PvP hoặc giao dịch trực tiếp giữa người chơi."
         ),
         color=0x8E44AD,
         sections=(

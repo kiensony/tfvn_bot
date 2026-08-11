@@ -210,6 +210,8 @@ the MongoDB `global_variables` collection; environment role values are ignored.
 ## Where to Make a Change
 
 - Add or change a command/listener in its domain under `cogs/`.
+- Keep Tiên Lộ Discord/Mongo behavior in `cogs/cultivation/cultivation.py` and
+  deterministic tables/calculations in `_cultivation_helpers.py`.
 - Put reusable feature helpers in a leading-underscore module beside their consumers.
 - Put shared static media in `assets/`; put runtime-editable media in Mongo settings.
 - Treat large game datasets as generated outputs and update their preparation script with them.
