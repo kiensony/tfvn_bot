@@ -14,10 +14,10 @@ For a complete list of commands and automatic features, see [FUNCTIONS.md](FUNCT
 - **Community management:** welcome/goodbye announcements, verification, AFK tracking, birthdays, reminders, votes, and giveaways.
 - **Moderation:** kick, ban, soft-ban, mute, timeout, warnings, numbered audit cases, message cleanup, slow mode, nickname/role tools, and the Area 51 guard workflow.
 - **Booster perks:** custom roles and voice rooms, with automatic cleanup after a member stops boosting.
-- **Games and economy:** daily Trap Coins, a configurable role/badge shop, transaction history, slots, coin flips, Sic Bo, Vietnamese word chaining (`noitu`), and Vua Tiếng Việt (`vtv`).
+- **Games and economy:** the persistent Tiên Lộ AFK cultivation game, daily Trap Coins, a configurable role/badge shop, transaction history, slots, coin flips, Sic Bo, Vietnamese word chaining (`noitu`), and Vua Tiếng Việt (`vtv`).
 - **Social and fun commands:** member interactions, rankings, avatars, random members, community-themed cards, and a collection of playful “meter” commands.
 - **Optional age-restricted features:** NSFW interactions and Rule34/Gelbooru searches, guarded by Discord's NSFW channel setting.
-- **Persistent state:** MongoDB-backed balances, interactions, game context, reminders, settings, giveaways, booster resources, and moderation data.
+- **Persistent state:** MongoDB-backed balances, cultivation profiles, interactions, game context, reminders, settings, giveaways, booster resources, and moderation data.
 
 ## How it works
 
@@ -136,6 +136,9 @@ Add one dotted module path per line as you work. For example, `cogs.mod.*` loads
 The profile supports blank lines, comments, explicit modules, and `.*`
 wildcards.
 
+For Tiên Lộ development, also load `cogs.cultivation.cultivation` together with
+the account cogs used to view and earn Trap Coin.
+
 ### 4. Run the bot
 
 ```powershell
@@ -194,7 +197,7 @@ The current implementation alternates between its primary and secondary credenti
 
 Commands are invoked with `COMMAND_PREFIX`. With the default prefix, `!tf help [topic]`
 opens the bot's full command catalog split into overview, community, economy,
-games, fun/social, utilities/booster, automatic features, and moderation topics.
+Tiên Lộ, games, fun/social, utilities/booster, automatic features, and moderation topics.
 The catalog remains complete in partial development profiles; individual commands
 still depend on loaded cogs, configuration, and Discord permissions. Only the NSFW
 topic is hidden outside NSFW-marked channels. `!tf mod` and `!tf nsfw` open the same
@@ -205,6 +208,7 @@ menu focused on their respective topics.
 | General | `help [topic]`, `hello`, `invite`, `verify`, `ping`, `server_stats` |
 | Community | `afk`, `jobremind add`, `birthday set`, `vote`, `giveaway` |
 | Economy and games | `daily`, `user_balance`, `user_transactions`, `shop`, `slot`, `flip_coin`, `sicbo_start`, `noitu`, `vtv` |
+| Tiên Lộ | `tutien`, `tutien thucong`, `tutien dotpha`, `tutien bicanh`, `tutien thiluyen`, `tutien doido` |
 | Moderation | `kick`, `ban`, `softban`, `mute`, `timeout`, `warn`, `case`, `purge`, `slowmode`, `verified` |
 | Operations | `ping`, `server_stats`, `setup check` |
 | Booster tools | `custom_role`, `update_custom_role`, `custom_room` |
@@ -217,6 +221,38 @@ provide the complete user-facing catalog; each module under `cogs/` remains the
 implementation source of truth.
 
 ## Community systems
+
+### Tiên Lộ cultivation game
+
+Start a persistent profile and open its private dashboard with:
+
+```text
+!tf tutien batdau
+!tf tutien
+```
+
+Tiên Lộ calculates Bế Quan rewards from timestamps, so AFK progress survives bot
+restarts without a scheduler. Players choose Cân Bằng, Tĩnh Tu, or Khai Khoáng;
+advance from Phàm Nhân through Kim Đan; select Kiếm Tu, Thể Tu, or Đan Tu; allocate
+talents; and improve a four-slot equipment set through a deterministic market,
+crafting, expeditions, and the 30-floor Tháp Thí Luyện.
+
+Use `!tf tutien thucong` to collect AFK resources, `!tf tutien dotpha` to advance,
+and `!tf tutien bicanh start <linhduoc|cokhoang|yeuthuson> <2|4|8>` for an
+expedition. Only one Bế Quan/Bí Cảnh session can run at once. Major breakthroughs
+use visible soft pity and never destroy Tu Vi or equipment on failure.
+
+Trap Coin exchange is deliberately limited and uses a spread: members may spend
+up to 50 TC per week at 1 TC = 10 Linh Thạch, or receive at most 20 TC per week at
+20 Linh Thạch = 1 TC. Limits reset Monday at 00:00 Asia/Ho_Chi_Minh. PvP, player
+trading, Tông Môn, theft, and Booster/paid power are not part of this release.
+
+At startup, the cultivation cog ensures `user_accounts.user_id` is unique. If
+legacy duplicate account documents prevent that index, the cog logs the duplicate
+IDs and stays disabled; it does not guess how to merge Trap Coin balances.
+
+See [CULTIVATE_GAME_PLAN.md](CULTIVATE_GAME_PLAN.md) for the complete design and
+[FUNCTIONS.md](FUNCTIONS.md) for every command.
 
 ### Trap Coin shop
 
@@ -277,9 +313,9 @@ Run the unit-test suite from the repository root:
 python -m unittest discover -s test -p "test_*.py"
 ```
 
-The automated tests cover the categorized help menu, meter formatting,
-quote-card rendering, cog flags, and validation helpers used by the shop,
-cases, and setup diagnostics.
+The automated tests cover cultivation calculations and state transitions, the
+categorized help menu, meter formatting, quote-card rendering, cog flags, and
+validation helpers used by the shop, cases, and setup diagnostics.
 
 ## Project structure
 
@@ -288,11 +324,13 @@ tfvn_bot/
 ├── main.py                 # Bot startup, intents, data loading, and cog discovery
 ├── db.py                   # MongoDB client and database selection
 ├── dataloader.py           # JSON, text, line, and CSV data helpers
+├── CULTIVATE_GAME_PLAN.md  # Tiên Lộ design and acceptance specification
 ├── cogs/                   # Discord commands, listeners, tasks, and UI views
 │   ├── _beta_function.py   # Database-role guard for experimental commands
 │   ├── _feature_flags.py   # Feature and cog disable flag parsing
 │   ├── settings/           # Mongo-backed runtime variables
 │   ├── economy/            # Trap Coin shop, inventory, badges, and role items
+│   ├── cultivation/        # Tiên Lộ progression, AFK calculations, PvE, and economy
 │   ├── mod/                # Moderation and verification
 │   ├── booster/            # Booster custom roles/rooms and cleanup
 │   ├── minigames/          # Economy games and Vietnamese word games
