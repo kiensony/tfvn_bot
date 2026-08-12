@@ -142,6 +142,7 @@ class TriggeredReplyCog(commands.Cog):
     async def triggerreply(self, ctx: commands.Context) -> None:
         await ctx.send(
             "Dùng `triggerreply add <contains|exact> <cụm từ> | <phản hồi>`, "
+            "`triggerreply update <ID> <contains|exact> <cụm từ> | <phản hồi>`, "
             "`triggerreply list`, hoặc `triggerreply remove <ID>`."
         )
 
@@ -202,6 +203,79 @@ class TriggeredReplyCog(commands.Cog):
             displayed_trigger = displayed_trigger[:97] + "..."
         await ctx.send(
             f"Đã thêm rule #{rule_id} (`{parsed['mode']}`): "
+            f"`{displayed_trigger}`.",
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
+
+    @triggerreply.command(name="update", aliases=["edit"])
+    @commands.guild_only()
+    @commands.has_guild_permissions(administrator=True)
+    async def triggerreply_update(
+        self,
+        ctx: commands.Context,
+        rule_id: int,
+        mode: str,
+        *,
+        spec: str,
+    ) -> None:
+        try:
+            parsed = parse_rule_spec(mode, spec)
+        except ValueError as exc:
+            await ctx.send(
+                f"Rule không hợp lệ: {exc}. Dùng `<cụm từ> | <phản hồi>`."
+            )
+            return
+
+        guild_rules = self.rules_by_guild.setdefault(ctx.guild.id, [])
+        duplicate = any(
+            rule.get("rule_id") != rule_id
+            and rule.get("mode") == parsed["mode"]
+            and rule.get("normalized_trigger") == parsed["normalized_trigger"]
+            for rule in guild_rules
+        )
+        if duplicate:
+            await ctx.send("Rule này đã tồn tại với cùng chế độ khớp.")
+            return
+
+        try:
+            updated = self.rules.find_one_and_update(
+                {"guild_id": ctx.guild.id, "rule_id": rule_id},
+                {
+                    "$set": {
+                        **parsed,
+                        "updated_by": ctx.author.id,
+                        "updated_at": discord.utils.utcnow(),
+                    }
+                },
+                return_document=ReturnDocument.AFTER,
+            )
+        except DuplicateKeyError:
+            await ctx.send("Rule này đã tồn tại với cùng chế độ khớp.")
+            return
+        except PyMongoError:
+            logger.exception("Failed to update triggered reply guild=%s", ctx.guild.id)
+            await ctx.send("Không thể cập nhật rule trong database lúc này.")
+            return
+
+        if updated is None:
+            await ctx.send("Không tìm thấy rule đó.")
+            return
+
+        replaced = False
+        for index, rule in enumerate(guild_rules):
+            if rule.get("rule_id") == rule_id:
+                guild_rules[index] = updated
+                replaced = True
+                break
+        if not replaced:
+            guild_rules.append(updated)
+        guild_rules.sort(key=lambda rule: int(rule["rule_id"]))
+
+        displayed_trigger = parsed["trigger"]
+        if len(displayed_trigger) > 100:
+            displayed_trigger = displayed_trigger[:97] + "..."
+        await ctx.send(
+            f"Đã cập nhật rule #{rule_id} (`{parsed['mode']}`): "
             f"`{displayed_trigger}`.",
             allowed_mentions=discord.AllowedMentions.none(),
         )
@@ -281,8 +355,7 @@ class TriggeredReplyCog(commands.Cog):
             return
         if isinstance(error, commands.MissingRequiredArgument):
             await ctx.send(
-                "Thiếu tham số. Dùng `triggerreply add <contains|exact> "
-                "<cụm từ> | <phản hồi>`."
+                "Thiếu tham số. Xem cú pháp bằng lệnh `triggerreply`."
             )
             return
         if isinstance(error, commands.BadArgument):

@@ -54,18 +54,20 @@ Guild administrators can configure persistent, case-insensitive automatic replie
 
 Rules are stored in plaintext and shown to administrators by `triggerreply list`; an `exact` phrase can behave like a secret code but should not be used as an authentication secret.
 
-| Command | Aliases | Access | Description |
-| --- | --- | --- | --- |
-| `triggerreply` | `autoreply` | Administrator | Show the command guide |
-| `triggerreply add <contains\|include\|exact> <phrase> \| <reply>` | `autoreply add` | Administrator | Add a contains/exact rule |
-| `triggerreply list` | `autoreply list` | Administrator | List configured rules and their numeric IDs |
-| `triggerreply remove <ID>` | `triggerreply delete`, `autoreply remove`, `autoreply delete` | Administrator | Delete a configured rule |
+| Command | Access | Description |
+| --- | --- | --- |
+| `triggerreply add contains <phrase> \| <reply>` | Administrator | Reply when a message includes the phrase |
+| `triggerreply add exact <phrase> \| <reply>` | Administrator | Reply only when the whole message matches |
+| `triggerreply update <ID> <contains\|exact> <phrase> \| <reply>` | Administrator | Replace a rule while preserving its ID |
+| `triggerreply list` | Administrator | List configured rules and their numeric IDs |
+| `triggerreply remove <ID>` | Administrator | Delete a configured rule |
 
 Examples:
 
 ```text
 !tf triggerreply add contains dit me vnpt | vnpt nhu con cac
 !tf triggerreply add exact [A SECRET CODE] | something
+!tf triggerreply update 2 exact [NEW SECRET CODE] | new response
 ```
 
 **Module:** `cogs.interaction.triggered_reply`
