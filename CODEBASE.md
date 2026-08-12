@@ -82,8 +82,7 @@ tfvn_bot/
     ├── announcement/
     │   ├── __init__.py             Announcement package marker
     │   ├── welcome.py              Member-join announcement
-    │   ├── goodbye.py              Member-leave announcement
-    │   └── banned.py               Member-ban announcement
+    │   └── goodbye.py              Unified leave/kick/ban departure announcement
     ├── booster/
     │   ├── _custom_resource_ui.py Guided booster role/room views, selects, and modals
     │   ├── _role_colors.py         Solid/gradient role-color parsing helper

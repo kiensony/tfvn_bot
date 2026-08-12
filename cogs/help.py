@@ -786,7 +786,7 @@ HELP_TOPICS = (
             HelpSection(
                 name="Thông báo & trạng thái",
                 note=(
-                    "• Gửi welcome, goodbye và thông báo ban vào kênh cấu hình.\n"
+                    "• Gửi welcome; phân biệt tự rời, bị kick và bị ban trong cùng kênh BYE_CHANNEL.\n"
                     "• Đổi Discord activity ngẫu nhiên mỗi 5–15 phút.\n"
                     "• Thông báo sinh nhật một lần trong ngày tại BIRTHDAY_CHANNEL."
                 ),

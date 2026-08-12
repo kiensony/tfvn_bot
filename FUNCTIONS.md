@@ -95,8 +95,9 @@ No user commands. Event listeners only:
 | Event | Behavior |
 | --- | --- |
 | Member join | Welcome embed in `JOIN_CHANNEL` (rules / role channel pointers) |
-| Member leave | Goodbye announcement |
-| Member ban | Ban announcement |
+| Member leaves voluntarily | Leave announcement in `BYE_CHANNEL` |
+| Member kick | Kick announcement in `BYE_CHANNEL` (requires View Audit Log for reliable detection) |
+| Member ban | Ban announcement in `BYE_CHANNEL` |
 
 **Module:** `cogs.announcement.*`
 
@@ -569,7 +570,7 @@ area51_fire
 setting, setting set_variable, setting get_variable
 ```
 
-**Automatic features:** random bot activity rotation at random 5–15 minute intervals; welcome / goodbye / ban announcements, AFK monitoring, banned-word discipline, booster unboost janitor, birthday announcements, job-reminder loop, giveaway/vote end scheduling, Area 51 honeypot, Lunar New Year greeting, word-game message handling.
+**Automatic features:** random bot activity rotation at random 5–15 minute intervals; welcome and differentiated leave/kick/ban announcements, AFK monitoring, banned-word discipline, booster unboost janitor, birthday announcements, job-reminder loop, giveaway/vote end scheduling, Area 51 honeypot, Lunar New Year greeting, word-game message handling. All departure variants use `BYE_CHANNEL`; View Audit Log permission is required to reliably distinguish kicks from voluntary leaves.
 
 Bot status data uses `type` + `think` for `CUSTOM` entries. All other activity types use `type` + `text` so their action-card text remains prominent.
 

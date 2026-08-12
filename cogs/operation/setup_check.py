@@ -18,7 +18,7 @@ CHANNEL_VARIABLES = {
     "JOIN_CHANNEL": "Thông báo member tham gia",
     "RULE_CHANNEL": "Nội quy",
     "ROLE_CHANNEL": "Chọn role",
-    "BYE_CHANNEL": "Thông báo rời/ban",
+    "BYE_CHANNEL": "Thông báo rời/kick/ban",
     "BIRTHDAY_CHANNEL": "Thông báo sinh nhật",
     "AREA_51_CHANNEL_ID": "Area 51 guard",
 }
@@ -61,6 +61,7 @@ class SetupCheckCog(commands.Cog):
             "moderate_members": "Timeout Members",
             "kick_members": "Kick Members",
             "ban_members": "Ban Members",
+            "view_audit_log": "View Audit Log",
             "attach_files": "Attach Files",
         }
         checks = []

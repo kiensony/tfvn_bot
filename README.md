@@ -11,7 +11,7 @@ For a complete list of commands and automatic features, see [FUNCTIONS.md](FUNCT
 
 ## Highlights
 
-- **Community management:** welcome/goodbye announcements, verification, AFK tracking, birthdays, reminders, votes, and giveaways.
+- **Community management:** welcome and differentiated leave/kick/ban announcements, verification, AFK tracking, birthdays, reminders, votes, and giveaways.
 - **Moderation:** kick, ban, soft-ban, mute, timeout, warnings, numbered audit cases, message cleanup, slow mode, nickname/role tools, and the Area 51 guard workflow.
 - **Booster perks:** custom roles and voice rooms, with automatic cleanup after a member stops boosting.
 - **Games and economy:** the global, persistent Tiên Lộ AFK cultivation game, daily Trap Coins, a configurable role/badge shop, transaction history, slots, coin flips, Sic Bo, Vietnamese word chaining (`noitu`), and Vua Tiếng Việt (`vtv`).
@@ -45,7 +45,7 @@ In the Discord Developer Portal, enable these privileged gateway intents for the
 - **Server Members Intent**
 - **Message Content Intent**
 
-The bot also needs the Discord permissions used by the cogs you enable. For example, moderation and booster features require permissions such as Manage Messages, Manage Roles, Manage Channels, Moderate Members, Kick Members, or Ban Members.
+The bot also needs the Discord permissions used by the cogs you enable. For example, moderation and booster features require permissions such as Manage Messages, Manage Roles, Manage Channels, Moderate Members, Kick Members, Ban Members, or View Audit Log. View Audit Log lets departure announcements distinguish moderator kicks from members leaving voluntarily.
 
 ## Local development
 
@@ -161,7 +161,7 @@ Common settings include:
 
 | Feature | MongoDB global variables | Type |
 | --- | --- | --- |
-| Join/leave announcements | `JOIN_CHANNEL`, `RULE_CHANNEL`, `ROLE_CHANNEL`, `BYE_CHANNEL` | `STRING` |
+| Join and leave/kick/ban announcements | `JOIN_CHANNEL`, `RULE_CHANNEL`, `ROLE_CHANNEL`, `BYE_CHANNEL` | `STRING` |
 | Birthday announcements | `BIRTHDAY_CHANNEL` | `STRING` |
 | Word games | `WORD_CONNECT_GAMES_CHANNELS`, `VIETNAMESE_KING_GAMES_CHANNELS` | `ARRAY` |
 | Verification | `FALLEN_FEMBOY_ROLE_ID` | `STRING` |
@@ -172,6 +172,10 @@ Common settings include:
 | NSFW interaction media | `BLOWJOB_GIFS`, `HANDJOB_GIFS`, `FOOTJOB_GIFS`, `ASSJOB_GIFS`, `THIGHJOB_GIFS`, `SPANK_GIFS`, `RIMJOB_GIFS`, `FROTTING_GIFS`, `FUCKING_GIFS`, `CREAMPIE_GIFS`, `THREESOME_GIFS`, `ORGY_GIFS` | `ARRAY` |
 
 The booster role anchor is optional; without it, Discord keeps the custom role at its default position. `BOOSTER_CUSTOM_VOICE_CATEGORY_ID` is required for custom rooms so their private category placement and permission overwrites are deterministic. The word-chain move icons also have built-in emoji defaults.
+
+Voluntary-leave, kick, and ban announcements all use `BYE_CHANNEL`. Give the bot
+View Audit Log permission so it can reliably identify kicks; without that permission,
+an unverified removal falls back to a generic departure announcement.
 
 The shop and moderation cases keep guild-specific configuration in their own
 MongoDB collections. Configure them with their admin
@@ -213,7 +217,7 @@ menu focused on their respective topics.
 | Operations | `ping`, `server_stats`, `setup check` |
 | Booster tools | `custom_role`, `update_custom_role`, `custom_room` |
 | Social and fun | `kiss`, `hug`, `pat`, `avatar`, `quote`, `rank`, `ship`, `aura`, `redflag`, configurable `triggerreply`, and other meter commands |
-| Automatic features | Announcements, AFK monitoring, reminders, content filtering, scheduled cleanup, and persistent interaction handling |
+| Automatic features | Welcome and leave/kick/ban announcements, AFK monitoring, reminders, content filtering, scheduled cleanup, and persistent interaction handling |
 | Optional NSFW | `nsfw`, `r34`, `gbr`, NSFW interactions, rankings, and role-based locks |
 
 This table is only an overview. The in-Discord dropdown and [FUNCTIONS.md](FUNCTIONS.md)
