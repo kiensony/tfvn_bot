@@ -202,15 +202,25 @@ class NSFWInteractionCog(commands.Cog):
         )
 
         gameplay_text = (
-            f"🎮 **Cách Chơi Các Lệnh NSFW** 🎮\n"
-            f"1. Sử dụng lệnh với cú pháp: `!{self.bot.command_prefix} <lệnh> @tên_thành_viên` (riêng `3some` cần tag 2 người, `orgy` tag 2-10 người).\n"
-            f"2. Các lệnh bao gồm: `bj` (bú cu), `rj` (liếm lồn), `hj` (sục cho), `fj` (footjob), `aj` (assjob), `tj` (thighjob), `spank` (vỗ mông), `frot` (đấu kiếm), `fuck` (chịch), `cream` (xuất trong), `3some` (chơi 3some), `orgy` (chơi orgy).\n"
-            f"3. Mỗi lệnh có thời gian hồi (cooldown) là 15 giây để tránh spam.\n"
-            f"4. Femboy Queen có thể khoá lệnh NSFW của người chơi bất kỳ trong vòng 24 giờ.\n"
-            f"5. Femboy King sẽ nhận được hệ số x3 điểm khi sử dụng lệnh NSFW.\n"
+            "🎮 **Cách Chơi Các Lệnh NSFW** 🎮\n"
+            "1. Sử dụng lệnh với cú pháp: "
+            f"`{ctx.clean_prefix}<lệnh> @tên_thành_viên` "
+            "(riêng `3some` cần tag 2 người, `orgy` tag 2-10 người).\n"
+            "2. Các lệnh bao gồm: `bj` (bú cu), `rj` (liếm lồn), "
+            "`hj` (sục cho), `fj` (footjob), `aj` (assjob), `tj` (thighjob), "
+            "`spank` (vỗ mông), `frot` (đấu kiếm), `fuck` (chịch), "
+            "`cream` (xuất trong), `3some` (chơi 3some), `orgy` (chơi orgy).\n"
+            "3. Mỗi lệnh có thời gian hồi (cooldown) là 3 giây để tránh spam.\n"
+            "4. Femboy Queen có thể khoá lệnh NSFW của người chơi bất kỳ "
+            "trong vòng 24 giờ.\n"
+            "5. Femboy King sẽ nhận được hệ số x3 điểm khi sử dụng lệnh NSFW.\n"
         )
 
-        embed = discord.Embed(title="📜 Quy Định và Hướng Dẫn Sử Dụng Lệnh NSFW", description="", color=discord.Color.red())
+        embed = discord.Embed(
+            title="📜 Quy Định và Hướng Dẫn Sử Dụng Lệnh NSFW",
+            description="",
+            color=discord.Color.red(),
+        )
         embed.add_field(name="Quy Định NSFW", value=rule_text, inline=False)
         embed.add_field(name="Cách Chơi Lệnh NSFW", value=gameplay_text, inline=False)
         await ctx.send(embed=embed)

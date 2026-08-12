@@ -24,9 +24,9 @@ Examples below use that default. Replace with your configured prefix if differen
 
 | Command | Access | Description |
 | --- | --- | --- |
-| `help` | Everyone | User help embed: AFK, economy, games, fun meters, interactions, NSFW overview, word connect |
-| `mod` | Administrator + Moderate Members | Moderator help embed (kick/ban/mute/timeout/warn/purge/cases/setup) |
-| `nsfw` | Everyone (reply only in NSFW) | NSFW help embed; outside NSFW channels the bot warns and deletes the prompt |
+| `help [topic]` | Everyone | Replies to the invoking message with the full bot catalog, covering commands and automatic features even in partial development profiles. Individual command availability still depends on loaded cogs/configuration; only the NSFW topic is channel-gated |
+| `mod` | Everyone | Opens the same menu focused on moderation; each listed command enforces its own Discord permission |
+| `nsfw` | NSFW channel | Opens the same help menu focused on the NSFW topic; outside NSFW channels the bot warns and deletes the prompt |
 
 ---
 
@@ -39,7 +39,7 @@ Examples below use that default. Replace with your configured prefix if differen
 | `verify` | Everyone | Points the user to the verification channel (`VERIFY_CHANNEL` env) |
 | `ping` | Everyone | Heartbeat / liveness reply |
 | `beta_preview` | Beta | Confirms the member has a configured Beta role |
-| `server_stats` | Administrator | In-memory uptime, command, and error counts since process start |
+| `server_stats` | Administrator | In-memory uptime, command, and error counts since process start; 10s per-guild cooldown |
 | `leave` | Administrator | Makes the bot leave the current guild |
 | `setup` / `diagnose` | Manage Guild (subcommands) | Setup diagnostics group |
 | `setup check` | Manage Guild | Checks database, permissions, IDs, and cog health |
@@ -97,8 +97,9 @@ No user commands. Event listeners only:
 | Event | Behavior |
 | --- | --- |
 | Member join | Welcome embed in `JOIN_CHANNEL` (rules / role channel pointers) |
-| Member leave | Goodbye announcement |
-| Member ban | Ban announcement |
+| Member leaves voluntarily | Leave announcement in `BYE_CHANNEL` |
+| Member kick | Kick announcement in `BYE_CHANNEL` (requires View Audit Log for reliable detection) |
+| Member ban | Ban announcement in `BYE_CHANNEL` |
 
 **Module:** `cogs.announcement.*`
 
@@ -121,25 +122,102 @@ No user commands. Event listeners only:
 | `daily` | — | Everyone | Once per UTC day; grants **10** Trap Coins |
 | `user_balance` | `balance` | Everyone | Show current Trap Coin balance |
 | `user_transactions` | `transactions` | Everyone | Last 10 transaction log entries |
-| `add_tc @member <amount> [reason]` | `give_tc`, `grant_tc` | Administrator | Credit Trap Coins (1–1,000,000,000); logs `admin_add_tc` |
-| `remove_tc @member <amount> [reason]` | `sub_tc`, `subtract_tc`, `take_tc` | Administrator | Debit Trap Coins if balance is sufficient; logs `admin_remove_tc` |
-| `set_tc @member <amount> [reason]` | `set_balance` | Administrator | Set absolute balance (0–1,000,000,000); logs delta as `admin_set_tc` |
-| `check_tc [@member]` | `tc_balance` | Administrator | Inspect a member’s Trap Coin balance (default: author) |
+| `add_tc @member <amount> [reason]` | `give_tc`, `grant_tc` | Administrator | Credit a non-bot member 1–1,000,000,000 Trap Coins; logs `admin_add_tc` |
+| `remove_tc @member <amount> [reason]` | `sub_tc`, `subtract_tc`, `take_tc` | Administrator | Debit a non-bot member 1–1,000,000,000 Trap Coins if the balance is sufficient; logs `admin_remove_tc` |
+| `set_tc @member <amount> [reason]` | `set_balance` | Administrator | Set a non-bot member’s balance to 0–1,000,000,000; logs delta as `admin_set_tc` |
+| `check_tc [@member]` | `tc_balance` | Administrator | Inspect a non-bot member’s Trap Coin balance (default: author) |
 
 ### Shop
 
 | Command | Aliases | Access | Description |
 | --- | --- | --- | --- |
 | `shop` | `store` | Everyone | List enabled catalog items |
-| `shop buy <item_id>` | — | Everyone | Purchase a catalog item |
+| `shop buy <item_id>` | — | Everyone | Purchase a catalog item; 2 calls per 5 seconds per user |
 | `shop inventory [@member]` | `inv` | Everyone | View owned shop items |
 | `shop use <item_id>` | — | Everyone | Equip badge or apply purchased role |
 | `shop unequip` | — | Everyone | Clear active badge |
-| `shop add_role <id> <price> @role [description]` | — | Manage Guild | Add/update a sellable role |
-| `shop add_badge <id> <price> <display name>` | — | Manage Guild | Add/update a badge item |
+| `shop add_role <id> <price> @role [description]` | — | Manage Guild | Add/update a sellable role priced 1–1,000,000,000 TC |
+| `shop add_badge <id> <price> <display name>` | — | Manage Guild | Add/update a badge item priced 1–1,000,000,000 TC |
 | `shop remove <item_id>` | `disable` | Manage Guild | Hide an item from the shop |
 
+Shop item IDs are 1–32 lowercase letters, digits, `_`, or `-`, and must start with a letter or digit.
+
 **Module:** `cogs.daily_reward.*`, `cogs.economy.shop`
+
+---
+
+## Tiên Lộ — Tu Tiên AFK
+
+Tiên Lộ is a global, persistent cultivation game. Rewards are calculated from
+timestamps when they are collected, so Bế Quan continues through bot restarts
+without a background reward task. A player may run either Bế Quan or Bí Cảnh,
+never both at the same time.
+
+| Command | Aliases | Access | Description |
+| --- | --- | --- | --- |
+| `tutien` | `cultivate` | Everyone | Open the owner-only Tiên Lộ dashboard |
+| `tutien batdau` | — | Everyone | Create a cultivation profile and begin Bế Quan |
+| `tutien thucong` | — | Everyone | Collect at least 10 minutes of AFK rewards, then automatically resume the selected focus |
+| `tutien huong <canbang\|tinhtu\|khaikhoang>` | — | Everyone | Select balanced, Tu Vi-focused, or Linh Thạch-focused cultivation |
+| `tutien dotpha` | — | Everyone | Attempt the next breakthrough when resource and tower requirements are met |
+| `tutien phai [kiem\|the\|dan]` | — | Everyone | View the current class or choose Kiếm Tu, Thể Tu, or Đan Tu at Luyện Khí 1 |
+| `tutien phai reset` | — | Everyone | Clear the class and refund all talent points for a realm-scaled fee; seven-day cooldown |
+| `tutien thienphu` | — | Everyone | View talent IDs, effects, ranks, and unallocated points |
+| `tutien thienphu tang <talent_id> [points]` | — | Everyone | Allocate one or more points to a talent belonging to the selected class |
+| `tutien dongphu` | — | Everyone | View cave level, bonuses, capacity, and the next upgrade price |
+| `tutien dongphu nangcap` | — | Everyone | Buy the next cave level when enough Linh Thạch is available |
+| `tutien choden` | — | Everyone | View permanent stock and four deterministic offers for the current ICT date |
+| `tutien mua <item_id>` | — | Everyone | Buy one market item with Linh Thạch |
+| `tutien kho` | — | Everyone | View materials and owned equipment |
+| `tutien trangbi <item_id>` | — | Everyone | Equip an owned item in its fixed slot |
+| `tutien phanra <item_id>` | — | Everyone | Salvage one equipment item into crafting fragments |
+| `tutien luyen [recipe_id]` | — | Everyone | View fixed recipes or craft one guaranteed item |
+| `tutien thiluyen [tang]` | — | Everyone | Challenge the next uncleared floor of the 30-floor tower |
+| `tutien bicanh` | — | Everyone | Show the expedition guide and current status |
+| `tutien bicanh start <linhduoc\|cokhoang\|yeuthuson> <2\|4\|8>` | — | Everyone | Begin a timed expedition in the selected zone |
+| `tutien bicanh claim` | — | Everyone | Collect a finished expedition |
+| `tutien bicanh cancel` | — | Everyone | Cancel an active expedition without rewards and resume Bế Quan |
+| `tutien doido` | — | Everyone | Show exchange rates and remaining weekly limits |
+| `tutien doido mua <amount_tc>` | — | Everyone | Spend up to 50 TC/week at 1 TC = 10 Linh Thạch |
+| `tutien doido ban <so_linh_thach>` | — | Everyone | Sell Linh Thạch at 20 per TC, receiving at most 20 TC/week |
+| `tutien profile [@member]` | — | Everyone | View your profile or another member's public global profile |
+| `tutien top` | — | Everyone | Rank public profiles among visible members of the current guild |
+| `tutien riengtu [public\|private]` | — | Everyone | View or explicitly set profile visibility |
+
+### Progression rules
+
+- Available realms are Phàm Nhân, Luyện Khí 1–9, four Trúc Cơ stages, and four
+  Kim Đan stages. Excess Tu Vi remains after a successful breakthrough.
+- Base AFK storage is 24 hours. Each purchased Động Phủ level adds four hours and
+  5% production; level seven reaches the cave's maximum upgrade bonus.
+- Cân Bằng earns 100% Tu Vi / 100% Linh Thạch, Tĩnh Tu earns 125% / 60%, and
+  Khai Khoáng earns 75% / 150%.
+- Minor breakthroughs are guaranteed. Major breakthroughs begin at 70%, gain
+  ten percentage points of pity after each failure, and succeed on the fourth
+  attempt at the latest. Failure preserves Tu Vi, equipment, and realm progress,
+  charges a base 25% of the Linh Thạch cost (reducible to 10% through Thể Tu's
+  Hộ Mạch talent), and starts a one-hour retry cooldown.
+- Each class has three five-rank talents. Talent/class resets refund allocated
+  points, cost `1,000 × current realm index` Linh Thạch, and have a seven-day
+  cooldown.
+- Equipment has four fixed slots and visible deterministic stats. The shop has no
+  paid reroll; crafting is guaranteed; boss equipment is guaranteed on the tenth
+  eligible clear through a visible pity counter.
+- Weekly exchange limits reset Monday at 00:00 `Asia/Ho_Chi_Minh`. The unequal
+  buy/sell rates prevent exchange arbitrage.
+
+The dashboard and its components are restricted to the invoking member. Replies
+mention only that member; an unauthorized component click receives an ephemeral
+denial. Profiles are global, but private profiles are absent from guild
+leaderboards.
+
+**Persistence:** versioned `user_accounts.cultivation` state, append-only
+`cultivation_events`, and TC exchange records in `transaction_logs`. Trap Coin
+remains in `user_accounts.balance` so an exchange updates both currencies in one
+account write.
+
+**Module:** `cogs.cultivation.cultivation`,
+`cogs.cultivation._cultivation_helpers`
 
 ---
 
@@ -229,12 +307,14 @@ Most meters accept an optional `@member` (default: author). Scores are determini
 | `marriage help` | — | Everyone (guild) | Rules: XP, ranks, cooldowns |
 | `marriage top` | `lb`, `leaderboard`, `rank` | Everyone (guild) | Top 10 couples by XP |
 | `divorce` | — | Everyone (guild) | End active marriage after confirm buttons |
-| `rank [r] [action]` | `ranking` | Everyone | Interaction leaderboards (global or per-action; `r` = receivers) |
+| `rank [r] [action]` | `ranking` | Everyone | All-time bot-wide interaction leaderboards (`r` = receivers); action can be kiss, hug, pat, slap, punch, hit, poke, cuddle, snuggle, boop, handhold, bonk, bite, stare, lick, or smack |
 | `cat` | — | Everyone | Random cat image (external API) |
 | `dog` | — | Everyone | Random dog image (external API) |
 | `36` | — | Everyone | Static meme GIF reply |
 
 **Module:** `cogs.interaction.user_interaction`, `cat`, `dog`, `meme_interaction`
+
+All 16 SFW interactions require a non-bot target and have a 3-second per-command, per-user cooldown. Self-target is allowed only for `pat`, `slap`, `punch`, `hit`, `poke`, `bonk`, and `smack`.
 
 ---
 
@@ -246,10 +326,10 @@ Most meters accept an optional `@member` (default: author). Scores are determini
 
 | Command | Access | Description |
 | --- | --- | --- |
-| `r34 [tags]` | NSFW channel | Rule34 image/video search |
-| `gbr [tags]` | NSFW channel | Gelbooru image/video search |
+| `r34 <tags>` | NSFW channel | Rule34 image/video search |
+| `gbr <tags>` | NSFW channel | Gelbooru image/video search |
 
-### Interactions (NSFW channel, cooldown 1/3s per user)
+### Interactions (NSFW channel, 3-second per-command, per-user cooldown)
 
 | Command | Aliases | Description |
 | --- | --- | --- |
@@ -266,15 +346,15 @@ Most meters accept an optional `@member` (default: author). Scores are determini
 | `cream @user` | — | Creampie |
 | `3some @user1 @user2` | `threesome` | Threesome with two others |
 | `orgy @user1 … @userN` | — | Orgy with 2–10 other members |
-| `ranknsfw [r] [action]` | `nsfwrank` | NSFW interaction leaderboards |
-| `mrank` | — | Administrator monthly NSFW ranking |
+| `ranknsfw [r] [action]` | `nsfwrank` | Current-UTC-month bot-wide leaderboards; action can be bj, rj, hj, fj, aj, tj, spank, frot, fuck, cream, 3some, or orgy |
+| `mrank <month> <year>` | — | Administrator monthly NSFW ranking |
 
 ### Super-user controls
 
 | Command | Access | Description |
 | --- | --- | --- |
-| `locknsfw @user` | Role-gated (King/Queen style) | Lock NSFW commands for a member |
-| `unlocknsfw` | Role-gated | Unlock NSFW commands |
+| `locknsfw @user` | Configured Queen role | Lock a member's NSFW interaction commands for 24 hours; successful use has a 3-day cooldown |
+| `unlocknsfw` | Configured Queen role | End an active interaction lock created by the same Queen |
 
 ### Verification helpers (moderation)
 
@@ -291,9 +371,9 @@ Most meters accept an optional `@member` (default: author). Scores are determini
 
 | Command | Aliases | Access | Description |
 | --- | --- | --- | --- |
-| `custom_role <color> <name>` | `booster_role` | Booster | Create booster custom role (`#RRGGBB` or gradient `#RRGGBB,#RRGGBB`; optional PNG icon attachment) |
-| `update_custom_role <color> <name>` | `customroleupdate`, `boosterroleupdate` | Booster | Update existing booster role |
-| `custom_room <name>` | `booster_room` | Booster | Create private voice room under configured category |
+| `custom_role <color> <name>` | `booster_role` | Booster | Create a booster custom role (`#RRGGBB` or gradient `#RRGGBB,#RRGGBB`; optional PNG icon). Run without arguments for preset/custom colors, preview, and confirmation UI; the existing argument form remains supported |
+| `update_custom_role <color> <name>` | `customroleupdate`, `boosterroleupdate` | Booster | Update the existing booster role. Run without arguments for the same guided color editor; the existing argument form remains supported |
+| `custom_room <name>` | `booster_room` | Booster | Create a private voice room under the configured category. Run without arguments for a guided name/user-limit preview; the existing name argument remains supported |
 
 **Background (`janitor_unboosted`):** scheduled cleanup of custom roles/rooms after boost expires.
 
@@ -320,11 +400,11 @@ Most meters accept an optional `@member` (default: author). Scores are determini
 
 | Command | Aliases | Access | Description |
 | --- | --- | --- | --- |
-| `giveaway <duration> [winners] <prize>` | `ga` | Admin / Manage Messages / Manage Server | Start giveaway (e.g. `1h30m`, `2d`); persistent join/leave buttons |
+| `giveaway <duration> [winners] <prize>` | `ga` | Administrator / Manage Guild / Manage Messages | Start giveaway (e.g. `1h30m`, `2d`); persistent join/leave buttons |
 | `giveaway list` | `ls`, `active` | Everyone (guild) | List active giveaways |
 | `giveaway entries [message_id]` | `entrants`, `joined`, `who` | Everyone (guild) | Who joined a giveaway |
-| `giveaway end [message_id]` | — | Host/mod | End early and pick winners |
-| `giveaway reroll [message_id]` | `rr` | Host/mod | Reroll winners |
+| `giveaway end [message_id]` | — | Host or Administrator / Manage Guild / Manage Messages | End early and pick winners; accepts an ID or replied giveaway message |
+| `giveaway reroll [message_id] [winner_count]` | `rr` | Host or Administrator / Manage Guild / Manage Messages | Reroll 1–20 winners; accepts an ID or replied ended giveaway message |
 
 Duration range: 10 seconds–30 days; max 20 winners.
 
@@ -332,7 +412,7 @@ Duration range: 10 seconds–30 days; max 20 winners.
 
 | Command | Access | Description |
 | --- | --- | --- |
-| `vote [yesno\|multiple] [question]` | Everyone | Interactive poll (asks for duration; multiple-choice collects options). Ends on schedule with results |
+| `vote [yesno\|multiple\|multiplechoice] [question]` | Everyone | Interactive poll (asks for duration; multiple-choice collects options). Ends on schedule with results |
 
 ### Other utils
 
@@ -341,7 +421,7 @@ Duration range: 10 seconds–30 days; max 20 winners.
 | `quote [image] [message_link\|message_id]` | `q`, `quotes` | Everyone (guild) | Quote a replied/current-channel message as a text embed by default. Add `image` before the optional link/ID to generate a PNG card with bundled offline emoji/symbol fallback fonts. Both modes use the author's server avatar when available, link to the original message, and have a 5s per-user cooldown |
 | `big_speaker <size> <message>` | `loa`, `speaker` | Everyone (guild) | Re-speak a message in large Discord markdown. **`size` is 1–6**; TC cost by size: **1 / 2 / 5 / 10 / 20 / 50**. Sizes 5–6 add separators; 6 is bold H1. Mentions: user only; strips `@everyone`, `@here`, role pings. 30s cooldown |
 | `random_member <@member\|@role>` | — | Everyone | Pick a random member (from role members if a role is given) |
-| `save_image <collection> [metadata…]` | — | Manage Messages | Persist attached images + metadata to Mongo (`images`) |
+| `save_image <collection> [key value ...]` | — | Manage Messages | Persist attached images + optional metadata pairs to Mongo (`images`) |
 
 **Module:** `cogs.utils.*`
 
@@ -356,16 +436,17 @@ Duration range: 10 seconds–30 days; max 20 winners.
 | `kick @user [reason]` | Kick Members | Kick member; records moderation case |
 | `ban @user [reason]` | Ban Members | Ban member; records case |
 | `softban @user [reason]` | Ban Members | Soft-ban / handcuff role workflow (stores previous roles) |
-| `unsoftban @user` | Ban Members | Restore roles after softban |
+| `unsoftban @user [reason]` | Ban Members | Restore roles after softban |
 | `mute @user [reason]` | Manage Roles | Assign Muted role |
-| `unmute @user` | Manage Roles | Remove Muted role |
+| `unmute @user [reason]` | Manage Roles | Remove Muted role |
 | `timeout @user <minutes> [reason]` | Moderate Members | Discord timeout |
-| `untimeout @user` | Moderate Members | Clear timeout |
+| `untimeout @user [reason]` | Moderate Members | Clear timeout |
 | `warn @user [reason]` | Manage Messages | Store warning + case |
 | `check_warn [@user]` | Everyone (guild) | Recent warnings (default: self) |
-| `nickchange @user [new_nick]` | Manage Nicknames | Change member nickname |
-| `roleroll @user @role` | Manage Roles | Give role |
-| `roleunroll @user @role` | Manage Roles | Remove role |
+| `nickchange @user <new_nick>` | Manage Nicknames | Change member nickname |
+| `roleroll @user` | Manage Roles | Open a role dropdown, then assign the selected role |
+| `roleunroll @user` | Manage Roles | Open a role dropdown, then remove the selected role |
+| `rolecopy @source @target` | Manage Roles | Add eligible source roles missing from the target; preserve existing target roles and never mention/ping copied roles |
 
 ### Messages & channel controls
 
@@ -375,9 +456,9 @@ Duration range: 10 seconds–30 days; max 20 winners.
 | `purge_user @user <n>` | Manage Messages | Delete last *n* messages from a user in channel |
 | `clean_before <days>` | Manage Messages | Delete messages older than *n* days |
 | `slowmode` | Manage Messages | Slowmode guide group |
-| `slowmode check_bypass [@member]` | Manage Messages | Check channel permission overwrites |
+| `slowmode check_bypass [@member]` | Everyone | Check channel permission overwrites |
 | `slowmode immune @member` | Manage Messages | Exempt member from slowmode |
-| `slowmode prominent @member` | Manage Messages | Apply “prominent” permission profile for slowmode |
+| `slowmode prominent @member` | Manage Messages | Remove the member's slowmode bypass overwrite |
 
 ### Cases
 
@@ -385,10 +466,10 @@ Duration range: 10 seconds–30 days; max 20 winners.
 | --- | --- | --- |
 | `case` | Manage Messages | Usage guide |
 | `case view <number>` | Manage Messages | View case by number |
-| `case history @user` | Manage Messages | Case history for a member |
+| `case history @user [limit]` | Manage Messages | Last 1–10 cases for a member |
 | `case edit <number> <reason>` | Manage Messages | Edit case reason |
 | `case status <number> <open\|resolved\|appealed\|void>` | Manage Messages | Update case status |
-| `case log_channel [#channel]` | Manage Guild | Set/view mod-log channel |
+| `case log_channel [#channel]` | Manage Guild | Set the mod-log channel (defaults to current channel) |
 
 ### Area 51 guard
 
@@ -456,10 +537,18 @@ These modules support features but are not discovered as extensions (leading `_`
 help, mod, nsfw
 hello, invite, verify, ping, beta_preview, server_stats, leave
 setup, setup check
+triggerreply, triggerreply add, triggerreply list, triggerreply remove
 afk, afk dynamic, afk time, afk clear, afk check
 random_femboy
 daily, user_balance, user_transactions, add_tc, remove_tc, set_tc, check_tc
 shop, shop buy, shop inventory, shop use, shop unequip, shop add_role, shop add_badge, shop remove
+tutien, tutien batdau, tutien thucong, tutien huong, tutien dotpha,
+tutien phai, tutien phai reset, tutien thienphu, tutien thienphu tang,
+tutien dongphu, tutien dongphu nangcap, tutien choden, tutien mua, tutien kho,
+tutien trangbi, tutien phanra, tutien luyen, tutien thiluyen,
+tutien bicanh, tutien bicanh start, tutien bicanh claim, tutien bicanh cancel,
+tutien doido, tutien doido mua, tutien doido ban,
+tutien profile, tutien top, tutien riengtu
 slot, flip_coin, sicbo_start
 noitu, noitu status, noitu hint, noitu end, noitu analyze
 vtv, vtv status, vtv next, vtv hint
@@ -475,7 +564,7 @@ jobremind, jobremind add
 giveaway, giveaway list, giveaway entries, giveaway end, giveaway reroll
 vote, quote, big_speaker, random_member, save_image
 kick, ban, softban, unsoftban, mute, unmute, timeout, untimeout, warn, check_warn
-nickchange, roleroll, roleunroll
+nickchange, roleroll, roleunroll, rolecopy
 purge, purge_user, clean_before
 slowmode, slowmode check_bypass, slowmode immune, slowmode prominent
 case, case view, case history, case edit, case status, case log_channel
@@ -483,7 +572,7 @@ area51_fire
 setting, setting set_variable, setting get_variable
 ```
 
-**Automatic features:** random bot activity rotation at random 5–15 minute intervals; welcome / goodbye / ban announcements, AFK monitoring, banned-word discipline, booster unboost janitor, birthday announcements, job-reminder loop, giveaway/vote end scheduling, Area 51 honeypot, Lunar New Year greeting, word-game message handling.
+**Automatic features:** random bot activity rotation at random 5–15 minute intervals; welcome and differentiated leave/kick/ban announcements, AFK monitoring, banned-word discipline, booster unboost janitor, birthday announcements, job-reminder loop, giveaway/vote end scheduling, Area 51 honeypot, Lunar New Year greeting, word-game message handling. All departure variants use `BYE_CHANNEL`; View Audit Log permission is required to reliably distinguish kicks from voluntary leaves.
 
 Bot status data uses `type` + `think` for `CUSTOM` entries. All other activity types use `type` + `text` so their action-card text remains prominent.
 

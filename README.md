@@ -11,13 +11,13 @@ For a complete list of commands and automatic features, see [FUNCTIONS.md](FUNCT
 
 ## Highlights
 
-- **Community management:** welcome/goodbye announcements, verification, AFK tracking, birthdays, reminders, votes, and giveaways.
+- **Community management:** welcome and differentiated leave/kick/ban announcements, verification, AFK tracking, birthdays, reminders, votes, and giveaways.
 - **Moderation:** kick, ban, soft-ban, mute, timeout, warnings, numbered audit cases, message cleanup, slow mode, nickname/role tools, and the Area 51 guard workflow.
 - **Booster perks:** custom roles and voice rooms, with automatic cleanup after a member stops boosting.
-- **Games and economy:** daily Trap Coins, a configurable role/badge shop, transaction history, slots, coin flips, Sic Bo, Vietnamese word chaining (`noitu`), and Vua Tiếng Việt (`vtv`).
+- **Games and economy:** the global, persistent Tiên Lộ AFK cultivation game, daily Trap Coins, a configurable role/badge shop, transaction history, slots, coin flips, Sic Bo, Vietnamese word chaining (`noitu`), and Vua Tiếng Việt (`vtv`).
 - **Social and fun commands:** member interactions, rankings, avatars, random members, community-themed cards, and a collection of playful “meter” commands.
 - **Optional age-restricted features:** NSFW interactions and Rule34/Gelbooru searches, guarded by Discord's NSFW channel setting.
-- **Persistent state:** MongoDB-backed balances, interactions, game context, reminders, settings, giveaways, booster resources, and moderation data.
+- **Persistent state:** MongoDB-backed balances, cultivation profiles, interactions, game context, reminders, settings, giveaways, booster resources, and moderation data.
 
 ## How it works
 
@@ -45,7 +45,7 @@ In the Discord Developer Portal, enable these privileged gateway intents for the
 - **Server Members Intent**
 - **Message Content Intent**
 
-The bot also needs the Discord permissions used by the cogs you enable. For example, moderation and booster features require permissions such as Manage Messages, Manage Roles, Manage Channels, Moderate Members, Kick Members, or Ban Members.
+The bot also needs the Discord permissions used by the cogs you enable. For example, moderation and booster features require permissions such as Manage Messages, Manage Roles, Manage Channels, Moderate Members, Kick Members, Ban Members, or View Audit Log. View Audit Log lets departure announcements distinguish moderator kicks from members leaving voluntarily.
 
 ## Local development
 
@@ -136,6 +136,9 @@ Add one dotted module path per line as you work. For example, `cogs.mod.*` loads
 The profile supports blank lines, comments, explicit modules, and `.*`
 wildcards.
 
+For Tiên Lộ development, also load `cogs.cultivation.cultivation` together with
+the account cogs used to view and earn Trap Coin.
+
 ### 4. Run the bot
 
 ```powershell
@@ -158,7 +161,7 @@ Common settings include:
 
 | Feature | MongoDB global variables | Type |
 | --- | --- | --- |
-| Join/leave announcements | `JOIN_CHANNEL`, `RULE_CHANNEL`, `ROLE_CHANNEL`, `BYE_CHANNEL` | `STRING` |
+| Join and leave/kick/ban announcements | `JOIN_CHANNEL`, `RULE_CHANNEL`, `ROLE_CHANNEL`, `BYE_CHANNEL` | `STRING` |
 | Birthday announcements | `BIRTHDAY_CHANNEL` | `STRING` |
 | Word games | `WORD_CONNECT_GAMES_CHANNELS`, `VIETNAMESE_KING_GAMES_CHANNELS` | `ARRAY` |
 | Verification | `FALLEN_FEMBOY_ROLE_ID` | `STRING` |
@@ -168,7 +171,11 @@ Common settings include:
 | NSFW role controls | `KING_ROLE_ID`, `QUEEN_ROLE_ID` | `STRING` |
 | NSFW interaction media | `BLOWJOB_GIFS`, `HANDJOB_GIFS`, `FOOTJOB_GIFS`, `ASSJOB_GIFS`, `THIGHJOB_GIFS`, `SPANK_GIFS`, `RIMJOB_GIFS`, `FROTTING_GIFS`, `FUCKING_GIFS`, `CREAMPIE_GIFS`, `THREESOME_GIFS`, `ORGY_GIFS` | `ARRAY` |
 
-The booster placement values are optional; without them, Discord creates the resource without placing it under a configured anchor/category. The word-chain move icons also have built-in emoji defaults.
+The booster role anchor is optional; without it, Discord keeps the custom role at its default position. `BOOSTER_CUSTOM_VOICE_CATEGORY_ID` is required for custom rooms so their private category placement and permission overwrites are deterministic. The word-chain move icons also have built-in emoji defaults.
+
+Voluntary-leave, kick, and ban announcements all use `BYE_CHANNEL`. Give the bot
+View Audit Log permission so it can reliably identify kicks; without that permission,
+an unverified removal falls back to a generic departure announcement.
 
 The shop and moderation cases keep guild-specific configuration in their own
 MongoDB collections. Configure them with their admin
@@ -192,22 +199,64 @@ The current implementation alternates between its primary and secondary credenti
 
 ## Command overview
 
-Commands are invoked with `COMMAND_PREFIX`. With the default prefix, `!tf help`, `!tf mod`, and `!tf nsfw` display the built-in user, moderator, and age-restricted help menus.
+Commands are invoked with `COMMAND_PREFIX`. With the default prefix, `!tf help [topic]`
+opens the bot's full command catalog split into overview, community, economy,
+Tiên Lộ, games, fun/social, utilities/booster, automatic features, and moderation topics.
+The catalog remains complete in partial development profiles; individual commands
+still depend on loaded cogs, configuration, and Discord permissions. Only the NSFW
+topic is hidden outside NSFW-marked channels. `!tf mod` and `!tf nsfw` open the same
+menu focused on their respective topics.
 
 | Area | Representative commands |
 | --- | --- |
-| General | `help`, `hello`, `invite`, `verify`, `ping`, `server_stats` |
+| General | `help [topic]`, `hello`, `invite`, `verify`, `ping`, `server_stats` |
 | Community | `afk`, `jobremind add`, `birthday set`, `vote`, `giveaway` |
 | Economy and games | `daily`, `user_balance`, `user_transactions`, `shop`, `slot`, `flip_coin`, `sicbo_start`, `noitu`, `vtv` |
+| Tiên Lộ | `tutien`, `tutien thucong`, `tutien dotpha`, `tutien bicanh`, `tutien thiluyen`, `tutien doido` |
 | Moderation | `kick`, `ban`, `softban`, `mute`, `timeout`, `warn`, `case`, `purge`, `slowmode`, `verified` |
 | Operations | `ping`, `server_stats`, `setup check` |
 | Booster tools | `custom_role`, `update_custom_role`, `custom_room` |
 | Social and fun | `kiss`, `hug`, `pat`, `avatar`, `quote`, `rank`, `ship`, `aura`, `redflag`, configurable `triggerreply`, and other meter commands |
+| Automatic features | Welcome and leave/kick/ban announcements, AFK monitoring, reminders, content filtering, scheduled cleanup, and persistent interaction handling |
 | Optional NSFW | `nsfw`, `r34`, `gbr`, NSFW interactions, rankings, and role-based locks |
 
-This is an overview rather than an exhaustive command reference; the source of truth is each module under `cogs/`.
+This table is only an overview. The in-Discord dropdown and [FUNCTIONS.md](FUNCTIONS.md)
+provide the complete user-facing catalog; each module under `cogs/` remains the
+implementation source of truth.
 
 ## Community systems
+
+### Tiên Lộ cultivation game
+
+Start a persistent profile and open its private dashboard with:
+
+```text
+!tf tutien batdau
+!tf tutien
+```
+
+Tiên Lộ calculates Bế Quan rewards from timestamps, so AFK progress survives bot
+restarts without a scheduler. Players choose Cân Bằng, Tĩnh Tu, or Khai Khoáng;
+advance from Phàm Nhân through Kim Đan; select Kiếm Tu, Thể Tu, or Đan Tu; allocate
+talents; and improve a four-slot equipment set through a deterministic market,
+crafting, expeditions, and the 30-floor Tháp Thí Luyện.
+
+Use `!tf tutien thucong` to collect AFK resources, `!tf tutien dotpha` to advance,
+and `!tf tutien bicanh start <linhduoc|cokhoang|yeuthuson> <2|4|8>` for an
+expedition. Only one Bế Quan/Bí Cảnh session can run at once. Major breakthroughs
+use visible soft pity and never destroy Tu Vi or equipment on failure.
+
+Trap Coin exchange is deliberately limited and uses a spread: members may spend
+up to 50 TC per week at 1 TC = 10 Linh Thạch, or receive at most 20 TC per week at
+20 Linh Thạch = 1 TC. Limits reset Monday at 00:00 Asia/Ho_Chi_Minh. PvP, player
+trading, Tông Môn, theft, and Booster/paid power are not part of this release.
+
+At startup, the cultivation cog ensures `user_accounts.user_id` is unique. If
+legacy duplicate account documents prevent that index, the cog logs the duplicate
+IDs and stays disabled; it does not guess how to merge Trap Coin balances.
+
+See [CULTIVATE_GAME_PLAN.md](CULTIVATE_GAME_PLAN.md) for the complete design and
+[FUNCTIONS.md](FUNCTIONS.md) for every command.
 
 ### Trap Coin shop
 
@@ -268,8 +317,9 @@ Run the unit-test suite from the repository root:
 python -m unittest discover -s test -p "test_*.py"
 ```
 
-The automated tests cover meter formatting, quote-card rendering, cog flags,
-and validation helpers used by the shop, cases, and setup diagnostics.
+The automated tests cover cultivation calculations and state transitions, the
+categorized help menu, meter formatting, quote-card rendering, cog flags, and
+validation helpers used by the shop, cases, and setup diagnostics.
 
 ## Project structure
 
@@ -278,11 +328,13 @@ tfvn_bot/
 ├── main.py                 # Bot startup, intents, data loading, and cog discovery
 ├── db.py                   # MongoDB client and database selection
 ├── dataloader.py           # JSON, text, line, and CSV data helpers
+├── CULTIVATE_GAME_PLAN.md  # Tiên Lộ design and acceptance specification
 ├── cogs/                   # Discord commands, listeners, tasks, and UI views
 │   ├── _beta_function.py   # Database-role guard for experimental commands
 │   ├── _feature_flags.py   # Feature and cog disable flag parsing
 │   ├── settings/           # Mongo-backed runtime variables
 │   ├── economy/            # Trap Coin shop, inventory, badges, and role items
+│   ├── cultivation/        # Tiên Lộ progression, AFK calculations, PvE, and economy
 │   ├── mod/                # Moderation and verification
 │   ├── booster/            # Booster custom roles/rooms and cleanup
 │   ├── minigames/          # Economy games and Vietnamese word games

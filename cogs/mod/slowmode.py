@@ -9,8 +9,13 @@ class SlowmodeCog(commands.Cog):
     @commands.group(name="slowmode", invoke_without_command=True)
     @commands.has_permissions(manage_messages=True)
     async def slowmode(self, ctx: commands.Context):
-        """ put the guide for slowmode here """
-        await ctx.send_help(ctx.command)
+        await ctx.send(
+            "**Công cụ slowmode**\n"
+            f"`{ctx.clean_prefix}slowmode check_bypass [@user]` — kiểm tra bypass.\n"
+            f"`{ctx.clean_prefix}slowmode immune @user` — cấp bypass trong kênh.\n"
+            f"`{ctx.clean_prefix}slowmode prominent @user` — gỡ bypass trong kênh.\n"
+            f"Danh mục đầy đủ: `{ctx.clean_prefix}help moderation`."
+        )
 
     @slowmode.command(name="check_bypass")
     async def check_slowmode_bypass(self, ctx: commands.Context, member: discord.Member = None):

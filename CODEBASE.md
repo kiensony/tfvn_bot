@@ -27,6 +27,7 @@ tfvn_bot/
 ├── AGENTS.md                       Short contributor and agent entry guide
 ├── CODEBASE.md                     This ownership and architecture map
 ├── FUNCTIONS.md                    Full user-facing command and feature catalog
+├── CULTIVATE_GAME_PLAN.md           Tiên Lộ gameplay, economy, and acceptance specification
 ├── CODING_CONVENSION.md            Detailed implementation conventions
 ├── sample.dev_cogs.txt             Legacy development-cog sample; review paths before use
 │
@@ -64,6 +65,8 @@ tfvn_bot/
 │
 ├── test/
 │   ├── test_community_features.py  Pure validation/time/helper regression tests
+│   ├── test_cultivation.py         Tiên Lộ calculations, state, UI, and persistence tests
+│   ├── test_help_menu.py           Help catalog completeness, limits, gates, and UI tests
 │   ├── test_meter_number_bars.py   unittest coverage for signed meter formatting
 │   └── word_stardardlize.py        Manual normalization utility; not auto-discovered as a test
 │
@@ -72,22 +75,26 @@ tfvn_bot/
     ├── _beta_function.py           Multi-role Beta command access guard
     ├── _feature_flags.py           DISABLED_COGS pattern parsing
     ├── general.py                  hello, invite, and verification-channel pointers
-    ├── help.py                     User, moderator, and NSFW help embeds
+    ├── help.py                     Full-catalog dropdown help UI with an NSFW channel gate
     ├── afk_remind/
     │   ├── afk_set.py              Timed/dynamic AFK setup, clearing, and ping review
     │   └── afk_monitor.py          AFK mention capture and return detection
     ├── announcement/
     │   ├── __init__.py             Announcement package marker
     │   ├── welcome.py              Member-join announcement
-    │   ├── goodbye.py              Member-leave announcement
-    │   └── banned.py               Member-ban announcement
+    │   └── goodbye.py              Unified leave/kick/ban departure announcement
     ├── booster/
+    │   ├── _custom_resource_ui.py Guided booster role/room views, selects, and modals
     │   ├── _role_colors.py         Solid/gradient role-color parsing helper
     │   ├── create_custom_role.py   Booster-owned custom role creation
     │   ├── update_custom_role.py   Booster custom role edits
     │   ├── create_custom_room.py   Booster private voice-room creation
     │   └── janitor_unboosted.py    Scheduled cleanup after boosts expire
     ├── cotd/random_femboy.py       Random saved image and social metadata lookup
+    ├── cultivation/
+    │   ├── __init__.py             Cultivation package marker
+    │   ├── cultivation.py          Tiên Lộ commands, dashboard, and atomic persistence
+    │   └── _cultivation_helpers.py Pure realms, rewards, market, PvE, and exchange rules
     ├── daily_reward/
     │   ├── daily_action.py         Daily Trap Coin grant and claim tracking
     │   └── user_account.py         Balance, badge, and transaction-history lookup
@@ -175,7 +182,8 @@ filter loaded extensions with exact dotted modules or wildcard patterns.
 MongoDB collections are created lazily. Major groups are:
 
 - Configuration: `global_variables`, `moderation_config`
-- Economy: `user_accounts`, `daily_rewards_logs`, `transaction_logs`, `shop_items`, `shop_inventory`
+- Economy: `user_accounts` (including versioned `cultivation` state), `daily_rewards_logs`, `transaction_logs`, `shop_items`, `shop_inventory`
+- Cultivation audit: append-only `cultivation_events`; TC exchanges also write `transaction_logs`
 - Social state: `interactions`, `nsfw_settings`, `images`, `marriages`, `marriage_proposals`, `triggered_replies`
 - Scheduling: `tasks`, `votes`, `giveaways`, `birthdays`, `birthday_announcements`
 - AFK and moderation: `afk_reminders`, `afk_pings`, `discipline_logs`, `old_roles`, `warnings`, `moderation_cases`
@@ -187,6 +195,13 @@ environment variables. Runtime database selection uses `DB_NAME`.
 Process-level extension controls use `DISABLED_COGS`; guild-specific IDs and
 media arrays generally belong in `global_variables`.
 
+Tiên Lộ stores its authoritative profile below `user_accounts.cultivation` and
+keeps Trap Coin in `user_accounts.balance`, allowing an exchange to update both
+balances atomically. Writes use a cultivation revision for compare-and-swap and
+idempotent request IDs, with at most three retries. The cog requires a unique
+`user_accounts.user_id` index; if duplicate account documents prevent the index,
+it logs the problem and remains disabled rather than merging balances.
+
 Commands decorated with `@BetaFunction` are registered normally in any runtime,
 but the callback requires the invoking member to hold at least one role in
 `BETA_ROLE_IDS`. The role list is read only from `bot.global_vars`, populated by
@@ -195,6 +210,8 @@ the MongoDB `global_variables` collection; environment role values are ignored.
 ## Where to Make a Change
 
 - Add or change a command/listener in its domain under `cogs/`.
+- Keep Tiên Lộ Discord/Mongo behavior in `cogs/cultivation/cultivation.py` and
+  deterministic tables/calculations in `_cultivation_helpers.py`.
 - Put reusable feature helpers in a leading-underscore module beside their consumers.
 - Put shared static media in `assets/`; put runtime-editable media in Mongo settings.
 - Treat large game datasets as generated outputs and update their preparation script with them.
