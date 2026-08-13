@@ -225,6 +225,8 @@ account write.
 
 | Command | Access | Description |
 | --- | --- | --- |
+| `blackjack [n]` | Everyone | Solo Blackjack against the dealer; wagers `n` TC (default 5, range 5–1,000,000), wins pay 1:1, natural profit pays 3:2 rounded down to whole TC, and pushes/timeouts return the stake |
+| `poker [n]` | Everyone | Solo five-card draw against the dealer; wagers `n` TC (default 5, range 5–1,000,000), allows one draw of up to three cards, wins pay 1:1, and ties/timeouts return the stake |
 | `slot` | Everyone | Slot machine; costs **5** Trap Coins; logs debit transaction |
 | `flip_coin <head\|tail> <n>` | Everyone | Coin flip bet of `n` Trap Coins (needs ≥5 TC to play); win pays 2× stake |
 | `sicbo_start` | Everyone | Reaction-based Sic Bo round (Big / Small / Triple); payout wiring is incomplete |
@@ -240,7 +242,8 @@ account write.
 
 **Background:** `noitu` and `vtv` also accept plain messages in their configured channels for gameplay.
 
-**Module:** `cogs.minigames.*`
+**Module:** `cogs.minigames.*`; Blackjack and Poker live in
+`cogs.funny_things.*` as requested and share private card/economy helpers there.
 
 ---
 
@@ -537,7 +540,7 @@ These modules support features but are not discovered as extensions (leading `_`
 help, mod, nsfw
 hello, invite, verify, ping, beta_preview, server_stats, leave
 setup, setup check
-triggerreply, triggerreply add, triggerreply list, triggerreply remove
+triggerreply, triggerreply add, triggerreply update, triggerreply list, triggerreply remove
 afk, afk dynamic, afk time, afk clear, afk check
 random_femboy
 daily, user_balance, user_transactions, add_tc, remove_tc, set_tc, check_tc
@@ -549,7 +552,7 @@ tutien trangbi, tutien phanra, tutien luyen, tutien thiluyen,
 tutien bicanh, tutien bicanh start, tutien bicanh claim, tutien bicanh cancel,
 tutien doido, tutien doido mua, tutien doido ban,
 tutien profile, tutien top, tutien riengtu
-slot, flip_coin, sicbo_start
+blackjack, poker, slot, flip_coin, sicbo_start
 noitu, noitu status, noitu hint, noitu end, noitu analyze
 vtv, vtv status, vtv next, vtv hint
 gay, les, ship, penisize, aura, redflag, based, brainrot, clown, cope, cringe, delulu,

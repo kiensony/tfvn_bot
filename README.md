@@ -14,7 +14,7 @@ For a complete list of commands and automatic features, see [FUNCTIONS.md](FUNCT
 - **Community management:** welcome and differentiated leave/kick/ban announcements, verification, AFK tracking, birthdays, reminders, votes, and giveaways.
 - **Moderation:** kick, ban, soft-ban, mute, timeout, warnings, numbered audit cases, message cleanup, slow mode, nickname/role tools, and the Area 51 guard workflow.
 - **Booster perks:** custom roles and voice rooms, with automatic cleanup after a member stops boosting.
-- **Games and economy:** the global, persistent Tiên Lộ AFK cultivation game, daily Trap Coins, a configurable role/badge shop, transaction history, slots, coin flips, Sic Bo, Vietnamese word chaining (`noitu`), and Vua Tiếng Việt (`vtv`).
+- **Games and economy:** the global, persistent Tiên Lộ AFK cultivation game, daily Trap Coins, a configurable role/badge shop, transaction history, interactive Blackjack and five-card-draw Poker, slots, coin flips, Sic Bo, Vietnamese word chaining (`noitu`), and Vua Tiếng Việt (`vtv`).
 - **Social and fun commands:** member interactions, rankings, avatars, random members, community-themed cards, and a collection of playful “meter” commands.
 - **Optional age-restricted features:** NSFW interactions and Rule34/Gelbooru searches, guarded by Discord's NSFW channel setting.
 - **Persistent state:** MongoDB-backed balances, cultivation profiles, interactions, game context, reminders, settings, giveaways, booster resources, and moderation data.
@@ -211,7 +211,7 @@ menu focused on their respective topics.
 | --- | --- |
 | General | `help [topic]`, `hello`, `invite`, `verify`, `ping`, `server_stats` |
 | Community | `afk`, `jobremind add`, `birthday set`, `vote`, `giveaway` |
-| Economy and games | `daily`, `user_balance`, `user_transactions`, `shop`, `slot`, `flip_coin`, `sicbo_start`, `noitu`, `vtv` |
+| Economy and games | `daily`, `user_balance`, `user_transactions`, `shop`, `blackjack`, `poker`, `slot`, `flip_coin`, `sicbo_start`, `noitu`, `vtv` |
 | Tiên Lộ | `tutien`, `tutien thucong`, `tutien dotpha`, `tutien bicanh`, `tutien thiluyen`, `tutien doido` |
 | Moderation | `kick`, `ban`, `softban`, `mute`, `timeout`, `warn`, `case`, `purge`, `slowmode`, `verified` |
 | Operations | `ping`, `server_stats`, `setup check` |
@@ -317,9 +317,9 @@ Run the unit-test suite from the repository root:
 python -m unittest discover -s test -p "test_*.py"
 ```
 
-The automated tests cover cultivation calculations and state transitions, the
-categorized help menu, meter formatting, quote-card rendering, cog flags, and
-validation helpers used by the shop, cases, and setup diagnostics.
+The automated tests cover cultivation calculations and state transitions, card-game
+rules and wagers, the categorized help menu, meter formatting, quote-card rendering,
+cog flags, and validation helpers used by the shop, cases, and setup diagnostics.
 
 ## Project structure
 
@@ -338,6 +338,7 @@ tfvn_bot/
 │   ├── mod/                # Moderation and verification
 │   ├── booster/            # Booster custom roles/rooms and cleanup
 │   ├── minigames/          # Economy games and Vietnamese word games
+│   ├── funny_things/       # Fun commands plus interactive Blackjack and Poker
 │   ├── interaction/        # Social and optional NSFW interactions
 │   └── ...
 ├── data/                   # Word lists, filters, and game datasets
