@@ -64,6 +64,8 @@ tfvn_bot/
 │   └── words.txt                   Source records for Vietnamese data preparation
 │
 ├── test/
+│   ├── test_card_games.py          Blackjack, Poker, deck, and payout rules
+│   ├── test_card_game_economy.py   Atomic card-game wager and refund helpers
 │   ├── test_community_features.py  Pure validation/time/helper regression tests
 │   ├── test_cultivation.py         Tiên Lộ calculations, state, UI, and persistence tests
 │   ├── test_help_menu.py           Help catalog completeness, limits, gates, and UI tests
@@ -103,6 +105,12 @@ tfvn_bot/
     │   └── shop.py                 Guild catalog, purchases, inventory, roles, and badges
     ├── discipline/discipline.py    Banned-word listener, logging, warning, and deletion
     ├── funny_things/
+    │   ├── _playing_cards.py       Shared validated deck and card formatting
+    │   ├── _blackjack_helpers.py   Pure Blackjack scoring and round state
+    │   ├── _poker_helpers.py       Five-card hand ranking, dealer draw, round state
+    │   ├── _card_game_economy.py   Atomic TC wagers, payouts, refunds, and audit logs
+    │   ├── blackjack.py            Button-driven solo Blackjack against the dealer
+    │   ├── poker.py                Button-driven solo five-card draw against the dealer
     │   ├── _meter_helper.py        Deterministic scores, bars, loading, and embed helpers
     │   ├── aura.py                 Signed aura score and icon bar
     │   ├── redflag.py              Signed red/green flag score and icon bar
@@ -188,7 +196,9 @@ MongoDB collections are created lazily. Major groups are:
 - Scheduling: `tasks`, `votes`, `giveaways`, `birthdays`, `birthday_announcements`
 - AFK and moderation: `afk_reminders`, `afk_pings`, `discipline_logs`, `old_roles`, `warnings`, `moderation_cases`
 - Shared sequence counters: `feature_counters`
-- Games and boosters: `context`, `sicbo_active_games`, `booster_custom_roles`, `booster_custom_rooms`
+- Games and boosters: card-game wagers use `user_accounts` plus `transaction_logs`;
+  other state uses `context`, `sicbo_active_games`, `booster_custom_roles`, and
+  `booster_custom_rooms`
 
 Discord tokens, database credentials, and external API credentials belong in
 environment variables. Runtime database selection uses `DB_NAME`.

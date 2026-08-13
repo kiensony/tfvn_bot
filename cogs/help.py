@@ -464,7 +464,7 @@ HELP_TOPICS = (
         key="games",
         label="Trò chơi",
         emoji="🎮",
-        option_description="Casino, Nối Từ và Vua Tiếng Việt",
+        option_description="Casino, Blackjack, Poker và game chữ",
         title="Trò chơi",
         description="Game dùng lệnh và game nhận câu trả lời trực tiếp trong kênh cấu hình.",
         color=0x2ECC71,
@@ -472,6 +472,22 @@ HELP_TOPICS = (
             HelpSection(
                 name="Casino",
                 entries=(
+                    _entry(
+                        "blackjack",
+                        (
+                            "Đánh Blackjack với nhà cái; cược 5–1.000.000 TC, "
+                            "xì dách trả 3:2 (lẻ làm tròn xuống) và hòa hoàn tiền."
+                        ),
+                        "blackjack [số TC]",
+                    ),
+                    _entry(
+                        "poker",
+                        (
+                            "Đấu Poker 5 lá một lượt đổi bài với nhà cái; "
+                            "cược 5–1.000.000 TC."
+                        ),
+                        "poker [số TC]",
+                    ),
                     _entry("slot", "Quay máy slot; mỗi lượt tốn 5 Trap Coin."),
                     _entry("flip_coin", "Đặt cược mặt đồng xu.", "flip_coin <head|tail> <số TC>"),
                     _entry(
@@ -1102,6 +1118,12 @@ HELP_TOPICS = (
                         "triggerreply add <contains|include|exact> <cụm từ> | <trả lời>",
                     ),
                     _entry(
+                        "triggerreply update",
+                        "Sửa rule nhưng giữ nguyên ID — Administrator.",
+                        "triggerreply update <ID> <contains|exact> <cụm từ> | <trả lời>",
+                        aliases=("triggerreply edit",),
+                    ),
+                    _entry(
                         "triggerreply list",
                         "Liệt kê rule và ID — Administrator.",
                     ),
@@ -1114,7 +1136,8 @@ HELP_TOPICS = (
                 ),
                 note=(
                     "Alias cha `autoreply` dùng được với mọi subcommand, gồm "
-                    "`autoreply add`, `autoreply list` và `autoreply remove/delete`. "
+                    "`autoreply add`, `autoreply update/edit`, `autoreply list` và "
+                    "`autoreply remove/delete`. "
                     "Trigger tối đa 200 ký tự; reply tối đa "
                     "2.000 ký tự và không ping."
                 ),
