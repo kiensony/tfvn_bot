@@ -28,6 +28,7 @@ tfvn_bot/
 ├── CODEBASE.md                     This ownership and architecture map
 ├── FUNCTIONS.md                    Full user-facing command and feature catalog
 ├── CULTIVATE_GAME_PLAN.md           Tiên Lộ gameplay, economy, and acceptance specification
+├── FUTURE_DEVELOPMENT.md            Unapproved, deferred target-system specification; no current behavior
 ├── CODING_CONVENSION.md            Detailed implementation conventions
 ├── sample.dev_cogs.txt             Legacy development-cog sample; review paths before use
 │
@@ -186,6 +187,10 @@ tfvn_bot/
 Local `dev_cogs.txt` selects extensions during development. `DISABLED_COGS` can
 filter loaded extensions with exact dotted modules or wildcard patterns.
 `draft.txt` is a local scratch file.
+
+## Prospective-document boundary
+
+`FUTURE_DEVELOPMENT.md` describes a hypothetical national-scale financial simulation. Its proposed requirements, services, models, replicas, objectives, and controls are absent from the current runtime unless the implemented code, tests, and authoritative operational documentation all establish otherwise. Documentation alone is not implementation evidence. The prospective document must not be used to infer file ownership, runtime architecture, compliance, or test obligations.
 
 ## Persistence Boundaries
 

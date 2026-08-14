@@ -4,6 +4,14 @@
 
 Read [README.md](README.md) for setup and operation, [CODEBASE.md](CODEBASE.md) for runtime flow and file ownership, [FUNCTIONS.md](FUNCTIONS.md) for the full command and feature catalog, and [CODING_CONVENSION.md](CODING_CONVENSION.md) for detailed implementation rules. Update the relevant document when structure, configuration, or conventions change.
 
+## Prospective Target Specification
+
+`FUTURE_DEVELOPMENT.md` is an unapproved, deferred, and non-operational prospective target-system specification. Its identified `SHALL` and `SHALL NOT` statements apply only to a hypothetical future TrapNet baseline; they do not describe current behavior, authorize implementation, or create repository acceptance criteria.
+
+Do not implement, scaffold, refactor toward, test against, procure for, or deploy any item from that document unless the user's current request explicitly names a bounded work package, stage, or requirement ID, explicitly supersedes its `IDR-0001` deferment for that scope, and authorizes implementation after the specification's entry gates are satisfied. A generic request to “follow,” “build,” or “implement the specification” does not activate the whole document; establish explicit scope first. An explicit request to edit the document authorizes documentation changes only and never supersedes `IDR-0001`.
+
+For all other work, ignore its target architecture and treat the current code, tests, [README.md](README.md), [CODEBASE.md](CODEBASE.md), [FUNCTIONS.md](FUNCTIONS.md), and [CODING_CONVENSION.md](CODING_CONVENSION.md) as authoritative. When a proposed item is actually delivered, update the authoritative documentation in the same change. `FUTURE_DEVELOPMENT.md` is never evidence that a feature exists.
+
 ## Project Structure & Module Organization
 
 `main.py` configures Discord intents, loads datasets, and discovers extensions. `db.py` creates the MongoDB client, while `dataloader.py` handles files under `data/`. Bot features live in domain-based packages under `cogs/` (`mod/`, `booster/`, `minigames/`, `interaction/`, and others). Every loadable cog must expose `async def setup(bot)`. Prefix helper modules with `_` so production discovery skips them.
