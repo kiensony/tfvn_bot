@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Sequence
 
-from cogs.funny_things._playing_cards import Card, draw_card
+from cogs.minigames._playing_cards import Card, draw_card
 
 
 class BlackjackOutcome(str, Enum):

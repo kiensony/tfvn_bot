@@ -3,7 +3,7 @@ import unittest
 from pymongo import ReturnDocument
 from pymongo.errors import AutoReconnect
 
-from cogs.funny_things._card_game_economy import (
+from cogs.minigames._card_game_economy import (
     MAX_BET,
     MIN_BET,
     CardGameBank,

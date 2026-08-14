@@ -10,15 +10,15 @@ import discord
 from discord.ext import commands
 from pymongo.errors import PyMongoError
 
-from cogs.funny_things._card_game_economy import (
+from cogs.minigames._card_game_economy import (
     DEFAULT_BET,
     MAX_BET,
     MIN_BET,
     CardGameBank,
     validate_wager,
 )
-from cogs.funny_things._playing_cards import create_deck, format_hand
-from cogs.funny_things._poker_helpers import (
+from cogs.minigames._playing_cards import create_deck, format_hand
+from cogs.minigames.poker._poker_helpers import (
     PokerGame,
     evaluate_hand,
     rank_label,

@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from enum import IntEnum
 from typing import Iterable, Sequence
 
-from cogs.funny_things._playing_cards import Card, draw_card
+from cogs.minigames._playing_cards import Card, draw_card
 
 
 class HandCategory(IntEnum):

@@ -11,18 +11,18 @@ import discord
 from discord.ext import commands
 from pymongo.errors import PyMongoError
 
-from cogs.funny_things._blackjack_helpers import (
+from cogs.minigames.blackjack._blackjack_helpers import (
     BlackjackGame,
     BlackjackOutcome,
     payout_return,
     score_hand,
 )
-from cogs.funny_things._card_game_economy import (
+from cogs.minigames._card_game_economy import (
     DEFAULT_BET,
     CardGameBank,
     validate_wager,
 )
-from cogs.funny_things._playing_cards import create_deck, format_hand
+from cogs.minigames._playing_cards import create_deck, format_hand
 
 
 logger = logging.getLogger(__name__)
