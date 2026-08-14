@@ -437,7 +437,8 @@ Duration range: 10 seconds–30 days; max 20 winners.
 | Command | Access | Description |
 | --- | --- | --- |
 | `kick @user [reason]` | Kick Members | Kick member; records moderation case |
-| `ban @user [reason]` | Ban Members | Ban member; records case |
+| `ban [@user] [reason]` | Ban Members | Mention a member, or reply with `ban` and no arguments, then use the UI to choose 0–168 hours of recent messages to delete, select a preset or custom reason, and confirm Yes/No; records case |
+| `unban <user_id\|@user> [reason]` | Ban Members | Enter a banned user ID/mention, or reply to their old message with argument-free `unban`; choose an optional unique one-use 7-day reinvite, a preset/custom reason, and confirm Yes/No. The bot uses a public rules/welcome/system/command channel, then DMs the invite or returns it privately to the moderator; reinviting requires moderator and bot Create Invite in that channel. Records case |
 | `softban @user [reason]` | Ban Members | Soft-ban / handcuff role workflow (stores previous roles) |
 | `unsoftban @user [reason]` | Ban Members | Restore roles after softban |
 | `mute @user [reason]` | Manage Roles | Assign Muted role |
@@ -566,7 +567,7 @@ custom_role, update_custom_role, custom_room
 jobremind, jobremind add
 giveaway, giveaway list, giveaway entries, giveaway end, giveaway reroll
 vote, quote, big_speaker, random_member, save_image
-kick, ban, softban, unsoftban, mute, unmute, timeout, untimeout, warn, check_warn
+kick, ban, unban, softban, unsoftban, mute, unmute, timeout, untimeout, warn, check_warn
 nickchange, roleroll, roleunroll, rolecopy
 purge, purge_user, clean_before
 slowmode, slowmode check_bypass, slowmode immune, slowmode prominent

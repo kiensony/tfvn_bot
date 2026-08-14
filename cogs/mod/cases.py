@@ -17,6 +17,7 @@ MAX_HISTORY_RESULTS = 10
 
 ACTION_LABELS = {
     "ban": "Ban",
+    "unban": "Unban",
     "kick": "Kick",
     "mute": "Mute",
     "softban": "Softban",

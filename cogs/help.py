@@ -865,8 +865,19 @@ HELP_TOPICS = (
                     ),
                     _entry(
                         "ban",
-                        "Ban member thấp hơn bạn — cần Ban Members.",
-                        "ban @user [lý do]",
+                        (
+                            "Mention/reply tin; chọn giờ xóa, lý do "
+                            "và xác nhận — cần Ban Members."
+                        ),
+                        "ban @user [lý do] · reply + ban",
+                    ),
+                    _entry(
+                        "unban",
+                        (
+                            "ID/reply tin cũ; chọn mời lại, lý do, xác nhận — cần "
+                            "Ban Members; mời lại cần Create Invite."
+                        ),
+                        "unban <user_id|@user> [lý do] · reply + unban",
                     ),
                     _entry(
                         "softban",
