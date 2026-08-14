@@ -242,8 +242,8 @@ account write.
 
 **Background:** `noitu` and `vtv` also accept plain messages in their configured channels for gameplay.
 
-**Module:** `cogs.minigames.*`; Blackjack and Poker live in
-`cogs.funny_things.*` as requested and share private card/economy helpers there.
+**Module:** `cogs.minigames.*`; the interactive card-game cogs are
+`cogs.minigames.blackjack.blackjack` and `cogs.minigames.poker.poker`.
 
 ---
 

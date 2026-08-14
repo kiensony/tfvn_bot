@@ -1,7 +1,7 @@
 import random
 import unittest
 
-from cogs.funny_things._blackjack_helpers import (
+from cogs.minigames.blackjack._blackjack_helpers import (
     BlackjackGame,
     BlackjackOutcome,
     dealer_should_hit,
@@ -9,14 +9,14 @@ from cogs.funny_things._blackjack_helpers import (
     resolve_blackjack,
     score_hand,
 )
-from cogs.funny_things._playing_cards import (
+from cogs.minigames._playing_cards import (
     Card,
     create_deck,
     draw_card,
     format_card,
     format_hand,
 )
-from cogs.funny_things._poker_helpers import (
+from cogs.minigames.poker._poker_helpers import (
     HandCategory,
     PokerGame,
     compare_hands,

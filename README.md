@@ -337,8 +337,8 @@ tfvn_bot/
 │   ├── cultivation/        # Tiên Lộ progression, AFK calculations, PvE, and economy
 │   ├── mod/                # Moderation and verification
 │   ├── booster/            # Booster custom roles/rooms and cleanup
-│   ├── minigames/          # Economy games and Vietnamese word games
-│   ├── funny_things/       # Fun commands plus interactive Blackjack and Poker
+│   ├── minigames/          # Economy/card games and Vietnamese word games
+│   ├── funny_things/       # Fun meters, cards, and birthday features
 │   ├── interaction/        # Social and optional NSFW interactions
 │   └── ...
 ├── data/                   # Word lists, filters, and game datasets

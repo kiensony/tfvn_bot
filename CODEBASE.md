@@ -105,12 +105,6 @@ tfvn_bot/
     │   └── shop.py                 Guild catalog, purchases, inventory, roles, and badges
     ├── discipline/discipline.py    Banned-word listener, logging, warning, and deletion
     ├── funny_things/
-    │   ├── _playing_cards.py       Shared validated deck and card formatting
-    │   ├── _blackjack_helpers.py   Pure Blackjack scoring and round state
-    │   ├── _poker_helpers.py       Five-card hand ranking, dealer draw, round state
-    │   ├── _card_game_economy.py   Atomic TC wagers, payouts, refunds, and audit logs
-    │   ├── blackjack.py            Button-driven solo Blackjack against the dealer
-    │   ├── poker.py                Button-driven solo five-card draw against the dealer
     │   ├── _meter_helper.py        Deterministic scores, bars, loading, and embed helpers
     │   ├── aura.py                 Signed aura score and icon bar
     │   ├── redflag.py              Signed red/green flag score and icon bar
@@ -138,6 +132,14 @@ tfvn_bot/
     │   └── nsfw_super_user.py         Role-controlled NSFW lock/unlock workflow
     ├── job_remind/job_remind.py       Persistent timed DM reminders
     ├── minigames/
+    │   ├── _playing_cards.py           Shared validated deck and card formatting
+    │   ├── _card_game_economy.py       Atomic TC wagers, payouts, refunds, and audit logs
+    │   ├── blackjack/
+    │   │   ├── _blackjack_helpers.py   Pure Blackjack scoring and round state
+    │   │   └── blackjack.py            Button-driven solo Blackjack against the dealer
+    │   ├── poker/
+    │   │   ├── _poker_helpers.py       Five-card hand ranking, dealer draw, round state
+    │   │   └── poker.py                Button-driven solo five-card draw against the dealer
     │   ├── flip_coin/flip_coin.py     Coin betting against user balances
     │   ├── slot_machine/slot_machine.py
     │   │                                 Slot betting, payouts, and transaction logs

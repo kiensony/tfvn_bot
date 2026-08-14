@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import discord
 
-from cogs.funny_things._playing_cards import Card
-from cogs.funny_things.poker import (
+from cogs.minigames._playing_cards import Card
+from cogs.minigames.poker.poker import (
     HIDDEN_DEALER_HAND,
     NO_MENTIONS,
     POKER_TIMEOUT_SECONDS,
