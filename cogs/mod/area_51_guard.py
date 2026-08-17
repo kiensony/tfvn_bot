@@ -5,6 +5,13 @@ from datetime import time, timezone
 import discord
 from discord.ext import commands, tasks
 
+from cogs.mod._interaction_ui import (
+    ActionResult,
+    ConfigurableModerationView,
+    WorkflowSpec,
+    WorkflowTarget,
+)
+
 
 NATO_PHONETIC_ALPHABET = {
     "A": "Alpha",
@@ -59,6 +66,15 @@ AREA_51_CANCEL_SECONDS = 30
 MAX_DISCORD_BAN_DELETE_SECONDS = 7 * 24 * 60 * 60
 AREA_51_WEEKLY_REMINDER_TIME = time(hour=0, minute=0, tzinfo=timezone.utc)
 AREA_51_WEEKLY_REMINDER_WEEKDAY = 0
+AREA_51_FIRE_COOLDOWN_SECONDS = 10
+
+AREA_51_FIRE_SPEC = WorkflowSpec(
+    namespace="area51-fire",
+    title="Kích hoạt cảnh báo Area 51",
+    action_text="gửi cảnh báo Area 51 ngay lập tức",
+    confirm_label="Có, gửi cảnh báo",
+    icon="🚨",
+)
 
 
 def _nato_callsign(name: str) -> str:
@@ -94,11 +110,32 @@ class Area51CancelBanView(discord.ui.View):
     def __init__(self, member: discord.Member):
         super().__init__(timeout=AREA_51_CANCEL_SECONDS)
         self.member = member
+        self.guild_id = member.guild.id
         self.cancelled_by: discord.abc.User | None = None
 
     def _disable_buttons(self) -> None:
         for item in self.children:
             item.disabled = True
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        guild = interaction.guild
+        if guild is None or guild.id != self.guild_id:
+            await interaction.response.send_message(
+                "Nút hủy ban chỉ dùng được trong server đang xử lý.",
+                ephemeral=True,
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+            return False
+
+        permissions = getattr(interaction.user, "guild_permissions", None)
+        if permissions is None or not permissions.administrator:
+            await interaction.response.send_message(
+                "Chỉ Administrator hiện có trong server mới có thể hủy ban.",
+                ephemeral=True,
+                allowed_mentions=discord.AllowedMentions.none(),
+            )
+            return False
+        return True
 
     @discord.ui.button(label="Hủy ban", style=discord.ButtonStyle.success)
     async def cancel_ban(
@@ -126,7 +163,7 @@ class Area51GuardCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.logger = logging.getLogger(__name__)
-        self._pending_bans: set[int] = set()
+        self._pending_bans: set[tuple[int, int]] = set()
         self.weekly_area_51_reminder.start()
 
     def cog_unload(self):
@@ -297,19 +334,119 @@ class Area51GuardCog(commands.Cog):
     @commands.command(
         name="area51_fire",
         aliases=["area51_bump_now", "area51_remind_now"],
-        help="Gửi cảnh báo Area 51 ngay lập tức.",
+        help="Mở bảng xác nhận gửi cảnh báo Area 51 ngay lập tức.",
+        cooldown_after_parsing=True,
     )
+    @commands.guild_only()
     @commands.has_permissions(administrator=True)
-    async def area_51_fire(self, ctx: commands.Context):
-        sent = await self._send_area_51_reminder_now()
-        if sent:
-            await ctx.send("Đã kích hoạt cảnh báo Area 51.", delete_after=10)
+    @commands.cooldown(
+        1,
+        AREA_51_FIRE_COOLDOWN_SECONDS,
+        commands.BucketType.member,
+    )
+    async def area_51_fire(self, ctx: commands.Context) -> None:
+        channel_id = self._area_51_channel_id()
+        if channel_id is None:
+            await ctx.reply(
+                "AREA_51_CHANNEL_ID chưa được cấu hình hợp lệ.",
+                mention_author=False,
+            )
             return
 
-        await ctx.send(
-            "Không thể kích hoạt cảnh báo Area 51. Kiểm tra AREA_51_CHANNEL_ID và quyền gửi tin nhắn.",
-            delete_after=10,
+        channel = self.bot.get_channel(channel_id)
+        if channel is None:
+            try:
+                channel = await self.bot.fetch_channel(channel_id)
+            except (discord.Forbidden, discord.NotFound, discord.HTTPException):
+                self.logger.exception(
+                    "Không thể xác minh kênh Area 51 %s cho server %s.",
+                    channel_id,
+                    ctx.guild.id,
+                )
+                await ctx.reply(
+                    "Không thể xác minh kênh Area 51 đã cấu hình.",
+                    mention_author=False,
+                )
+                return
+
+        channel_guild = getattr(channel, "guild", None)
+        if channel_guild is None or channel_guild.id != ctx.guild.id:
+            await ctx.reply(
+                "Kênh Area 51 đã cấu hình không thuộc server này.",
+                mention_author=False,
+            )
+            return
+        target_name = (
+            f"#{channel.name}" if getattr(channel, "name", None) else f"Kênh {channel_id}"
         )
+
+        def live_permission_check(
+            guild: discord.Guild,
+            moderator: discord.Member,
+        ) -> str | None:
+            if not moderator.guild_permissions.administrator:
+                return "Bạn không còn quyền Administrator."
+            current_channel_id = self._area_51_channel_id()
+            if current_channel_id != channel_id:
+                return "Cấu hình kênh Area 51 đã thay đổi; hãy mở lại bảng."
+            return None
+
+        async def submit_fire(
+            interaction: discord.Interaction,
+            _request: None,
+        ) -> ActionResult:
+            denial = live_permission_check(interaction.guild, interaction.user)
+            if denial is not None:
+                return ActionResult(False, denial)
+            sent = await self._send_area_51_reminder_now()
+            if not sent:
+                return ActionResult(
+                    False,
+                    (
+                        "Không thể kích hoạt cảnh báo Area 51. "
+                        "Kiểm tra cấu hình và quyền gửi tin nhắn."
+                    ),
+                )
+            return ActionResult(
+                True,
+                f"Đã kích hoạt cảnh báo Area 51 tại {target_name} (`{channel_id}`).",
+            )
+
+        view = ConfigurableModerationView(
+            spec=AREA_51_FIRE_SPEC,
+            author_id=ctx.author.id,
+            guild_id=ctx.guild.id,
+            target=WorkflowTarget(channel_id, target_name),
+            submitter=submit_fire,
+            request_builder=lambda _answers, _reason: None,
+            live_permission_check=live_permission_check,
+        )
+        view.message = await ctx.reply(
+            embed=view.build_embed(),
+            view=view,
+            mention_author=False,
+            allowed_mentions=discord.AllowedMentions.none(),
+        )
+
+    @area_51_fire.error
+    async def area_51_fire_error(
+        self,
+        ctx: commands.Context,
+        error: commands.CommandError,
+    ) -> None:
+        if isinstance(error, commands.MissingPermissions):
+            await ctx.reply("Bạn cần quyền Administrator.", mention_author=False)
+            return
+        if isinstance(error, commands.NoPrivateMessage):
+            await ctx.reply("Lệnh này chỉ dùng được trong server.", mention_author=False)
+            return
+        if isinstance(error, commands.CommandOnCooldown):
+            await ctx.reply(
+                f"Hãy thử lại sau {error.retry_after:.1f} giây.",
+                mention_author=False,
+            )
+            return
+        raise error
 
     async def _delete_trigger_message(self, message: discord.Message) -> None:
         try:
@@ -403,7 +540,8 @@ class Area51GuardCog(commands.Cog):
         else:
             member = message.author
 
-        if member.id in self._pending_bans:
+        pending_key = (message.guild.id, member.id)
+        if pending_key in self._pending_bans:
             return
 
         if not self._can_guard_ban(member):
@@ -415,7 +553,7 @@ class Area51GuardCog(commands.Cog):
             )
             return
 
-        self._pending_bans.add(member.id)
+        self._pending_bans.add(pending_key)
         reason = (
             f"Giao thức Area 51: truy cập trái phép khu quân sự cấm "
             f"{message.channel} ({message.channel.id})"
@@ -466,7 +604,7 @@ class Area51GuardCog(commands.Cog):
                     ),
                     view,
                 )
-            self._pending_bans.discard(member.id)
+            self._pending_bans.discard(pending_key)
 
 
 async def setup(bot: commands.Bot):

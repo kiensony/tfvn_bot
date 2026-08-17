@@ -436,33 +436,33 @@ Duration range: 10 seconds–30 days; max 20 winners.
 
 | Command | Access | Description |
 | --- | --- | --- |
-| `kick @user [reason]` | Kick Members | Kick member; records moderation case |
+| `kick [@user] [reason]` | Kick Members | Mention a member, or reply with argument-free `kick`; choose a preset/custom reason and confirm Yes/No; records case |
 | `ban [@user] [reason]` | Ban Members | Mention a member, or reply with `ban` and no arguments, then use the UI to choose 0–168 hours of recent messages to delete, select a preset or custom reason, and confirm Yes/No; records case |
 | `unban <user_id\|@user> [reason]` | Ban Members | Enter a banned user ID/mention, or reply to their old message with argument-free `unban`; choose an optional unique one-use 7-day reinvite, a preset/custom reason, and confirm Yes/No. The bot uses a public rules/welcome/system/command channel, then DMs the invite or returns it privately to the moderator; reinviting requires moderator and bot Create Invite in that channel. Records case |
-| `softban @user [reason]` | Ban Members | Soft-ban / handcuff role workflow (stores previous roles) |
-| `unsoftban @user [reason]` | Ban Members | Restore roles after softban |
-| `mute @user [reason]` | Manage Roles | Assign Muted role |
-| `unmute @user [reason]` | Manage Roles | Remove Muted role |
-| `timeout @user <minutes> [reason]` | Moderate Members | Discord timeout |
-| `untimeout @user [reason]` | Moderate Members | Clear timeout |
-| `warn @user [reason]` | Manage Messages | Store warning + case |
+| `softban [@user] [reason]` | Ban Members | Mention/reply target; choose a reason and confirm replacing eligible roles with Handcuffed; stores the previous roles and records case |
+| `unsoftban [@user] [reason]` | Ban Members | Mention/reply target; choose a release reason and confirm restoring the saved roles; records case |
+| `mute [@user] [reason]` | Manage Roles | Mention/reply target; choose a reason and confirm assigning Muted; records case |
+| `unmute [@user] [reason]` | Manage Roles | Mention/reply target; choose a release reason and confirm removing Muted; records case |
+| `timeout [@user] [minutes] [reason]` | Moderate Members | Mention a member with optional prefilled minutes, or reply with argument-free `timeout`; enter 1–40,320 minutes, choose a reason, and confirm; records case |
+| `untimeout [@user] [reason]` | Moderate Members | Mention/reply target; choose a release reason and confirm clearing timeout; records case |
+| `warn [@user] [reason]` | Manage Messages | Mention/reply target; choose a reason and confirm storing the warning and case |
 | `check_warn [@user]` | Everyone (guild) | Recent warnings (default: self) |
-| `nickchange @user <new_nick>` | Manage Nicknames | Change member nickname |
-| `roleroll @user` | Manage Roles | Open a role dropdown, then assign the selected role |
-| `roleunroll @user` | Manage Roles | Open a role dropdown, then remove the selected role |
-| `rolecopy @source @target` | Manage Roles | Add eligible source roles missing from the target; preserve existing target roles and never mention/ping copied roles |
+| `nickchange [@user] [new_nick]` | Manage Nicknames | Mention/reply target; enter a nickname and audit reason, then confirm Yes/No |
+| `roleroll [@user] [reason]` | Manage Roles | Mention/reply target; select a role and reason, review, then confirm assignment |
+| `roleunroll [@user] [reason]` | Manage Roles | Mention/reply target; select a role and reason, review, then confirm removal |
+| `rolecopy [@source] [@target] [reason]` | Manage Roles | Directly provide both members, or reply to the destination with argument-free `rolecopy` and select the source; review the frozen eligible-role plan and confirm |
 
 ### Messages & channel controls
 
 | Command | Access | Description |
 | --- | --- | --- |
-| `purge <n>` | Manage Messages | Delete last *n* messages in channel |
-| `purge_user @user <n>` | Manage Messages | Delete last *n* messages from a user in channel |
-| `clean_before <days>` | Manage Messages | Delete messages older than *n* days |
-| `slowmode` | Manage Messages | Slowmode guide group |
+| `purge [n]` | Manage Messages | Enter 1–1,000 messages in the form and confirm; deletion is anchored before the invocation message |
+| `purge_user [@user] [n]` | Manage Messages | Mention/reply target, enter 1–1,000, and confirm deleting the member's newest matching messages before the invocation |
+| `clean_before [days]` | Manage Messages | Enter 1–3,650 days and confirm deleting older messages before the invocation |
+| `slowmode` | Everyone (guild) | Slowmode guide group |
 | `slowmode check_bypass [@member]` | Everyone | Check channel permission overwrites |
-| `slowmode immune @member` | Manage Messages | Exempt member from slowmode |
-| `slowmode prominent @member` | Manage Messages | Remove the member's slowmode bypass overwrite |
+| `slowmode immune [@member] [reason]` | Manage Roles | Mention/reply target; choose a reason and confirm adding bypass while preserving unrelated overwrites |
+| `slowmode prominent [@member] [reason]` | Manage Roles | Mention/reply target; choose a reason and confirm removing only the bypass overwrite |
 
 ### Cases
 
@@ -471,15 +471,15 @@ Duration range: 10 seconds–30 days; max 20 winners.
 | `case` | Manage Messages | Usage guide |
 | `case view <number>` | Manage Messages | View case by number |
 | `case history @user [limit]` | Manage Messages | Last 1–10 cases for a member |
-| `case edit <number> <reason>` | Manage Messages | Edit case reason |
-| `case status <number> <open\|resolved\|appealed\|void>` | Manage Messages | Update case status |
-| `case log_channel [#channel]` | Manage Guild | Set the mod-log channel (defaults to current channel) |
+| `case edit <number> [reason]` | Manage Messages | Enter/review a new reason and confirm; refuses to overwrite a case changed after the form opened |
+| `case status <number> [open\|resolved\|appealed\|void]` | Manage Messages | Select/review a status and confirm; refuses stale updates |
+| `case log_channel [#channel]` | Manage Guild | Select a text channel, verify bot send/embed access, and confirm changing the mod-log destination |
 
 ### Area 51 guard
 
 | Command | Aliases | Access | Description |
 | --- | --- | --- | --- |
-| `area51_fire` | `area51_bump_now`, `area51_remind_now` | Administrator | Send Area 51 warning immediately |
+| `area51_fire` | `area51_bump_now`, `area51_remind_now` | Administrator | Preview the configured destination and confirm sending an Area 51 warning |
 
 **Background:** honeypot channel monitoring, cancel-ban UI, auto-prune, weekly reminder task. Configured via `AREA_51_CHANNEL_ID` / prune variables in Mongo settings.
 

@@ -287,6 +287,15 @@ guild-scoped numbered case. Moderators can use:
 Reason and status edits retain an edit history. Status can be `open`,
 `resolved`, `appealed`, or `void`.
 
+Every state-changing moderation command except the intentionally unchanged
+`verified` / `unverified` workflow now ends with an explicit Yes/No guard.
+Single-member actions can target a mention or the author of a same-channel reply;
+reply mode is argument-free so malformed input cannot silently change the target.
+Discord and database mutations happen only after the moderator completes the
+action-specific form and confirms, at which point permissions, hierarchy, target
+state, and selected resources are checked again. Message cleanup is anchored
+before the invocation message so later UI/chat traffic does not change its scope.
+
 The unban UI can optionally create a unique one-use invite valid for seven days.
 The bot tries to DM it to the unbanned user and otherwise shows it privately to
 the moderator for manual delivery. Reinviting is best-effort after the unban and

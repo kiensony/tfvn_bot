@@ -97,19 +97,19 @@ class TestHelpTopicData(unittest.TestCase):
             rendered_topics["utilities"],
         )
         self.assertIn(
-            "`!tf nickchange @user <nickname>`",
+            "`!tf nickchange [@user] [nickname] · reply + nickchange`",
             rendered_topics["moderation"],
         )
         self.assertIn(
-            "`!tf roleroll @user`",
+            "`!tf roleroll [@user] [lý do] · reply + roleroll`",
             rendered_topics["moderation"],
         )
         self.assertIn(
-            "`!tf roleunroll @user`",
+            "`!tf roleunroll [@user] [lý do] · reply + roleunroll`",
             rendered_topics["moderation"],
         )
         self.assertIn(
-            "`!tf rolecopy @source @target`",
+            "`!tf rolecopy [@source] [@target] [lý do] · reply + rolecopy`",
             rendered_topics["moderation"],
         )
         self.assertIn(

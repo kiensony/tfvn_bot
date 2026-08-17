@@ -150,16 +150,20 @@ tfvn_bot/
     │                                     Persistent letter-scramble game
     ├── mod/
     │   ├── _case_helpers.py         Safe shared case recording and validation
+    │   ├── _interaction_ui.py       Shared forms, reason choices, and confirmation guard
+    │   ├── _reply_target.py         Strict same-channel reply-member resolution
+    │   ├── _cleanup_state.py        Cross-cog channel-cleanup execution lock
+    │   ├── _member_state.py         Cross-cog member-role mutation guard
     │   ├── _ban_ui.py              Staged reply/mention ban UI, reasons, and confirmation
     │   ├── _unban_ui.py            Staged reinvite, reason, and confirmation UI
     │   ├── cases.py                 Numbered moderation audit trail and log config
     │   ├── ban.py                   Reply/mention ban command orchestration
-    │   ├── kick.py                  Basic member removal action
-    │   ├── mute.py, timeout.py          Temporary restriction controls
-    │   ├── softban.py                   Soft-ban and role restoration data
-    │   ├── purge.py, janitor.py         Message cleanup commands
-    │   ├── nickname.py, role.py         Nickname and role management
-    │   ├── slowmode.py                  Slow-mode inspection and overrides
+    │   ├── kick.py                  Reply-aware guarded member removal
+    │   ├── mute.py, timeout.py      Guarded temporary restriction controls
+    │   ├── softban.py               Guarded soft-ban and role restoration data
+    │   ├── purge.py, janitor.py     Confirmed, invocation-anchored message cleanup
+    │   ├── nickname.py, role.py     Confirmed nickname and role workflows
+    │   ├── slowmode.py              Slow-mode inspection and guarded overrides
     │   ├── unban.py                     Reply/user-ID unban and reinvite orchestration
     │   ├── warn.py                      Warning commands
     │   ├── verified.py                  Verified role and NSFW channel access management
