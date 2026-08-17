@@ -123,7 +123,7 @@ def make_fixture() -> tuple[
     everyone = FakeRole(1, 0, name="@everyone", default=True)
     original = FakeRole(2, 5, name="Member")
     muted = FakeRole(3, 6, name="Muted")
-    handcuffed = FakeRole(4, 7, name="Handcuffed")
+    handcuffed = FakeRole(4, 7, name="Tù ngay")
     guild.roles = [everyone, original, muted, handcuffed]
     bot_member = FakeMember(guild, 999, 100, name="mod-bot", bot=True)
     moderator = FakeMember(guild, 42, 80, name="moderator")

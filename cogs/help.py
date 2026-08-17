@@ -881,7 +881,7 @@ HELP_TOPICS = (
                     ),
                     _entry(
                         "softban",
-                        "Mention/reply; chọn lý do, xác nhận Handcuffed — Ban Members.",
+                        "Mention/reply; chọn lý do, xác nhận Tù ngay — Ban Members.",
                         "softban [@user] [lý do] · reply + softban",
                     ),
                     _entry(

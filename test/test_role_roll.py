@@ -8,6 +8,9 @@ from discord.ext import commands
 
 from cogs.mod._interaction_ui import FormAnswer
 from cogs.mod.role import (
+    ROLE_ASSIGN_REASON_CONFIG,
+    ROLE_COPY_REASON_CONFIG,
+    ROLE_REMOVE_REASON_CONFIG,
     ROLE_ROLL_SELECT_CUSTOM_ID,
     ROLE_UNROLL_SELECT_CUSTOM_ID,
     RoleCopyRequest,
@@ -315,6 +318,36 @@ class TestRoleCommandConfiguration(unittest.TestCase):
         self.assertFalse(RollCog.copy_roles.clean_params["source"].required)
         self.assertFalse(RollCog.copy_roles.clean_params["target"].required)
 
+    def test_role_reason_presets_are_operational_not_punitive(self) -> None:
+        punishment_phrases = (
+            "vi phạm nội quy",
+            "spam",
+            "quấy rối",
+            "nội dung không phù hợp",
+        )
+        configs = (
+            ROLE_ASSIGN_REASON_CONFIG,
+            ROLE_REMOVE_REASON_CONFIG,
+            ROLE_COPY_REASON_CONFIG,
+        )
+        for config in configs:
+            rendered = " ".join(
+                f"{preset.label} {preset.reason} {preset.description or ''}"
+                for preset in config.presets
+            ).lower()
+            for phrase in punishment_phrases:
+                with self.subTest(config=config.select_placeholder, phrase=phrase):
+                    self.assertNotIn(phrase, rendered)
+        self.assertTrue(
+            any("yêu cầu" in preset.label.lower() for preset in ROLE_ASSIGN_REASON_CONFIG.presets)
+        )
+        self.assertTrue(
+            any("gán nhầm" in preset.label.lower() for preset in ROLE_REMOVE_REASON_CONFIG.presets)
+        )
+        self.assertTrue(
+            any("đồng bộ" in preset.label.lower() for preset in ROLE_COPY_REASON_CONFIG.presets)
+        )
+
 
 class TestRoleChangeWorkflow(unittest.IsolatedAsyncioTestCase):
     async def test_assignment_waits_for_reason_and_yes(self) -> None:
@@ -327,12 +360,15 @@ class TestRoleChangeWorkflow(unittest.IsolatedAsyncioTestCase):
 
         target.add_roles.assert_not_awaited()
         self.assertEqual(view.step, "reason")
-        await view.accept_reason(interaction, "Vi phạm nội quy")
+        await view.accept_reason(interaction, "Gán role theo yêu cầu của thành viên")
         target.add_roles.assert_not_awaited()
         await view.confirm(interaction)
 
         target.add_roles.assert_awaited_once()
-        self.assertIn("Vi phạm nội quy", target.add_roles.await_args.kwargs["reason"])
+        self.assertIn(
+            "Gán role theo yêu cầu của thành viên",
+            target.add_roles.await_args.kwargs["reason"],
+        )
         self.assertTrue(view.completed)
 
     async def test_removal_waits_for_confirmation(self) -> None:

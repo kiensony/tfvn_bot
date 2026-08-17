@@ -26,6 +26,7 @@ from cogs.mod._reply_target import ReplyTargetError, resolve_same_channel_reply_
 
 logger = logging.getLogger(__name__)
 SOFTBAN_COMMAND_COOLDOWN_SECONDS = 5
+SOFTBAN_ROLE_NAME = "Tù ngay"
 
 UNSOFTBAN_REASON_CONFIG = ReasonConfig(
     presets=(
@@ -41,7 +42,7 @@ UNSOFTBAN_REASON_CONFIG = ReasonConfig(
 SOFTBAN_WORKFLOW_SPEC = WorkflowSpec(
     namespace="softban",
     title="Nhốt thành viên",
-    action_text="thay role hiện tại bằng Handcuffed",
+    action_text="thay role hiện tại bằng Tù ngay",
     confirm_label="Có, nhốt thành viên",
     reason=COMMON_REASON_CONFIG,
     icon="⛓️",
@@ -50,7 +51,7 @@ SOFTBAN_WORKFLOW_SPEC = WorkflowSpec(
 UNSOFTBAN_WORKFLOW_SPEC = WorkflowSpec(
     namespace="unsoftban",
     title="Khôi phục thành viên",
-    action_text="gỡ Handcuffed và khôi phục role cũ",
+    action_text="gỡ Tù ngay và khôi phục role cũ",
     confirm_label="Có, khôi phục role",
     reason=UNSOFTBAN_REASON_CONFIG,
     icon="🔓",
@@ -101,7 +102,7 @@ def softban_target_denial(
 
 
 class SoftbanCog(commands.Cog):
-    """Temporarily jail a member by replacing their roles with Handcuffed."""
+    """Temporarily jail a member by replacing their roles with Tù ngay."""
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
@@ -192,11 +193,14 @@ class SoftbanCog(commands.Cog):
         member: discord.Member,
         reason: str,
     ) -> ActionResult:
-        handcuffed_role = discord.utils.get(guild.roles, name="Handcuffed")
+        handcuffed_role = discord.utils.get(guild.roles, name=SOFTBAN_ROLE_NAME)
         if handcuffed_role is None:
-            return ActionResult(False, "Role Handcuffed không tồn tại.")
+            return ActionResult(False, f"Role {SOFTBAN_ROLE_NAME} không tồn tại.")
         if handcuffed_role >= guild.me.top_role:
-            return ActionResult(False, "Role Handcuffed phải thấp hơn role cao nhất của bot.")
+            return ActionResult(
+                False,
+                f"Role {SOFTBAN_ROLE_NAME} phải thấp hơn role cao nhất của bot.",
+            )
         if handcuffed_role in member.roles:
             return ActionResult(True, f"{member} (`{member.id}`) đã bị nhốt.")
 
@@ -230,7 +234,11 @@ class SoftbanCog(commands.Cog):
                 reason=format_audit_reason(reason, moderator),
             )
         except (discord.Forbidden, discord.HTTPException):
-            logger.exception("Failed to add Handcuffed role target=%s", member.id)
+            logger.exception(
+                "Failed to add %s role target=%s",
+                SOFTBAN_ROLE_NAME,
+                member.id,
+            )
             restorable = [role for role in original_roles if role < guild.me.top_role]
             restored = await self._restore_roles_after_failure(
                 member,
@@ -244,11 +252,14 @@ class SoftbanCog(commands.Cog):
                     )
                 return ActionResult(
                     False,
-                    "Không thể gán role Handcuffed; các role cũ đã được khôi phục.",
+                    f"Không thể gán role {SOFTBAN_ROLE_NAME}; các role cũ đã được khôi phục.",
                 )
             return ActionResult(
                 False,
-                "Không thể gán Handcuffed hoặc tự khôi phục role; dữ liệu role cũ vẫn được giữ.",
+                (
+                    f"Không thể gán {SOFTBAN_ROLE_NAME} hoặc tự khôi phục role; "
+                    "dữ liệu role cũ vẫn được giữ."
+                ),
             )
 
         case_number = await record_case(
@@ -274,7 +285,7 @@ class SoftbanCog(commands.Cog):
         old_role_ids = self.get_old_roles(guild.id, member.id)
         if old_role_ids is None:
             return ActionResult(True, f"Không tìm thấy role cũ cho {member} (`{member.id}`).")
-        handcuffed_role = discord.utils.get(guild.roles, name="Handcuffed")
+        handcuffed_role = discord.utils.get(guild.roles, name=SOFTBAN_ROLE_NAME)
         restorable = []
         for role_id in old_role_ids:
             role = guild.get_role(role_id)
