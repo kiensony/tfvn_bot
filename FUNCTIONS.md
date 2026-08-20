@@ -439,7 +439,7 @@ Duration range: 10 seconds–30 days; max 20 winners.
 | `kick [@user] [reason]` | Kick Members | Mention a member, or reply with argument-free `kick`; choose a preset/custom reason and confirm Yes/No; records case |
 | `ban [@user] [reason]` | Ban Members | Mention a member, or reply with `ban` and no arguments, then use the UI to choose 0–168 hours of recent messages to delete, select a preset or custom reason, and confirm Yes/No; records case |
 | `unban <user_id\|@user> [reason]` | Ban Members | Enter a banned user ID/mention, or reply to their old message with argument-free `unban`; choose an optional unique one-use 7-day reinvite, a preset/custom reason, and confirm Yes/No. The bot uses a public rules/welcome/system/command channel, then DMs the invite or returns it privately to the moderator; reinviting requires moderator and bot Create Invite in that channel. Records case |
-| `softban [@user] [reason]` | Ban Members | Mention/reply target; choose a reason and confirm replacing eligible roles with Handcuffed; stores the previous roles and records case |
+| `softban [@user] [reason]` | Ban Members | Mention/reply target; choose a reason and confirm replacing eligible roles with Tù ngay; stores the previous roles and records case |
 | `unsoftban [@user] [reason]` | Ban Members | Mention/reply target; choose a release reason and confirm restoring the saved roles; records case |
 | `mute [@user] [reason]` | Manage Roles | Mention/reply target; choose a reason and confirm assigning Muted; records case |
 | `unmute [@user] [reason]` | Manage Roles | Mention/reply target; choose a release reason and confirm removing Muted; records case |
