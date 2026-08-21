@@ -18,11 +18,30 @@ from cogs.mod.role import (
     RoleRollView,
     RoleUnrollView,
     RollCog,
+    format_role_copy_result,
     plan_role_copy,
     role_assignment_denial,
     role_removal_denial,
     role_target_denial,
 )
+
+
+def embed_text(embed: discord.Embed) -> str:
+    parts = [embed.title or "", embed.description or ""]
+    for field in embed.fields:
+        parts.extend((field.name, field.value))
+    return "\n".join(parts)
+
+
+def assert_mentions_disabled(
+    testcase: unittest.TestCase,
+    allowed_mentions: discord.AllowedMentions,
+) -> None:
+    testcase.assertIsInstance(allowed_mentions, discord.AllowedMentions)
+    testcase.assertFalse(allowed_mentions.everyone)
+    testcase.assertFalse(allowed_mentions.users)
+    testcase.assertFalse(allowed_mentions.roles)
+    testcase.assertFalse(allowed_mentions.replied_user)
 
 
 class FakeRole:
@@ -463,6 +482,34 @@ class TestRoleCommands(unittest.IsolatedAsyncioTestCase):
 
 
 class TestRoleCopyWorkflow(unittest.IsolatedAsyncioTestCase):
+    async def test_direct_confirmation_attributes_source_and_lists_frozen_roles(self) -> None:
+        guild, moderator, source, target, eligible, second, _ = make_fixture()
+        cog = RollCog(SimpleNamespace())
+        ctx = make_context(guild, moderator)
+
+        await cog.copy_roles.callback(cog, ctx, source, target)
+
+        reply_kwargs = ctx.reply.await_args.kwargs
+        view = reply_kwargs["view"]
+        interaction = make_interaction(guild, moderator)
+        await view.accept_reason(interaction, "Approved copy")
+        self.assertEqual(view.step, "confirm")
+        confirmation_kwargs = interaction.response.edit_message.await_args.kwargs
+        rendered = embed_text(confirmation_kwargs["embed"])
+        self.assertIn("Nguồn", rendered)
+        self.assertIn(str(source), rendered)
+        self.assertIn(str(source.id), rendered)
+        for role in (eligible, second, source.top_role):
+            with self.subTest(role=role.name):
+                self.assertIn(role.name, rendered)
+                self.assertIn(str(role.id), rendered)
+        self.assertFalse(reply_kwargs["mention_author"])
+        assert_mentions_disabled(self, reply_kwargs["allowed_mentions"])
+        assert_mentions_disabled(
+            self,
+            confirmation_kwargs["allowed_mentions"],
+        )
+
     async def test_direct_command_freezes_preview_and_waits_for_yes(self) -> None:
         guild, moderator, source, target, eligible, second, _ = make_fixture()
         cog = RollCog(SimpleNamespace())
@@ -517,6 +564,25 @@ class TestRoleCopyWorkflow(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(view.step, "reason")
         target.add_roles.assert_not_awaited()
 
+        await view.accept_reason(interaction, "Approved copy")
+        self.assertEqual(view.step, "confirm")
+        rendered = embed_text(
+            interaction.response.edit_message.await_args.kwargs["embed"]
+        )
+        self.assertIn("Nguồn", rendered)
+        self.assertIn(str(source), rendered)
+        self.assertIn(str(source.id), rendered)
+        for role_id, role_display in view._frozen_roles:
+            with self.subTest(role_id=role_id):
+                self.assertIn(role_display.split(" (`", 1)[0], rendered)
+                self.assertIn(str(role_id), rendered)
+        assert_mentions_disabled(
+            self,
+            interaction.response.edit_message.await_args.kwargs[
+                "allowed_mentions"
+            ],
+        )
+
     async def test_confirmation_uses_frozen_roles_and_rechecks_live_state(self) -> None:
         guild, moderator, source, target, eligible, second, _ = make_fixture()
         cog = RollCog(SimpleNamespace())
@@ -554,6 +620,102 @@ class TestRoleCopyWorkflow(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result.completed)
         self.assertIn("Đã sao chép **1**", result.message)
         self.assertIn("Lỗi: 1 role", result.message)
+
+    async def test_completed_response_lists_only_roles_actually_copied(self) -> None:
+        guild, moderator, source, target, eligible, second, managed = make_fixture()
+        existing = guild.get_role(202)
+        cog = RollCog(SimpleNamespace())
+        view = RoleCopyWorkflowView(
+            author_id=moderator.id,
+            target=target,
+            source=source,
+            plan=plan_role_copy(guild, moderator, source, target),
+            submitter=cog._submit_role_copy,
+        )
+        # Exercise every outcome without relying on the initial plan filtering:
+        # copied, already present, unmanageable, failed, and not attempted.
+        view._frozen_roles = tuple(
+            (role.id, f"{role.name} (`{role.id}`)")
+            for role in (eligible, existing, managed, second, source.top_role)
+        )
+        target.add_roles.side_effect = [None, make_forbidden_exception()]
+        interaction = make_interaction(guild, moderator)
+        await view.accept_reason(interaction, "Approved copy")
+
+        with self.assertLogs("cogs.mod.role", level="WARNING"):
+            await view.confirm(interaction)
+
+        result_kwargs = interaction.edit_original_response.await_args.kwargs
+        content = result_kwargs["content"]
+        self.assertLessEqual(len(content), 2000)
+        self.assertIn(source.mention, content)
+        self.assertIn(target.mention, content)
+        self.assertIn("Role đã sao chép", content)
+        self.assertIn(eligible.name, content)
+        self.assertIn(str(eligible.id), content)
+        for role in (existing, managed, second, source.top_role):
+            with self.subTest(not_copied=role.name):
+                self.assertNotIn(role.name, content)
+                self.assertNotIn(str(role.id), content)
+        self.assertIn("Bỏ qua", content)
+        self.assertIn("Lỗi: 1 role", content)
+        self.assertIn("Chưa thử: 1 role", content)
+        assert_mentions_disabled(self, result_kwargs["allowed_mentions"])
+
+        audit_reason = target.add_roles.await_args_list[0].kwargs["reason"]
+        self.assertIn(f"source={source.id}", audit_reason)
+        self.assertIn(f"target={target.id}", audit_reason)
+        self.assertLessEqual(len(audit_reason), 512)
+
+    async def test_long_reason_keeps_source_attribution_in_audit_log(self) -> None:
+        guild, moderator, source, target, eligible, _, _ = make_fixture()
+        cog = RollCog(SimpleNamespace())
+        request = RoleCopyRequest(
+            source_id=source.id,
+            target_id=target.id,
+            role_ids=(eligible.id,),
+            reason="x" * 1000,
+        )
+
+        result = await cog._submit_role_copy(
+            make_interaction(guild, moderator),
+            request,
+        )
+
+        self.assertTrue(result.completed)
+        audit_reason = target.add_roles.await_args.kwargs["reason"]
+        self.assertTrue(audit_reason.startswith(f"rolecopy source={source.id}"))
+        self.assertIn(f"target={target.id}", audit_reason)
+        self.assertLessEqual(len(audit_reason), 512)
+
+    def test_completed_role_table_is_bounded_for_discord_message(self) -> None:
+        guild, _, source, target, _, _, _ = make_fixture()
+        copied = [
+            FakeRole(
+                guild,
+                10_000 + index,
+                20,
+                name=f"copied-{index}-" + ("x" * 80),
+            )
+            for index in range(100)
+        ]
+
+        content = format_role_copy_result(
+            source,
+            target,
+            copied=copied,
+            failed=[],
+            not_attempted=[],
+        )
+
+        self.assertLessEqual(len(content), 2000)
+        self.assertIn("Role đã sao chép", content)
+        self.assertIn("copied-0-", content)
+        self.assertIn(str(copied[0].id), content)
+        self.assertIn(source.mention, content)
+        self.assertIn(target.mention, content)
+        self.assertIn("role khác", content)
+        self.assertEqual(content.count("```"), 2)
 
     async def test_execution_lock_rejects_a_second_confirmation(self) -> None:
         guild, moderator, source, target, eligible, _, _ = make_fixture()

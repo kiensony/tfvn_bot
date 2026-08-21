@@ -31,6 +31,8 @@ ROLE_ROLL_SELECT_CUSTOM_ID = "roleroll:field:role_id"
 ROLE_UNROLL_SELECT_CUSTOM_ID = "roleunroll:field:role_id"
 ROLE_CHANGE_COOLDOWN_SECONDS = 5
 ROLE_COPY_COOLDOWN_SECONDS = 15
+ROLE_COPY_MESSAGE_MAX_LENGTH = 2000
+ROLE_TABLE_NAME_MAX_LENGTH = 48
 
 ROLE_ASSIGN_REASON_CONFIG = ReasonConfig(
     presets=(
@@ -327,20 +329,27 @@ def format_role_copy_result(
     unmanageable: int = 0,
     already_present: int = 0,
     stop_reason: str | None = None,
+    reason: str | None = None,
 ) -> str:
     if copied:
         lines = [
-            (
-                f"Đã sao chép **{len(copied)}** role từ {source.mention} "
-                f"sang {target.mention}."
-            )
+            f"Đã sao chép **{len(copied)}** role.",
         ]
     else:
-        lines = [
-            f"Không có role mới nào được sao chép từ {source.mention} "
-            f"sang {target.mention}."
-        ]
+        lines = ["Không có role mới nào được sao chép."]
 
+    lines.extend(
+        (
+            f"Nguồn: {source.mention} (`{source.id}`)",
+            f"Đích: {target.mention} (`{target.id}`)",
+        )
+    )
+    if reason is not None:
+        lines.append(
+            f"Lý do: {safe_ui_text(clean_case_reason(reason), max_length=300)}"
+        )
+
+    detail_lines: list[str] = []
     skipped_parts: list[str] = []
     if already_present:
         skipped_parts.append(f"{already_present} role đích đã có")
@@ -349,14 +358,69 @@ def format_role_copy_result(
     if unmanageable:
         skipped_parts.append(f"{unmanageable} role không thể quản lý")
     if skipped_parts:
-        lines.append("Bỏ qua: " + " · ".join(skipped_parts) + ".")
+        detail_lines.append("Bỏ qua: " + " · ".join(skipped_parts) + ".")
     if failed or not_attempted:
-        lines.append(
+        detail_lines.append(
             f"Lỗi: {len(failed)} role · Chưa thử: {len(not_attempted)} role."
         )
     if stop_reason is not None:
-        lines.append(stop_reason)
+        detail_lines.append(stop_reason)
+
+    if copied:
+        heading = f"**Role đã sao chép ({len(copied)})**"
+        fixed_text = "\n".join(lines + [heading] + detail_lines)
+        table_budget = max(
+            0,
+            ROLE_COPY_MESSAGE_MAX_LENGTH - len(fixed_text) - 1,
+        )
+        role_table = format_role_table(
+            tuple((role.id, role.name) for role in copied),
+            max_length=table_budget,
+        )
+        lines.extend((heading, role_table))
+    lines.extend(detail_lines)
     return "\n".join(lines)
+
+
+def _safe_role_table_name(value: str) -> str:
+    normalized = " ".join(value.split()).replace("`", "ˋ").replace("|", "¦")
+    if not normalized:
+        normalized = "Role không có tên"
+    if len(normalized) <= ROLE_TABLE_NAME_MAX_LENGTH:
+        return normalized
+    return f"{normalized[: ROLE_TABLE_NAME_MAX_LENGTH - 1]}…"
+
+
+def format_role_table(
+    roles: tuple[tuple[int, str], ...],
+    *,
+    max_length: int,
+) -> str:
+    """Return a bounded plain-text table of role names and IDs."""
+    if not roles or max_length <= 0:
+        return ""
+
+    prefix = ("```text", "# | Role | ID", "--|------|---")
+    closing = "```"
+    rendered_rows: list[str] = []
+    for index, (role_id, role_name) in enumerate(roles, start=1):
+        row = f"{index} | {_safe_role_table_name(role_name)} | {role_id}"
+        candidate_rows = rendered_rows + [row]
+        omitted = len(roles) - len(candidate_rows)
+        suffix = [f"… | +{omitted} role khác |"] if omitted else []
+        candidate = "\n".join((*prefix, *candidate_rows, *suffix, closing))
+        if len(candidate) > max_length:
+            break
+        rendered_rows.append(row)
+
+    omitted = len(roles) - len(rendered_rows)
+    suffix = [f"… | +{omitted} role khác |"] if omitted else []
+    table = "\n".join((*prefix, *rendered_rows, *suffix, closing))
+    if len(table) <= max_length:
+        return table
+
+    fallback = f"{len(roles)} role; bảng vượt giới hạn hiển thị."
+    return fallback[:max_length]
 
 
 def format_frozen_role_preview(
@@ -365,26 +429,12 @@ def format_frozen_role_preview(
     if not frozen_roles:
         return "Không có role đủ điều kiện."
 
-    displays = [
-        safe_ui_text(display, max_length=80) for _, display in frozen_roles
-    ]
-    text = "\n".join(displays)
-    if len(text) <= 1024:
-        return text
-
-    kept: list[str] = []
-    for index, display in enumerate(displays):
-        leftover = len(displays) - index - 1
-        suffix = f"\n… +{leftover} role" if leftover else ""
-        trial = "\n".join(kept + [display]) + suffix
-        if len(trial) > 1024:
-            leftover = len(displays) - len(kept)
-            result = "\n".join(kept)
-            if leftover:
-                result = f"{result}\n… +{leftover} role"
-            return result[:1024]
-        kept.append(display)
-    return "\n".join(kept)[:1024]
+    role_rows = []
+    for role_id, display in frozen_roles:
+        suffix = f" (`{role_id}`)"
+        role_name = display[: -len(suffix)] if display.endswith(suffix) else display
+        role_rows.append((role_id, role_name))
+    return format_role_table(tuple(role_rows), max_length=1024)
 
 
 async def submit_role_change(
@@ -652,6 +702,10 @@ class RoleCopyWorkflowView(ConfigurableModerationView):
         self._frozen_source_id: int | None = (
             source.id if source is not None else None
         )
+        self._frozen_source_name: str | None = (
+            str(source) if source is not None else None
+        )
+        self._source_selected_in_form = source is None
         self._frozen_roles: tuple[tuple[int, str], ...] = ()
         if plan is not None:
             self._frozen_roles = tuple(
@@ -663,7 +717,7 @@ class RoleCopyWorkflowView(ConfigurableModerationView):
             fields = (
                 UserField(
                     "source_id",
-                    "Thành viên nguồn",
+                    "Nguồn sao chép",
                     placeholder="Chọn thành viên nguồn",
                 ),
             )
@@ -717,6 +771,20 @@ class RoleCopyWorkflowView(ConfigurableModerationView):
 
     def build_embed(self) -> discord.Embed:
         embed = super().build_embed()
+        if (
+            self._frozen_source_id is not None
+            and self._frozen_source_name is not None
+            and self.step in {"reason", "confirm"}
+            and not (self._source_selected_in_form and self.step == "confirm")
+        ):
+            embed.add_field(
+                name="Nguồn sao chép",
+                value=(
+                    f"{safe_ui_text(self._frozen_source_name, max_length=100)} "
+                    f"(`{self._frozen_source_id}`)"
+                ),
+                inline=False,
+            )
         if self._frozen_roles and self.step in {"reason", "confirm"}:
             embed.add_field(
                 name=f"Role sẽ sao chép ({len(self._frozen_roles)})",
@@ -786,9 +854,11 @@ class RoleCopyWorkflowView(ConfigurableModerationView):
                 return
 
             self._frozen_source_id = source.id
+            self._frozen_source_name = str(source)
             self._frozen_roles = tuple(
                 (role.id, f"{role.name} (`{role.id}`)") for role in plan.eligible
             )
+            answer = FormAnswer(source.id, f"{source} (`{source.id}`)")
 
         await super()._accept_answer_unlocked(interaction, key, answer)
 
@@ -870,7 +940,13 @@ class RollCog(commands.Cog):
         remaining = [
             guild.get_role(role_id) for role_id in request.role_ids
         ]
-        audit_reason = format_audit_reason(request.reason, moderator)
+        audit_reason = format_audit_reason(
+            (
+                f"rolecopy source={source.id} target={target.id} · "
+                f"{request.reason}"
+            ),
+            moderator,
+        )
         mutation_key = (guild.id, target.id)
         if mutation_key in ACTIVE_ROLE_MUTATION_TARGETS:
             return ActionResult(
@@ -956,6 +1032,7 @@ class RollCog(commands.Cog):
                 unmanageable=unmanageable,
                 already_present=already_present,
                 stop_reason=stop_reason,
+                reason=request.reason,
             ),
         )
 
@@ -1180,7 +1257,10 @@ class RollCog(commands.Cog):
 
     @commands.command(
         name="rolecopy",
-        help="Mở bảng xem kế hoạch sao chép role rồi xác nhận.",
+        help=(
+            "Mở bảng xem nguồn, đích và role sẽ sao chép; "
+            "kết quả liệt kê các role đã sao chép."
+        ),
         cooldown_after_parsing=True,
     )
     @commands.guild_only()

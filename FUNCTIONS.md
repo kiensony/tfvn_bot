@@ -450,7 +450,7 @@ Duration range: 10 seconds–30 days; max 20 winners.
 | `nickchange [@user] [new_nick]` | Manage Nicknames | Mention/reply target; enter a nickname and audit reason, then confirm Yes/No |
 | `roleroll [@user] [reason]` | Manage Roles | Mention/reply target; select a role and reason, review, then confirm assignment |
 | `roleunroll [@user] [reason]` | Manage Roles | Mention/reply target; select a role and reason, review, then confirm removal |
-| `rolecopy [@source] [@target] [reason]` | Manage Roles | Directly provide both members, or reply to the destination with argument-free `rolecopy` and select the source; review the frozen eligible-role plan and confirm |
+| `rolecopy [@source] [@target] [reason]` | Manage Roles | Directly provide both members, or reply to the destination with argument-free `rolecopy` and select the source; confirmation shows source, destination, reason, and the frozen eligible-role table, while the completed reply lists the roles actually copied |
 
 ### Messages & channel controls
 

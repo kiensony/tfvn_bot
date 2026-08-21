@@ -952,7 +952,7 @@ HELP_TOPICS = (
                         "rolecopy",
                         (
                             "Hai mention, hoặc reply đích rồi chọn nguồn; preview và "
-                            "xác nhận role đủ điều kiện — Manage Roles."
+                            "xác nhận bảng role; kết quả liệt kê role đã copy — Manage Roles."
                         ),
                         "rolecopy [@source] [@target] [lý do] · reply + rolecopy",
                     ),
