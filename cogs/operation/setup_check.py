@@ -55,6 +55,7 @@ class SetupCheckCog(commands.Cog):
             "read_message_history": "Read Message History",
         }
         feature_permissions = {
+            "create_instant_invite": "Create Invite",
             "manage_roles": "Manage Roles",
             "manage_channels": "Manage Channels",
             "manage_messages": "Manage Messages",

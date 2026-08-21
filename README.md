@@ -12,7 +12,7 @@ For a complete list of commands and automatic features, see [FUNCTIONS.md](FUNCT
 ## Highlights
 
 - **Community management:** welcome and differentiated leave/kick/ban announcements, verification, AFK tracking, birthdays, reminders, votes, and giveaways.
-- **Moderation:** kick, ban, soft-ban, mute, timeout, warnings, numbered audit cases, message cleanup, slow mode, nickname/role tools, and the Area 51 guard workflow.
+- **Moderation:** kick, ban/unban, soft-ban, mute, timeout, warnings, numbered audit cases, message cleanup, slow mode, nickname/role tools, and the Area 51 guard workflow.
 - **Booster perks:** custom roles and voice rooms, with automatic cleanup after a member stops boosting.
 - **Games and economy:** the global, persistent Tiên Lộ AFK cultivation game, daily Trap Coins, a configurable role/badge shop, transaction history, interactive Blackjack and five-card-draw Poker, slots, coin flips, Sic Bo, Vietnamese word chaining (`noitu`), and Vua Tiếng Việt (`vtv`).
 - **Social and fun commands:** member interactions, rankings, avatars, random members, community-themed cards, and a collection of playful “meter” commands.
@@ -45,7 +45,7 @@ In the Discord Developer Portal, enable these privileged gateway intents for the
 - **Server Members Intent**
 - **Message Content Intent**
 
-The bot also needs the Discord permissions used by the cogs you enable. For example, moderation and booster features require permissions such as Manage Messages, Manage Roles, Manage Channels, Moderate Members, Kick Members, Ban Members, or View Audit Log. View Audit Log lets departure announcements distinguish moderator kicks from members leaving voluntarily.
+The bot also needs the Discord permissions used by the cogs you enable. For example, moderation and booster features require permissions such as Manage Messages, Manage Roles, Manage Channels, Create Invite, Moderate Members, Kick Members, Ban Members, or View Audit Log. View Audit Log lets departure announcements distinguish moderator kicks from members leaving voluntarily. Optional unban reinvites use a public rules, welcome, system, or command channel and require both the moderator and bot to have Create Invite there.
 
 ## Local development
 
@@ -213,7 +213,7 @@ menu focused on their respective topics.
 | Community | `afk`, `jobremind add`, `birthday set`, `vote`, `giveaway` |
 | Economy and games | `daily`, `user_balance`, `user_transactions`, `shop`, `blackjack`, `poker`, `slot`, `flip_coin`, `sicbo_start`, `noitu`, `vtv` |
 | Tiên Lộ | `tutien`, `tutien thucong`, `tutien dotpha`, `tutien bicanh`, `tutien thiluyen`, `tutien doido` |
-| Moderation | `kick`, `ban`, `softban`, `mute`, `timeout`, `warn`, `case`, `purge`, `slowmode`, `verified` |
+| Moderation | `kick`, `ban`, `unban`, `softban`, `mute`, `timeout`, `warn`, `case`, `purge`, `slowmode`, `verified` |
 | Operations | `ping`, `server_stats`, `setup check` |
 | Booster tools | `custom_role`, `update_custom_role`, `custom_room` |
 | Social and fun | `kiss`, `hug`, `pat`, `avatar`, `quote`, `rank`, `ship`, `aura`, `redflag`, configurable `triggerreply`, and other meter commands |
@@ -274,7 +274,7 @@ unequipped.
 
 ### Moderation cases
 
-Successful ban, kick, warn, timeout, mute, and soft-ban actions create a
+Successful ban, unban, kick, warn, timeout, mute, and soft-ban actions create a
 guild-scoped numbered case. Moderators can use:
 
 ```text
@@ -286,6 +286,20 @@ guild-scoped numbered case. Moderators can use:
 
 Reason and status edits retain an edit history. Status can be `open`,
 `resolved`, `appealed`, or `void`.
+
+Every state-changing moderation command except the intentionally unchanged
+`verified` / `unverified` workflow now ends with an explicit Yes/No guard.
+Single-member actions can target a mention or the author of a same-channel reply;
+reply mode is argument-free so malformed input cannot silently change the target.
+Discord and database mutations happen only after the moderator completes the
+action-specific form and confirms, at which point permissions, hierarchy, target
+state, and selected resources are checked again. Message cleanup is anchored
+before the invocation message so later UI/chat traffic does not change its scope.
+
+The unban UI can optionally create a unique one-use invite valid for seven days.
+The bot tries to DM it to the unbanned user and otherwise shows it privately to
+the moderator for manual delivery. Reinviting is best-effort after the unban and
+case are complete, so an invite-service failure never repeats the moderation action.
 
 Run `!tf setup check` after configuration to inspect MongoDB connectivity,
 loaded cogs, channel/role IDs, bot permissions, and role hierarchy.
