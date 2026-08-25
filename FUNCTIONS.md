@@ -230,6 +230,9 @@ account write.
 | `slot` | Everyone | Slot machine; costs **5** Trap Coins; logs debit transaction |
 | `flip_coin <head\|tail> <n>` | Everyone | Coin flip bet of `n` Trap Coins (needs ≥5 TC to play); win pays 2× stake |
 | `sicbo_start` | Everyone | Reaction-based Sic Bo round (Big / Small / Triple); payout wiring is incomplete |
+| `crocodile` | Everyone (guild only) | Show the caller's newest 10 pending or active Crocodile Dentist games in the current server |
+| `crocodile challenge [teeth] @user1 [@user2 @user3 @user4]` | Everyone (guild only) | Create a 2–5 player challenge; `teeth` must precede the mentions, defaults to 13, and accepts 2–25 |
+| `crocodile fire <game_id>` | Host (guild only) | Recreate the authoritative invitation or gameplay panel for an open game in the current channel without resetting its state or deadlines |
 | `noitu` | Channel-bound | Word-chain rules embed |
 | `noitu status` | Channel-bound | Current word and used-word list |
 | `noitu hint` | Channel-bound | Hint for the chain |
@@ -240,10 +243,18 @@ account write.
 | `vtv next` | Channel-bound | Start a new letter-scramble round |
 | `vtv hint` | Channel-bound | Reveal a letter hint |
 
-**Background:** `noitu` and `vtv` also accept plain messages in their configured channels for gameplay.
+**Background:** Crocodile Dentist stores pending and active games in
+`crocodile_games`, so invitation responses, turns, pressed teeth, and the hidden
+dangerous tooth survive restarts. Invitees have five minutes to respond; declined
+or unanswered invitees are removed, and the game starts only if at least one
+invitee accepts. One hidden dangerous tooth ends the game immediately; otherwise
+turns cycle in host-first order. Active games cancel after seven days without a
+valid tooth press. `noitu` and `vtv` also accept plain messages in their configured
+channels for gameplay.
 
 **Module:** `cogs.minigames.*`; the interactive card-game cogs are
-`cogs.minigames.blackjack.blackjack` and `cogs.minigames.poker.poker`.
+`cogs.minigames.blackjack.blackjack` and `cogs.minigames.poker.poker`; persistent
+Crocodile Dentist lives in `cogs.minigames.crocodile_dentist.crocodile`.
 
 ---
 
@@ -554,6 +565,7 @@ tutien bicanh, tutien bicanh start, tutien bicanh claim, tutien bicanh cancel,
 tutien doido, tutien doido mua, tutien doido ban,
 tutien profile, tutien top, tutien riengtu
 blackjack, poker, slot, flip_coin, sicbo_start
+crocodile, crocodile challenge, crocodile fire
 noitu, noitu status, noitu hint, noitu end, noitu analyze
 vtv, vtv status, vtv next, vtv hint
 gay, les, ship, penisize, aura, redflag, based, brainrot, clown, cope, cringe, delulu,

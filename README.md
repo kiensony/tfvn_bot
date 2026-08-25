@@ -14,10 +14,10 @@ For a complete list of commands and automatic features, see [FUNCTIONS.md](FUNCT
 - **Community management:** welcome and differentiated leave/kick/ban announcements, verification, AFK tracking, birthdays, reminders, votes, and giveaways.
 - **Moderation:** kick, ban/unban, soft-ban, mute, timeout, warnings, numbered audit cases, message cleanup, slow mode, nickname/role tools, and the Area 51 guard workflow.
 - **Booster perks:** custom roles and voice rooms, with automatic cleanup after a member stops boosting.
-- **Games and economy:** the global, persistent Tiên Lộ AFK cultivation game, daily Trap Coins, a configurable role/badge shop, transaction history, interactive Blackjack and five-card-draw Poker, slots, coin flips, Sic Bo, Vietnamese word chaining (`noitu`), and Vua Tiếng Việt (`vtv`).
+- **Games and economy:** the global, persistent Tiên Lộ AFK cultivation game, daily Trap Coins, a configurable role/badge shop, transaction history, interactive Blackjack and five-card-draw Poker, persistent multiplayer Crocodile Dentist, slots, coin flips, Sic Bo, Vietnamese word chaining (`noitu`), and Vua Tiếng Việt (`vtv`).
 - **Social and fun commands:** member interactions, rankings, avatars, random members, community-themed cards, and a collection of playful “meter” commands.
 - **Optional age-restricted features:** NSFW interactions and Rule34/Gelbooru searches, guarded by Discord's NSFW channel setting.
-- **Persistent state:** MongoDB-backed balances, cultivation profiles, interactions, game context, reminders, settings, giveaways, booster resources, and moderation data.
+- **Persistent state:** MongoDB-backed balances, cultivation profiles, interactions, Crocodile Dentist games, game context, reminders, settings, giveaways, booster resources, and moderation data.
 
 ## How it works
 
@@ -211,7 +211,7 @@ menu focused on their respective topics.
 | --- | --- |
 | General | `help [topic]`, `hello`, `invite`, `verify`, `ping`, `server_stats` |
 | Community | `afk`, `jobremind add`, `birthday set`, `vote`, `giveaway` |
-| Economy and games | `daily`, `user_balance`, `user_transactions`, `shop`, `blackjack`, `poker`, `slot`, `flip_coin`, `sicbo_start`, `noitu`, `vtv` |
+| Economy and games | `daily`, `user_balance`, `user_transactions`, `shop`, `blackjack`, `poker`, `crocodile challenge`, `slot`, `flip_coin`, `sicbo_start`, `noitu`, `vtv` |
 | Tiên Lộ | `tutien`, `tutien thucong`, `tutien dotpha`, `tutien bicanh`, `tutien thiluyen`, `tutien doido` |
 | Moderation | `kick`, `ban`, `unban`, `softban`, `mute`, `timeout`, `warn`, `case`, `purge`, `slowmode`, `verified` |
 | Operations | `ping`, `server_stats`, `setup check` |
@@ -257,6 +257,31 @@ IDs and stays disabled; it does not guess how to merge Trap Coin balances.
 
 See [CULTIVATE_GAME_PLAN.md](CULTIVATE_GAME_PLAN.md) for the complete design and
 [FUNCTIONS.md](FUNCTIONS.md) for every command.
+
+### Crocodile Dentist
+
+Create a guild challenge for one to four other members, optionally choosing
+between 2 and 25 teeth (13 by default):
+
+```text
+!tf crocodile challenge @user1 @user2
+!tf crocodile challenge 20 @user1 @user2 @user3
+```
+
+The host is confirmed automatically, and the challenge waits for every invitee
+to accept or decline for up to five minutes. Declined and unanswered members are
+removed, and the game starts only when at least one invitee accepts. Players then
+press one unselected tooth per turn in host-first order. Safe teeth advance the
+turn, while the one hidden dangerous tooth immediately makes that player lose and
+everyone else win. Members may participate in multiple open games.
+
+Pending and active state is authoritative in MongoDB's `crocodile_games`
+collection, including confirmations, turns, selected teeth, and the hidden tooth,
+so play can continue after a bot restart. Use `!tf crocodile` to list your newest
+10 open games in the current server and `!tf crocodile fire <game_id>` as the host
+to recreate the current panel; it supersedes the old panel without changing game
+state or deadlines. Active games cancel after seven days without a valid tooth
+press; firing a panel does not extend that deadline.
 
 ### Trap Coin shop
 
@@ -332,8 +357,9 @@ python -m unittest discover -s test -p "test_*.py"
 ```
 
 The automated tests cover cultivation calculations and state transitions, card-game
-rules and wagers, the categorized help menu, meter formatting, quote-card rendering,
-cog flags, and validation helpers used by the shop, cases, and setup diagnostics.
+rules and wagers, persistent Crocodile Dentist state and UI behavior, the categorized
+help menu, meter formatting, quote-card rendering, cog flags, and validation helpers
+used by the shop, cases, and setup diagnostics.
 
 ## Project structure
 
@@ -351,7 +377,7 @@ tfvn_bot/
 │   ├── cultivation/        # Tiên Lộ progression, AFK calculations, PvE, and economy
 │   ├── mod/                # Moderation and verification
 │   ├── booster/            # Booster custom roles/rooms and cleanup
-│   ├── minigames/          # Economy/card games and Vietnamese word games
+│   ├── minigames/          # Economy/card, persistent multiplayer, and Vietnamese word games
 │   ├── funny_things/       # Fun meters, cards, and birthday features
 │   ├── interaction/        # Social and optional NSFW interactions
 │   └── ...

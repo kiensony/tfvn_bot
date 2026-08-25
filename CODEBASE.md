@@ -66,6 +66,7 @@ tfvn_bot/
 ├── test/
 │   ├── test_card_games.py          Blackjack, Poker, deck, and payout rules
 │   ├── test_card_game_economy.py   Atomic card-game wager and refund helpers
+│   ├── test_crocodile_dentist.py   Crocodile rules, persistence, commands, and UI behavior
 │   ├── test_community_features.py  Pure validation/time/helper regression tests
 │   ├── test_cultivation.py         Tiên Lộ calculations, state, UI, and persistence tests
 │   ├── test_help_menu.py           Help catalog completeness, limits, gates, and UI tests
@@ -144,6 +145,9 @@ tfvn_bot/
     │   ├── slot_machine/slot_machine.py
     │   │                                 Slot betting, payouts, and transaction logs
     │   ├── sicbo/sicbo.py             Reaction-based Sic Bo rounds
+    │   ├── crocodile_dentist/
+    │   │   ├── _crocodile_helpers.py  Pure challenge parsing and game-state transitions
+    │   │   └── crocodile.py           Persistent invitations, tooth UI, expiry, and commands
     │   ├── word_connect/word_connect.py
     │   │                                 Persistent Vietnamese word-chain game
     │   └── vietnamese_king/vietnamese_king.py
@@ -207,8 +211,9 @@ MongoDB collections are created lazily. Major groups are:
 - AFK and moderation: `afk_reminders`, `afk_pings`, `discipline_logs`, `old_roles`, `warnings`, `moderation_cases`
 - Shared sequence counters: `feature_counters`
 - Games and boosters: card-game wagers use `user_accounts` plus `transaction_logs`;
-  other state uses `context`, `sicbo_active_games`, `booster_custom_roles`, and
-  `booster_custom_rooms`
+  Crocodile Dentist uses `crocodile_games` plus guild-scoped IDs from
+  `feature_counters` keys named `crocodile_game:<guild_id>`; other state uses
+  `context`, `sicbo_active_games`, `booster_custom_roles`, and `booster_custom_rooms`
 
 Discord tokens, database credentials, and external API credentials belong in
 environment variables. Runtime database selection uses `DB_NAME`.
@@ -221,6 +226,13 @@ balances atomically. Writes use a cultivation revision for compare-and-swap and
 idempotent request IDs, with at most three retries. The cog requires a unique
 `user_accounts.user_id` index; if duplicate account documents prevent the index,
 it logs the problem and remains disabled rather than merging balances.
+
+Crocodile Dentist treats `crocodile_games` as authoritative for both pending
+invitations and active turns. Persistent Discord views dispatch stable invitation
+and tooth custom IDs after restart, while revision and canonical-message guards
+prevent duplicate responses, concurrent tooth presses, and stale replacement
+panels from changing state. A background sweep and command/interaction reads settle
+five-minute invitation deadlines and seven-day active-game inactivity expiry.
 
 Commands decorated with `@BetaFunction` are registered normally in any runtime,
 but the callback requires the invoking member to hold at least one role in

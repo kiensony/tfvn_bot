@@ -464,7 +464,7 @@ HELP_TOPICS = (
         key="games",
         label="Trò chơi",
         emoji="🎮",
-        option_description="Casino, Blackjack, Poker và game chữ",
+        option_description="Casino, Cá sấu nha sĩ và game chữ",
         title="Trò chơi",
         description="Game dùng lệnh và game nhận câu trả lời trực tiếp trong kênh cấu hình.",
         color=0x2ECC71,
@@ -497,6 +497,33 @@ HELP_TOPICS = (
                             "hiện không đặt cược hoặc trả Trap Coin."
                         ),
                     ),
+                ),
+            ),
+            HelpSection(
+                name="Cá sấu nha sĩ",
+                entries=(
+                    _entry(
+                        "crocodile",
+                        "Xem tối đa 10 ván đang chờ hoặc đang chơi của bạn trong server.",
+                    ),
+                    _entry(
+                        "crocodile challenge",
+                        (
+                            "Mời 1–4 người chơi; số răng tùy chọn phải đứng trước "
+                            "mention (mặc định 13, cho phép 2–25)."
+                        ),
+                        "crocodile challenge [số_răng] @user1 [@user2 @user3 @user4]",
+                    ),
+                    _entry(
+                        "crocodile fire",
+                        "Chủ phòng tạo lại bảng xác nhận hoặc bàn chơi của một ván còn mở.",
+                        "crocodile fire <game_id>",
+                    ),
+                ),
+                note=(
+                    "Lời mời chờ phản hồi tối đa 5 phút. Mỗi lượt chọn một "
+                    "răng; răng nguy hiểm kết thúc ván. Ván đang chơi hết hạn "
+                    "sau 7 ngày không có lượt hợp lệ."
                 ),
             ),
             HelpSection(
