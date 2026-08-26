@@ -40,11 +40,14 @@ Examples below use that default. Replace with your configured prefix if differen
 | `ping` | Everyone | Heartbeat / liveness reply |
 | `beta_preview` | Beta | Confirms the member has a configured Beta role |
 | `server_stats` | Administrator | In-memory uptime, command, and error counts since process start; 10s per-guild cooldown |
+| `bot_status` | Administrator | Opens the bot/server health dashboard with refresh, guild command audit, CSV export, and guarded log-pruning controls |
 | `leave` | Administrator | Makes the bot leave the current guild |
 | `setup` / `diagnose` | Manage Guild (subcommands) | Setup diagnostics group |
 | `setup check` | Manage Guild | Checks database, permissions, IDs, and cog health |
 
 **Module:** `cogs.general`, `cogs.operation.*`
+
+`bot_status` shows readiness, environment, uptime, Discord latency, guild/member/channel totals, MongoDB health, retained log count, and recent command outcomes. Audit browsing and CSV/prune responses are private to the administrator. Audit and export ranges are 7, 30, or 90 days, or all retained records; exports above 100,000 rows must use a narrower range. Pruning can remove records older than 30, 90, or 180 days, or clear the guild's retained history after an additional confirmation. Recognized guild prefix commands and dashboard export/prune actions are stored in the guild-scoped `operation_logs` collection; direct messages and unknown commands are not logged.
 
 ---
 
@@ -550,7 +553,7 @@ These modules support features but are not discovered as extensions (leading `_`
 
 ```
 help, mod, nsfw
-hello, invite, verify, ping, beta_preview, server_stats, leave
+hello, invite, verify, ping, beta_preview, server_stats, bot_status, leave
 setup, setup check
 triggerreply, triggerreply add, triggerreply update, triggerreply list, triggerreply remove
 afk, afk dynamic, afk time, afk clear, afk check

@@ -16,8 +16,9 @@ For a complete list of commands and automatic features, see [FUNCTIONS.md](FUNCT
 - **Booster perks:** custom roles and voice rooms, with automatic cleanup after a member stops boosting.
 - **Games and economy:** the global, persistent Tiên Lộ AFK cultivation game, daily Trap Coins, a configurable role/badge shop, transaction history, interactive Blackjack and five-card-draw Poker, persistent multiplayer Crocodile Dentist, slots, coin flips, Sic Bo, Vietnamese word chaining (`noitu`), and Vua Tiếng Việt (`vtv`).
 - **Social and fun commands:** member interactions, rankings, avatars, random members, community-themed cards, and a collection of playful “meter” commands.
+- **Operations:** an Administrator dashboard for bot/server health, guild command auditing, CSV export, and guarded log pruning.
 - **Optional age-restricted features:** NSFW interactions and Rule34/Gelbooru searches, guarded by Discord's NSFW channel setting.
-- **Persistent state:** MongoDB-backed balances, cultivation profiles, interactions, Crocodile Dentist games, game context, reminders, settings, giveaways, booster resources, and moderation data.
+- **Persistent state:** MongoDB-backed balances, cultivation profiles, interactions, Crocodile Dentist games, game context, reminders, settings, giveaways, booster resources, moderation data, and guild command audit logs.
 
 ## How it works
 
@@ -214,7 +215,7 @@ menu focused on their respective topics.
 | Economy and games | `daily`, `user_balance`, `user_transactions`, `shop`, `blackjack`, `poker`, `crocodile challenge`, `slot`, `flip_coin`, `sicbo_start`, `noitu`, `vtv` |
 | Tiên Lộ | `tutien`, `tutien thucong`, `tutien dotpha`, `tutien bicanh`, `tutien thiluyen`, `tutien doido` |
 | Moderation | `kick`, `ban`, `unban`, `softban`, `mute`, `timeout`, `warn`, `case`, `purge`, `slowmode`, `verified` |
-| Operations | `ping`, `server_stats`, `setup check` |
+| Operations | `ping`, `server_stats`, `bot_status`, `setup check` |
 | Booster tools | `custom_role`, `update_custom_role`, `custom_room` |
 | Social and fun | `kiss`, `hug`, `pat`, `avatar`, `quote`, `rank`, `ship`, `aura`, `redflag`, configurable `triggerreply`, and other meter commands |
 | Automatic features | Welcome and leave/kick/ban announcements, AFK monitoring, reminders, content filtering, scheduled cleanup, and persistent interaction handling |
@@ -328,6 +329,12 @@ case are complete, so an invite-service failure never repeats the moderation act
 
 Run `!tf setup check` after configuration to inspect MongoDB connectivity,
 loaded cogs, channel/role IDs, bot permissions, and role hierarchy.
+
+Administrators can run `!tf bot_status` for an interactive health dashboard without
+changing the existing `!tf server_stats` report. The dashboard can browse recognized
+guild command outcomes, export retained records as CSV, and prune old records after
+confirmation. These records are guild-scoped in MongoDB's `operation_logs` collection;
+direct messages and unknown commands are not retained.
 
 ## Docker
 
