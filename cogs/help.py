@@ -1085,6 +1085,13 @@ HELP_TOPICS = (
                         ),
                     ),
                     _entry(
+                        "bot_status",
+                        (
+                            "Dashboard trạng thái bot, audit command, tải CSV và dọn log "
+                            "— Administrator."
+                        ),
+                    ),
+                    _entry(
                         "leave",
                         "Cho bot rời server ngay, không xác nhận — Administrator.",
                     ),
