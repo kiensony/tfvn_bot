@@ -113,6 +113,7 @@ tfvn_bot/
     │   ├── femboy_card.py          Member card based on configured role names
     │   ├── gay_meter.py            Daily member meter with staged loading
     │   ├── penisize.py             Daily member meter with staged loading
+    │   ├── titansize.py            Daily fictional centimeter-size and cup meter
     │   ├── ship_meter.py           Two-member compatibility meter
     │   └── based.py, brainrot.py, clown.py, cope.py, cringe.py, delulu.py,
     │       gyatt.py, ick.py, les_meter.py, mainchar.py, npc.py, ohio.py,

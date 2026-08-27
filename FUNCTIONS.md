@@ -271,6 +271,7 @@ Most meters accept an optional `@member` (default: author). Scores are determini
 | `les` | `les_meter`, `lesbian` | Lesbian meter |
 | `ship @user1 @user2` | — | Compatibility meter (two members required) |
 | `penisize` | `peni`, `peni_size`, `ppsize` | Size meter |
+| `titansize` | — | Fictional centimeter-size and cup meter |
 | `aura` | — | Signed aura score (−/+) |
 | `redflag` | `flags` | Red/green flag score (−10 green → +10 red) |
 | `based` | — | Based meter |
@@ -571,7 +572,7 @@ blackjack, poker, slot, flip_coin, sicbo_start
 crocodile, crocodile challenge, crocodile fire
 noitu, noitu status, noitu hint, noitu end, noitu analyze
 vtv, vtv status, vtv next, vtv hint
-gay, les, ship, penisize, aura, redflag, based, brainrot, clown, cope, cringe, delulu,
+gay, les, ship, penisize, titansize, aura, redflag, based, brainrot, clown, cope, cringe, delulu,
 gyatt, ick, mainchar, npc, ohio, rizz, simp, skillissue, touchgrass, yapper,
 femboycard, birthday, birthday set
 kiss, hug, pat, slap, punch, hit, poke, cuddle, snuggle, boop, handhold, bonk, bite, stare, lick, smack,
