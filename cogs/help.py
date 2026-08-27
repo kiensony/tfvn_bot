@@ -594,6 +594,11 @@ HELP_TOPICS = (
                         aliases=("peni", "peni_size", "ppsize"),
                     ),
                     _entry(
+                        "titansize",
+                        "Meter số đo cm và cup hư cấu; bỏ trống sẽ dùng chính bạn.",
+                        "titansize [@user]",
+                    ),
+                    _entry(
                         "femboycard",
                         "Tạo thẻ cho chính bạn; cần một role trong danh sách femboy.",
                     ),
