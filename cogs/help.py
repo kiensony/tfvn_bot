@@ -157,10 +157,13 @@ HELP_TOPICS = (
                         "jobremind add",
                         "Bot hỏi độ trễ `d/h/m/s` và tên việc, sau đó nhắc qua DM.",
                     ),
-                    _entry("birthday", "Xem hướng dẫn khai báo sinh nhật."),
+                    _entry(
+                        "birthday",
+                        "Mở biểu mẫu chọn tháng và ngày sinh.",
+                    ),
                     _entry(
                         "birthday set",
-                        "Lưu ngày sinh nhật của bạn.",
+                        "Lưu ngày sinh bằng cú pháp nhanh.",
                         "birthday set <ngày> <tháng>",
                     ),
                 ),

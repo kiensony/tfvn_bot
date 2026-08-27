@@ -211,7 +211,7 @@ menu focused on their respective topics.
 | Area | Representative commands |
 | --- | --- |
 | General | `help [topic]`, `hello`, `invite`, `verify`, `ping`, `server_stats` |
-| Community | `afk`, `jobremind add`, `birthday set`, `vote`, `giveaway` |
+| Community | `afk`, `jobremind add`, `birthday` (month/day picker), `birthday set`, `vote`, `giveaway` |
 | Economy and games | `daily`, `user_balance`, `user_transactions`, `shop`, `blackjack`, `poker`, `crocodile challenge`, `slot`, `flip_coin`, `sicbo_start`, `noitu`, `vtv` |
 | Tiên Lộ | `tutien`, `tutien thucong`, `tutien dotpha`, `tutien bicanh`, `tutien thiluyen`, `tutien doido` |
 | Moderation | `kick`, `ban`, `unban`, `softban`, `mute`, `timeout`, `warn`, `case`, `purge`, `slowmode`, `verified` |

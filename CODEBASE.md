@@ -107,6 +107,7 @@ tfvn_bot/
     ├── discipline/discipline.py    Banned-word listener, logging, warning, and deletion
     ├── funny_things/
     │   ├── _meter_helper.py        Deterministic scores, bars, loading, and embed helpers
+    │   ├── _birthday_ui.py         Owner-only month and day picker view
     │   ├── aura.py                 Signed aura score and icon bar
     │   ├── redflag.py              Signed red/green flag score and icon bar
     │   ├── birthday.py             Birthday registration and announcement task

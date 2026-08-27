@@ -291,8 +291,8 @@ Most meters accept an optional `@member` (default: author). Scores are determini
 | `touchgrass` | — | Touch-grass meter |
 | `yapper` | — | Yap meter |
 | `femboycard` | — | Personal femboy card from configured role names (`data/femboy_role.txt`) |
-| `birthday` | — | Birthday command guide |
-| `birthday set <day> <month>` | — | Register birthday (announced by scheduled task) |
+| `birthday` | — | Open the interactive month and day picker |
+| `birthday set <day> <month>` | — | Register a birthday directly (announced by scheduled task) |
 
 **Module:** `cogs.funny_things.*`
 
