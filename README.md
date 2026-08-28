@@ -16,9 +16,9 @@ For a complete list of commands and automatic features, see [FUNCTIONS.md](FUNCT
 - **Booster perks:** custom roles and voice rooms, with automatic cleanup after a member stops boosting.
 - **Games and economy:** the global, persistent Tiên Lộ AFK cultivation game, daily Trap Coins, a configurable role/badge shop, transaction history, interactive Blackjack and five-card-draw Poker, persistent multiplayer Crocodile Dentist, slots, coin flips, Sic Bo, Vietnamese word chaining (`noitu`), and Vua Tiếng Việt (`vtv`).
 - **Social and fun commands:** member interactions, rankings, avatars, random members, community-themed cards, and a collection of playful “meter” commands.
-- **Operations:** an Administrator dashboard for bot/server health, guild command auditing, CSV export, and guarded log pruning.
+- **Operations:** an Administrator dashboard for bot/server health, guild command auditing, CSV export, and guarded log pruning, with private Bot owner panels for joined-server management and recent lifecycle history.
 - **Optional age-restricted features:** NSFW interactions and Rule34/Gelbooru searches, guarded by Discord's NSFW channel setting.
-- **Persistent state:** MongoDB-backed balances, cultivation profiles, interactions, Crocodile Dentist games, game context, reminders, settings, giveaways, booster resources, moderation data, signed content proofs, and guild command audit logs.
+- **Persistent state:** MongoDB-backed balances, cultivation profiles, interactions, Crocodile Dentist games, game context, reminders, settings, giveaways, booster resources, moderation data, signed content proofs, guild command audit logs, and append-only bot lifecycle events.
 
 ## How it works
 
@@ -369,6 +369,16 @@ guild command outcomes, export retained records as CSV, and prune old records af
 confirmation. These records are guild-scoped in MongoDB's `operation_logs` collection;
 direct messages and unknown commands are not retained.
 
+If the invoking Administrator is also the Bot owner, `bot_status` adds private
+panels for the bot's joined servers and lifecycle history. The server manager can
+inspect every connected guild and confirm leaving a selected guild, but it cannot
+leave the guild where the dashboard was opened. This restriction applies only to
+the manager; the standalone `!tf leave` command is unchanged. The lifecycle panel
+shows the latest 10 `initial_ready`, `reidentified`, and `resumed` events for the
+current environment. Lifecycle events are append-only, retained indefinitely in
+the global `bot_lifecycle_events` collection, and excluded from guild audit
+browsing, CSV export, and pruning.
+
 ## Docker
 
 The Compose service builds the bot, reads `.env`, and runs it with a restart policy:
@@ -417,6 +427,7 @@ tfvn_bot/
 │   ├── economy/            # Trap Coin shop, inventory, badges, and role items
 │   ├── cultivation/        # Tiên Lộ progression, AFK calculations, PvE, and economy
 │   ├── mod/                # Moderation and verification
+│   ├── operation/          # Health/audit UI, owner controls, and lifecycle events
 │   ├── booster/            # Booster custom roles/rooms and cleanup
 │   ├── minigames/          # Economy/card, persistent multiplayer, and Vietnamese word games
 │   ├── funny_things/       # Fun meters, cards, and birthday features

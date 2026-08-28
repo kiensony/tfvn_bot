@@ -1106,8 +1106,8 @@ HELP_TOPICS = (
                     _entry(
                         "bot_status",
                         (
-                            "Dashboard trạng thái bot, audit command, tải CSV và dọn log "
-                            "— Administrator."
+                            "Status/audit — Admin; riêng chủ bot xem/rời server "
+                            "(trừ server gốc) + 10 sự kiện vòng đời."
                         ),
                     ),
                     _entry(

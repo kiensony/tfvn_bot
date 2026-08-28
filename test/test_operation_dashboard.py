@@ -1,3 +1,4 @@
+import asyncio
 import csv
 import io
 import unittest
@@ -28,9 +29,13 @@ from cogs.operation._operation_helpers import (
 )
 from cogs.operation.operation_dashboard import (
     AuditLogView,
+    BotOwnerGuildAdminView,
     DASHBOARD_TIMEOUT_SECONDS,
     ExportLogView,
     GuildAdminView,
+    JOINED_SERVER_PAGE_SIZE,
+    JoinedServerView,
+    LifecycleHistoryView,
     OperationDashboardCog,
     OperationDashboardView,
     PruneLogView,
@@ -138,6 +143,42 @@ def make_cursor(documents: list[dict]) -> MagicMock:
     cursor.limit.return_value = cursor
     cursor.__iter__.return_value = iter(documents)
     return cursor
+
+
+def make_guild(
+    guild_id: int,
+    name: str,
+    *,
+    member_count: int = 0,
+    channel_count: int = 0,
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        id=guild_id,
+        name=name,
+        member_count=member_count,
+        members=[object()] * member_count,
+        channels=[object()] * channel_count,
+        leave=AsyncMock(),
+    )
+
+
+def make_owner_cog(
+    guilds: list[SimpleNamespace],
+    *,
+    owner: bool = True,
+) -> SimpleNamespace:
+    guild_map = {guild.id: guild for guild in guilds}
+    bot = SimpleNamespace(
+        guilds=guilds,
+        is_owner=AsyncMock(return_value=owner),
+        get_guild=MagicMock(side_effect=guild_map.get),
+    )
+    cog = object.__new__(OperationDashboardCog)
+    cog.bot = bot
+    cog.record_admin_action = AsyncMock(return_value=True)
+    cog._guild_leave_in_flight = set()
+    cog._departed_guild_ids = set()
+    return cog
 
 
 class TestOperationHelpers(unittest.TestCase):
@@ -585,6 +626,472 @@ class TestDashboardSnapshot(unittest.IsolatedAsyncioTestCase):
         self.assertIn("❌ Ping: **Không khả dụng**", rendered)
         self.assertIn("Log đang giữ: **Không khả dụng**", rendered)
 
+    def test_process_recorder_timestamp_precedes_legacy_uptime_sources(self) -> None:
+        cog, _, legacy_started_at = self.make_dashboard_cog()
+        process_started_at = datetime(2026, 8, 25, 8, 30, tzinfo=UTC)
+        cog.bot.lifecycle_recorder = SimpleNamespace(
+            process_started_at=process_started_at
+        )
+
+        self.assertEqual(cog._bot_started_at(), process_started_at)
+        self.assertNotEqual(process_started_at, legacy_started_at)
+
+
+class TestOwnerGlobalViews(unittest.IsolatedAsyncioTestCase):
+    async def test_owner_view_is_opener_source_admin_and_owner_bound(self) -> None:
+        bot = SimpleNamespace(is_owner=AsyncMock(return_value=True))
+        view = BotOwnerGuildAdminView(bot=bot, guild_id=41, author_id=77)
+
+        wrong_source = make_interaction(guild_id=99)
+        wrong_opener = make_interaction(guild_id=41, user_id=88)
+        lost_admin = make_interaction(guild_id=41, administrator=False)
+        allowed = make_interaction(guild_id=41)
+
+        self.assertFalse(await view.interaction_check(wrong_source))
+        self.assertFalse(await view.interaction_check(wrong_opener))
+        self.assertFalse(await view.interaction_check(lost_admin))
+        self.assertTrue(await view.interaction_check(allowed))
+        bot.is_owner.assert_awaited_once_with(allowed.user)
+
+        bot.is_owner.reset_mock()
+        bot.is_owner.return_value = False
+        removed_owner = make_interaction(guild_id=41)
+        self.assertFalse(await view.interaction_check(removed_owner))
+        removed_owner.response.send_message.assert_awaited_once()
+
+    async def test_lifecycle_history_renders_latest_cache_and_degraded_warning(
+        self,
+    ) -> None:
+        occurred_at = datetime(2026, 8, 29, 4, 5)
+        recorder = SimpleNamespace(
+            environment="development",
+            fetch_recent=AsyncMock(
+                return_value=(
+                    [
+                        {
+                            "_id": "event-1",
+                            "event_type": "initial_ready",
+                            "occurred_at": occurred_at,
+                            "process_started_at": datetime(2026, 8, 29, 4, 0),
+                            "environment": "development",
+                            "guild_count": 12,
+                        }
+                    ],
+                    False,
+                )
+            ),
+        )
+        bot = SimpleNamespace(
+            lifecycle_recorder=recorder,
+            environment="production",
+            is_owner=AsyncMock(return_value=True),
+        )
+        view = LifecycleHistoryView(bot=bot, guild_id=41, author_id=77)
+
+        await view.load_events()
+        embed = view.build_embed()
+
+        recorder.fetch_recent.assert_awaited_once_with(limit=10)
+        self.assertEqual(embed.color, discord.Color.orange())
+        self.assertIn("MongoDB không khả dụng", embed.description)
+        self.assertIn("Ready đầu tiên", embed.fields[0].name)
+        expected_epoch = int(occurred_at.replace(tzinfo=UTC).timestamp())
+        self.assertIn(f"<t:{expected_epoch}:F>", embed.fields[0].value)
+        self.assertIn("Server quan sát: **12**", embed.fields[0].value)
+
+    async def test_lifecycle_refresh_keeps_panel_private_and_updates_embed(
+        self,
+    ) -> None:
+        recorder = SimpleNamespace(
+            environment="production",
+            fetch_recent=AsyncMock(
+                side_effect=[
+                    ([], True),
+                    (
+                        [
+                            {
+                                "_id": "resume-1",
+                                "event_type": "resumed",
+                                "occurred_at": datetime(2026, 8, 29, tzinfo=UTC),
+                                "process_started_at": datetime(
+                                    2026, 8, 28, tzinfo=UTC
+                                ),
+                                "guild_count": 3,
+                            }
+                        ],
+                        True,
+                    ),
+                ]
+            ),
+        )
+        bot = SimpleNamespace(
+            lifecycle_recorder=recorder,
+            is_owner=AsyncMock(return_value=True),
+        )
+        view = LifecycleHistoryView(bot=bot, guild_id=41, author_id=77)
+        await view.load_events()
+        interaction = make_interaction(guild_id=41)
+
+        await view.refresh.callback(interaction)
+
+        self.assertEqual(recorder.fetch_recent.await_count, 2)
+        interaction.response.defer.assert_awaited_once_with(ephemeral=True)
+        refreshed_embed = interaction.edit_original_response.await_args.kwargs[
+            "embed"
+        ]
+        self.assertIn("Khôi phục phiên", refreshed_embed.fields[0].name)
+
+    async def test_joined_servers_are_sorted_paginated_and_source_protected(
+        self,
+    ) -> None:
+        source = make_guild(41, "alpha", member_count=8, channel_count=3)
+        duplicate_high = make_guild(90, "Duplicate")
+        duplicate_low = make_guild(80, "duplicate")
+        long_name = "x" * 140
+        guilds = [
+            make_guild(200 + index, f"Server {index:02d}")
+            for index in range(9)
+        ]
+        guilds.extend([duplicate_high, source, duplicate_low, make_guild(500, long_name)])
+        cog = make_owner_cog(guilds)
+        view = JoinedServerView(cog=cog, guild_id=41, author_id=77)
+
+        self.assertEqual(
+            [guild.id for guild in view.guilds[:3]],
+            [41, 80, 90],
+        )
+        self.assertEqual(len(view.guild_select.options), JOINED_SERVER_PAGE_SIZE)
+        self.assertLessEqual(
+            max(len(option.label) for option in view.guild_select.options),
+            100,
+        )
+        self.assertFalse(view.next_page.disabled)
+        self.assertEqual(view.guild_select.row, 0)
+        self.assertEqual(view.previous_page.row, 1)
+        self.assertEqual(view.leave_server.row, 2)
+
+        interaction = make_interaction(guild_id=41)
+        await view.select_guild(interaction, "41")
+
+        self.assertTrue(view.leave_server.disabled)
+        source_field = next(field for field in view.build_embed().fields if "alpha" in field.name)
+        self.assertTrue(source_field.name.startswith("🔒"))
+        self.assertIn("Được bảo vệ", source_field.value)
+
+        next_interaction = make_interaction(guild_id=41)
+        await view.next_page.callback(next_interaction)
+        self.assertEqual(view.page, 1)
+        self.assertEqual(len(view.guild_select.options), 3)
+        self.assertIsNone(view.selected_guild_id)
+
+    async def test_leave_requires_two_confirmations_and_audits_source(self) -> None:
+        source = make_guild(41, "Source")
+        target = make_guild(52, "Target", member_count=7, channel_count=2)
+        cog = make_owner_cog([source, target])
+        view = JoinedServerView(cog=cog, guild_id=41, author_id=77)
+        select_interaction = make_interaction(guild_id=41)
+        await view.select_guild(select_interaction, "52")
+
+        first = make_interaction(guild_id=41)
+        await view.leave_server.callback(first)
+
+        self.assertTrue(view.leave_armed)
+        self.assertEqual(view.leave_server.label, "Xác nhận rời")
+        target.leave.assert_not_awaited()
+        armed_embed = first.edit_original_response.await_args.kwargs["embed"]
+        warning = next(
+            field for field in armed_embed.fields if "xác nhận lần hai" in field.name
+        )
+        self.assertIn("Target", warning.value)
+        self.assertIn("`52`", warning.value)
+        self.assertIn("link mời mới", warning.value)
+
+        second = make_interaction(guild_id=41)
+        await view.leave_server.callback(second)
+
+        target.leave.assert_awaited_once_with()
+        cog.record_admin_action.assert_awaited_once()
+        audit = cog.record_admin_action.await_args.kwargs
+        self.assertIs(audit["interaction"], second)
+        self.assertEqual(audit["action"], "leave_guild")
+        self.assertEqual(audit["status"], "succeeded")
+        self.assertEqual(audit["details"]["target_guild_id"], 52)
+        self.assertTrue(view.completed)
+        self.assertTrue(all(child.disabled for child in view.children))
+
+    async def test_final_leave_rechecks_live_admin_owner_and_source(self) -> None:
+        source = make_guild(41, "Source")
+        target = make_guild(52, "Target")
+        cog = make_owner_cog([source, target])
+        view = JoinedServerView(cog=cog, guild_id=41, author_id=77)
+        view.selected_guild_id = 52
+        view._sync_controls()
+        await view.leave_server.callback(make_interaction(guild_id=41))
+
+        lost_admin = make_interaction(guild_id=41, administrator=False)
+        await view.leave_server.callback(lost_admin)
+
+        target.leave.assert_not_awaited()
+        lost_admin.response.send_message.assert_awaited_once()
+        cog.record_admin_action.assert_not_awaited()
+
+        cog.bot.is_owner.return_value = False
+        owner_removed = make_interaction(guild_id=41)
+        await view.leave_server.callback(owner_removed)
+        target.leave.assert_not_awaited()
+
+    async def test_final_leave_rechecks_owner_after_processing_message(self) -> None:
+        source = make_guild(41, "Source")
+        target = make_guild(52, "Target")
+        cog = make_owner_cog([source, target])
+        cog.bot.is_owner.side_effect = [True, False]
+        view = JoinedServerView(cog=cog, guild_id=41, author_id=77)
+        view.selected_guild_id = 52
+        view._sync_controls()
+        await view.leave_server.callback(make_interaction(guild_id=41))
+        final = make_interaction(guild_id=41)
+
+        await view.leave_server.callback(final)
+
+        self.assertEqual(cog.bot.is_owner.await_count, 2)
+        target.leave.assert_not_awaited()
+        final.response.send_message.assert_awaited_once()
+        self.assertFalse(view.leave_armed)
+
+    async def test_stale_target_is_not_left_and_failure_is_audited(self) -> None:
+        source = make_guild(41, "Source")
+        target = make_guild(52, "Target")
+        cog = make_owner_cog([source, target])
+        cog.bot.get_guild.side_effect = lambda guild_id: source if guild_id == 41 else None
+        view = JoinedServerView(cog=cog, guild_id=41, author_id=77)
+        view.selected_guild_id = 52
+        view._sync_controls()
+        await view.leave_server.callback(make_interaction(guild_id=41))
+        final = make_interaction(guild_id=41)
+
+        await view.leave_server.callback(final)
+
+        target.leave.assert_not_awaited()
+        audit = cog.record_admin_action.await_args.kwargs
+        self.assertEqual(audit["status"], "failed")
+        self.assertEqual(audit["details"]["reason"], "target_guild_missing")
+        self.assertIsNone(view.selected_guild_id)
+        final.followup.send.assert_awaited_once()
+
+    async def test_http_failure_can_be_confirmed_again_and_retried(self) -> None:
+        source = make_guild(41, "Source")
+        target = make_guild(52, "Target")
+        response = MagicMock(status=503, reason="Unavailable")
+        target.leave.side_effect = [
+            discord.HTTPException(response, "temporary"),
+            None,
+        ]
+        cog = make_owner_cog([source, target])
+        view = JoinedServerView(cog=cog, guild_id=41, author_id=77)
+        view.selected_guild_id = 52
+        view._sync_controls()
+
+        await view.leave_server.callback(make_interaction(guild_id=41))
+        failed = make_interaction(guild_id=41)
+        await view.leave_server.callback(failed)
+
+        self.assertFalse(view.leave_armed)
+        self.assertFalse(view.leave_server.disabled)
+        self.assertEqual(
+            cog.record_admin_action.await_args_list[0].kwargs["status"],
+            "failed",
+        )
+
+        await view.leave_server.callback(make_interaction(guild_id=41))
+        await view.leave_server.callback(make_interaction(guild_id=41))
+
+        self.assertEqual(target.leave.await_count, 2)
+        self.assertEqual(
+            [item.kwargs["status"] for item in cog.record_admin_action.await_args_list],
+            ["failed", "succeeded"],
+        )
+
+    async def test_unexpected_leave_failure_releases_target_for_retry(self) -> None:
+        source = make_guild(41, "Source")
+        target = make_guild(52, "Target")
+        target.leave.side_effect = [RuntimeError("local failure"), None]
+        cog = make_owner_cog([source, target])
+        view = JoinedServerView(cog=cog, guild_id=41, author_id=77)
+        view.selected_guild_id = 52
+        view._sync_controls()
+
+        await view.leave_server.callback(make_interaction(guild_id=41))
+        failed = make_interaction(guild_id=41)
+        with patch.object(dashboard_module.logger, "exception") as log_failure:
+            await view.leave_server.callback(failed)
+
+        self.assertNotIn(52, cog._guild_leave_in_flight)
+        self.assertNotIn(52, cog._departed_guild_ids)
+        self.assertFalse(view.leave_armed)
+        self.assertFalse(view.leave_server.disabled)
+        log_failure.assert_called_once()
+        self.assertEqual(
+            cog.record_admin_action.await_args.kwargs["details"]["error_type"],
+            "RuntimeError",
+        )
+
+        await view.leave_server.callback(make_interaction(guild_id=41))
+        await view.leave_server.callback(make_interaction(guild_id=41))
+
+        self.assertEqual(target.leave.await_count, 2)
+        self.assertTrue(view.completed)
+
+    async def test_concurrent_final_click_calls_discord_leave_only_once(self) -> None:
+        source = make_guild(41, "Source")
+        target = make_guild(52, "Target")
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        async def delayed_leave() -> None:
+            started.set()
+            await release.wait()
+
+        target.leave.side_effect = delayed_leave
+        cog = make_owner_cog([source, target])
+        view = JoinedServerView(cog=cog, guild_id=41, author_id=77)
+        view.selected_guild_id = 52
+        view._sync_controls()
+        await view.leave_server.callback(make_interaction(guild_id=41))
+
+        final_task = asyncio.create_task(
+            view.leave_server.callback(make_interaction(guild_id=41))
+        )
+        await started.wait()
+        duplicate = make_interaction(guild_id=41)
+        await view.leave_server.callback(duplicate)
+        release.set()
+        await final_task
+
+        target.leave.assert_awaited_once_with()
+        duplicate.response.send_message.assert_awaited_once()
+
+    async def test_source_server_can_never_be_selected_for_leave(self) -> None:
+        source = make_guild(41, "Source")
+        cog = make_owner_cog([source])
+        view = JoinedServerView(cog=cog, guild_id=41, author_id=77)
+        await view.select_guild(make_interaction(guild_id=41), "41")
+
+        self.assertTrue(view.leave_server.disabled)
+        crafted = make_interaction(guild_id=41)
+        await view.leave_server.callback(crafted)
+
+        source.leave.assert_not_awaited()
+        cog.record_admin_action.assert_not_awaited()
+        crafted.response.send_message.assert_awaited_once()
+
+    async def test_select_rejects_id_outside_current_page_and_bot_cache(self) -> None:
+        source = make_guild(41, "Source")
+        target = make_guild(52, "Target")
+        cog = make_owner_cog([source, target])
+        view = JoinedServerView(cog=cog, guild_id=41, author_id=77)
+        interaction = make_interaction(guild_id=41)
+
+        await view.select_guild(interaction, "999999")
+
+        self.assertIsNone(view.selected_guild_id)
+        self.assertTrue(view.leave_server.disabled)
+        interaction.followup.send.assert_awaited_once()
+        interaction.edit_original_response.assert_not_awaited()
+
+    async def test_server_refresh_reloads_clamps_and_resets_selection(self) -> None:
+        source = make_guild(41, "Source")
+        guilds = [source] + [
+            make_guild(100 + index, f"Server {index:02d}")
+            for index in range(JOINED_SERVER_PAGE_SIZE + 1)
+        ]
+        cog = make_owner_cog(guilds)
+        view = JoinedServerView(cog=cog, guild_id=41, author_id=77)
+        await view.next_page.callback(make_interaction(guild_id=41))
+        view.selected_guild_id = view._page_guilds()[0].id
+        view.leave_armed = True
+        cog.bot.guilds = [source]
+        interaction = make_interaction(guild_id=41)
+
+        await view.refresh_servers.callback(interaction)
+
+        self.assertEqual(view.page, 0)
+        self.assertEqual([guild.id for guild in view.guilds], [41])
+        self.assertIsNone(view.selected_guild_id)
+        self.assertFalse(view.leave_armed)
+        self.assertTrue(view.next_page.disabled)
+        interaction.edit_original_response.assert_awaited_once()
+
+    async def test_two_panels_serialize_leave_for_same_target(self) -> None:
+        source = make_guild(41, "Source")
+        target = make_guild(52, "Target")
+        started = asyncio.Event()
+        release = asyncio.Event()
+
+        async def delayed_leave() -> None:
+            started.set()
+            await release.wait()
+
+        target.leave.side_effect = delayed_leave
+        cog = make_owner_cog([source, target])
+        first_view = JoinedServerView(cog=cog, guild_id=41, author_id=77)
+        second_view = JoinedServerView(cog=cog, guild_id=41, author_id=77)
+        for view in (first_view, second_view):
+            view.selected_guild_id = 52
+            view._sync_controls()
+            await view.leave_server.callback(make_interaction(guild_id=41))
+
+        first_task = asyncio.create_task(
+            first_view.leave_server.callback(make_interaction(guild_id=41))
+        )
+        await started.wait()
+        blocked = make_interaction(guild_id=41)
+        await second_view.leave_server.callback(blocked)
+        release.set()
+        await first_task
+
+        target.leave.assert_awaited_once_with()
+        statuses = [
+            item.kwargs["status"]
+            for item in cog.record_admin_action.await_args_list
+        ]
+        self.assertEqual(statuses, ["failed", "succeeded"])
+        self.assertIn(52, cog._departed_guild_ids)
+        blocked.followup.send.assert_awaited_once()
+
+    async def test_cancelled_discord_leave_stays_latched_across_panels(self) -> None:
+        source = make_guild(41, "Source")
+        target = make_guild(52, "Target")
+        started = asyncio.Event()
+        never_release = asyncio.Event()
+
+        async def cancelled_leave() -> None:
+            started.set()
+            await never_release.wait()
+
+        target.leave.side_effect = cancelled_leave
+        cog = make_owner_cog([source, target])
+        first_view = JoinedServerView(cog=cog, guild_id=41, author_id=77)
+        second_view = JoinedServerView(cog=cog, guild_id=41, author_id=77)
+        for view in (first_view, second_view):
+            view.selected_guild_id = 52
+            view._sync_controls()
+            await view.leave_server.callback(make_interaction(guild_id=41))
+
+        task = asyncio.create_task(
+            first_view.leave_server.callback(make_interaction(guild_id=41))
+        )
+        await started.wait()
+        task.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await task
+
+        blocked = make_interaction(guild_id=41)
+        await second_view.leave_server.callback(blocked)
+
+        target.leave.assert_awaited_once_with()
+        self.assertIn(52, cog._departed_guild_ids)
+        blocked.followup.send.assert_awaited_once()
+
 
 class TestOperationViews(unittest.IsolatedAsyncioTestCase):
     async def test_view_rechecks_same_guild_and_live_administrator(self) -> None:
@@ -785,12 +1292,14 @@ class TestOperationViews(unittest.IsolatedAsyncioTestCase):
         self,
     ) -> None:
         cog = object.__new__(OperationDashboardCog)
+        cog.bot = SimpleNamespace(is_owner=AsyncMock(return_value=False))
         cog.build_dashboard_embed = AsyncMock(
             return_value=discord.Embed(title="Bot status")
         )
         sent_message = SimpleNamespace(id=123)
         ctx = SimpleNamespace(
             guild=SimpleNamespace(id=41),
+            author=SimpleNamespace(id=77),
             reply=AsyncMock(return_value=sent_message),
         )
 
@@ -807,6 +1316,75 @@ class TestOperationViews(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(OperationDashboardCog.show_bot_status.name, "bot_status")
         self.assertEqual(ServerStatsCog.server_stats.name, "server_stats")
+
+    async def test_owner_opened_dashboard_adds_only_the_two_global_controls(
+        self,
+    ) -> None:
+        cog = object.__new__(OperationDashboardCog)
+        cog.bot = SimpleNamespace(is_owner=AsyncMock(return_value=True))
+        cog.build_dashboard_embed = AsyncMock(
+            return_value=discord.Embed(title="Bot status")
+        )
+        ctx = SimpleNamespace(
+            guild=SimpleNamespace(id=41),
+            author=SimpleNamespace(id=77),
+            reply=AsyncMock(return_value=SimpleNamespace(id=123)),
+        )
+
+        await OperationDashboardCog.show_bot_status.callback(cog, ctx)
+
+        view = ctx.reply.await_args.kwargs["view"]
+        self.assertEqual(view.owner_id, 77)
+        self.assertEqual(
+            [child.label for child in view.children],
+            [
+                "Làm mới",
+                "Audit logs",
+                "Tải CSV",
+                "Dọn log",
+                "Server đã tham gia",
+                "Lịch sử kết nối",
+            ],
+        )
+        self.assertEqual([child.row for child in view.children[:4]], [0] * 4)
+        self.assertEqual([child.row for child in view.children[4:]], [1, 1])
+
+    async def test_owner_lookup_failure_still_opens_admin_dashboard(self) -> None:
+        cog = object.__new__(OperationDashboardCog)
+        cog.bot = SimpleNamespace(
+            is_owner=AsyncMock(side_effect=RuntimeError("application unavailable"))
+        )
+        cog.build_dashboard_embed = AsyncMock(
+            return_value=discord.Embed(title="Bot status")
+        )
+        ctx = SimpleNamespace(
+            guild=SimpleNamespace(id=41),
+            author=SimpleNamespace(id=77),
+            reply=AsyncMock(return_value=SimpleNamespace(id=123)),
+        )
+
+        with patch.object(dashboard_module.logger, "exception") as log_failure:
+            await OperationDashboardCog.show_bot_status.callback(cog, ctx)
+
+        view = ctx.reply.await_args.kwargs["view"]
+        self.assertIsNone(view.owner_id)
+        self.assertEqual(
+            [child.label for child in view.children],
+            ["Làm mới", "Audit logs", "Tải CSV", "Dọn log"],
+        )
+        log_failure.assert_called_once()
+
+    async def test_owner_dashboard_button_rechecks_owner_before_opening(self) -> None:
+        bot = SimpleNamespace(is_owner=AsyncMock(return_value=False))
+        cog = SimpleNamespace(bot=bot)
+        view = OperationDashboardView(cog=cog, guild_id=41, owner_id=77)
+        interaction = make_interaction(guild_id=41)
+
+        await view.joined_servers.callback(interaction)
+
+        bot.is_owner.assert_awaited_once_with(interaction.user)
+        interaction.response.send_message.assert_awaited_once()
+        interaction.response.defer.assert_not_awaited()
 
 
 class TestServerStatsRegression(unittest.IsolatedAsyncioTestCase):

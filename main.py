@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 import db
 from cogs._beta_function import BetaFunctionError
 from cogs._feature_flags import cog_disabled
+from cogs.operation._lifecycle import BotLifecycleRecorder
 from dataloader import DataLoader
 
 load_dotenv()
@@ -31,6 +32,7 @@ bot = commands.Bot(
 
 bot.db = db.db
 bot.environment = environment
+bot.lifecycle_recorder = BotLifecycleRecorder(bot.db, environment)
 bot.CONTENT_VERIFICATION_KEYS_JSON = os.getenv(
     "CONTENT_VERIFICATION_KEYS_JSON"
 )
@@ -73,7 +75,13 @@ def configure_logging() -> None:
 
 @bot.event
 async def on_ready() -> None:
+    bot.lifecycle_recorder.capture_ready(len(bot.guilds))
     print(f"✅ Bot is ready! Environment: {environment}")
+
+
+@bot.event
+async def on_resumed() -> None:
+    bot.lifecycle_recorder.capture_resumed(len(bot.guilds))
 
 
 @bot.event
@@ -172,9 +180,13 @@ async def main() -> None:
     configure_logging()
     if not token:
         raise RuntimeError("DISCORD_TOKEN is required")
-    async with bot:
-        await load_cogs()
-        await bot.start(token)
+    await bot.lifecycle_recorder.start()
+    try:
+        async with bot:
+            await load_cogs()
+            await bot.start(token)
+    finally:
+        await bot.lifecycle_recorder.close()
 
 
 if __name__ == "__main__":

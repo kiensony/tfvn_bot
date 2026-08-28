@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 
 LOG_COLLECTION = "operation_logs"
 DASHBOARD_TIMEOUT_SECONDS = 180
+JOINED_SERVER_PAGE_SIZE = 10
 AUDIT_PAGE_SIZE = 5
 AUDIT_BROWSER_MAX_ROWS = 1_000
 DEFAULT_AUDIT_RANGE = "30d"
@@ -61,6 +62,12 @@ STATUS_ICONS = {
     "invalid": "⚠️",
     "cooldown": "🕒",
     "failed": "❌",
+}
+
+LIFECYCLE_EVENT_LABELS = {
+    "initial_ready": "Ready đầu tiên",
+    "reidentified": "Định danh lại",
+    "resumed": "Khôi phục phiên",
 }
 
 
@@ -115,6 +122,68 @@ def _safe_display(value: object, limit: int) -> str:
     if len(text) <= limit:
         return text
     return f"{text[: max(0, limit - 1)]}…"
+
+
+def _as_utc(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+def _component_text(value: object, limit: int) -> str:
+    text = " ".join(str(value or "Không tên").split()) or "Không tên"
+    if len(text) <= limit:
+        return text
+    return f"{text[: max(0, limit - 1)]}…"
+
+
+async def _check_owner_access(
+    interaction: discord.Interaction,
+    *,
+    bot: commands.Bot,
+    source_guild_id: int,
+    author_id: int,
+) -> bool:
+    guild = interaction.guild
+    if guild is None or guild.id != source_guild_id:
+        await _send_private(
+            interaction,
+            "Bảng quản lý này chỉ dùng được trong server đã mở nó.",
+        )
+        return False
+    if interaction.user.id != author_id:
+        await _send_private(
+            interaction,
+            "Bảng riêng này chỉ dành cho bot owner đã mở nó.",
+        )
+        return False
+    permissions = getattr(interaction.user, "guild_permissions", None)
+    if permissions is None or not permissions.administrator:
+        await _send_private(
+            interaction,
+            "Bạn cần quyền Administrator hiện tại để dùng bảng này.",
+        )
+        return False
+    try:
+        is_owner = await bot.is_owner(interaction.user)
+    except Exception:
+        logger.exception(
+            "Failed to recheck bot owner source_guild=%s actor=%s",
+            source_guild_id,
+            interaction.user.id,
+        )
+        await _send_private(
+            interaction,
+            "Không thể xác minh bot owner lúc này. Vui lòng thử lại.",
+        )
+        return False
+    if not is_owner:
+        await _send_private(
+            interaction,
+            "Chỉ bot owner hiện tại mới dùng được bảng quản lý này.",
+        )
+        return False
+    return True
 
 
 class GuildAdminView(discord.ui.View):
@@ -960,21 +1029,781 @@ class PruneLogView(GuildAdminView):
             )
 
 
+class BotOwnerGuildAdminView(GuildAdminView):
+    def __init__(
+        self,
+        *,
+        bot: commands.Bot,
+        guild_id: int,
+        author_id: int,
+    ) -> None:
+        super().__init__(guild_id=guild_id, author_id=author_id)
+        self.bot = bot
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        return await _check_owner_access(
+            interaction,
+            bot=self.bot,
+            source_guild_id=self.guild_id,
+            author_id=int(self.author_id),
+        )
+
+
+class LifecycleHistoryView(BotOwnerGuildAdminView):
+    def __init__(
+        self,
+        *,
+        bot: commands.Bot,
+        guild_id: int,
+        author_id: int,
+    ) -> None:
+        super().__init__(bot=bot, guild_id=guild_id, author_id=author_id)
+        self.documents: list[dict[str, Any]] = []
+        self.mongo_available = True
+        self._refresh_lock = asyncio.Lock()
+
+    async def load_events(self) -> None:
+        recorder = getattr(self.bot, "lifecycle_recorder", None)
+        if recorder is None:
+            self.documents = []
+            self.mongo_available = False
+            return
+        try:
+            documents, mongo_available = await recorder.fetch_recent(limit=10)
+        except PyMongoError:
+            logger.exception("Failed to fetch bot lifecycle history")
+            self.documents = []
+            self.mongo_available = False
+            return
+        self.documents = list(documents[:10])
+        self.mongo_available = bool(mongo_available)
+
+    def build_embed(self) -> discord.Embed:
+        recorder = getattr(self.bot, "lifecycle_recorder", None)
+        environment = str(
+            getattr(
+                recorder,
+                "environment",
+                getattr(self.bot, "environment", "production"),
+            )
+        )
+        description = f"10 sự kiện kết nối mới nhất của `{_safe_display(environment, 80)}`."
+        if not self.mongo_available:
+            description += (
+                "\n⚠️ MongoDB không khả dụng; lịch sử có thể chỉ gồm sự kiện "
+                "đang được cache trong tiến trình hiện tại."
+            )
+        embed = discord.Embed(
+            title="🔌 Lịch sử kết nối",
+            description=description,
+            color=(
+                discord.Color.blurple()
+                if self.mongo_available
+                else discord.Color.orange()
+            ),
+            timestamp=discord.utils.utcnow(),
+        )
+        if not self.documents:
+            embed.add_field(
+                name="Chưa có dữ liệu",
+                value="Bot chưa ghi nhận sự kiện Ready hoặc Resume nào.",
+                inline=False,
+            )
+            return embed
+
+        for document in self.documents:
+            event_type = str(document.get("event_type", "unknown"))
+            label = LIFECYCLE_EVENT_LABELS.get(event_type, event_type)
+            occurred_at = document.get("occurred_at")
+            if isinstance(occurred_at, datetime):
+                occurred_at = _as_utc(occurred_at)
+                occurred = f"<t:{int(occurred_at.timestamp())}:F>"
+                relative = f"<t:{int(occurred_at.timestamp())}:R>"
+            else:
+                occurred = "Không rõ thời gian"
+                relative = ""
+            process_started_at = document.get("process_started_at")
+            if isinstance(process_started_at, datetime):
+                process_started_at = _as_utc(process_started_at)
+                process_started = (
+                    f"<t:{int(process_started_at.timestamp())}:F>"
+                )
+            else:
+                process_started = "Không rõ"
+            guild_count = document.get("guild_count")
+            guild_count_text = (
+                f"{int(guild_count):,}"
+                if isinstance(guild_count, int)
+                else "Không rõ"
+            )
+            event_id = _safe_display(document.get("_id", "?"), 100)
+            embed.add_field(
+                name=f"{_safe_display(label, 120)} {relative}".strip(),
+                value=(
+                    f"Sự kiện: {occurred}\n"
+                    f"Process bắt đầu: {process_started}\n"
+                    f"Server quan sát: **{guild_count_text}**\n"
+                    f"ID: `{event_id}`"
+                )[:1024],
+                inline=False,
+            )
+        return embed
+
+    @discord.ui.button(
+        label="Làm mới",
+        emoji="🔄",
+        style=discord.ButtonStyle.primary,
+        row=0,
+    )
+    async def refresh(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button,
+    ) -> None:
+        if self._refresh_lock.locked():
+            await _send_private(interaction, "Lịch sử đang được làm mới.")
+            return
+        await interaction.response.defer(ephemeral=True)
+        async with self._refresh_lock:
+            await self.load_events()
+            await interaction.edit_original_response(
+                embed=self.build_embed(),
+                view=self,
+            )
+
+    @discord.ui.button(
+        label="Đóng",
+        style=discord.ButtonStyle.secondary,
+        row=0,
+    )
+    async def close(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button,
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        _disable_view(self)
+        self.stop()
+        await interaction.edit_original_response(
+            content="Đã đóng lịch sử kết nối.",
+            embed=None,
+            view=self,
+            allowed_mentions=NO_MENTIONS,
+        )
+
+
+class JoinedServerSelect(discord.ui.Select):
+    def __init__(self, manager: "JoinedServerView") -> None:
+        self.manager = manager
+        super().__init__(
+            placeholder="Chọn server để quản lý",
+            min_values=1,
+            max_values=1,
+            options=[discord.SelectOption(label="Đang tải…", value="loading")],
+            row=0,
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        await self.manager.select_guild(interaction, self.values[0])
+
+
+class JoinedServerView(BotOwnerGuildAdminView):
+    def __init__(
+        self,
+        *,
+        cog: "OperationDashboardCog",
+        guild_id: int,
+        author_id: int,
+    ) -> None:
+        super().__init__(bot=cog.bot, guild_id=guild_id, author_id=author_id)
+        self.cog = cog
+        self.guilds: list[discord.Guild] = []
+        self.page = 0
+        self.selected_guild_id: int | None = None
+        self.leave_armed = False
+        self.completed = False
+        self._navigation_lock = asyncio.Lock()
+        self._action_lock = asyncio.Lock()
+        self.guild_select = JoinedServerSelect(self)
+        self.add_item(self.guild_select)
+        self.reload_guilds()
+
+    @staticmethod
+    def _sort_key(guild: discord.Guild) -> tuple[str, int]:
+        return (str(getattr(guild, "name", "")).casefold(), int(guild.id))
+
+    @staticmethod
+    def _member_count(guild: discord.Guild) -> int:
+        count = getattr(guild, "member_count", None)
+        if count is not None:
+            return int(count)
+        return len(getattr(guild, "members", ()))
+
+    @staticmethod
+    def _channel_count(guild: discord.Guild) -> int:
+        return len(getattr(guild, "channels", ()))
+
+    def reload_guilds(self) -> None:
+        self.guilds = sorted(
+            list(getattr(self.bot, "guilds", ())),
+            key=self._sort_key,
+        )
+        last_page = max(0, (len(self.guilds) - 1) // JOINED_SERVER_PAGE_SIZE)
+        self.page = min(self.page, last_page)
+        self._sync_controls()
+
+    def _page_guilds(self) -> list[discord.Guild]:
+        start = self.page * JOINED_SERVER_PAGE_SIZE
+        return self.guilds[start : start + JOINED_SERVER_PAGE_SIZE]
+
+    def _reset_confirmation(self) -> None:
+        self.leave_armed = False
+        self.leave_server.label = "Rời server"
+        self.leave_server.style = discord.ButtonStyle.danger
+
+    def _resolve_leave_target(
+        self,
+        target_id: int,
+    ) -> tuple[discord.Guild | None, str | None]:
+        source_guild = self.bot.get_guild(self.guild_id)
+        target_guild = self.bot.get_guild(target_id)
+        if source_guild is None:
+            return None, "source_guild_missing"
+        if target_id == self.guild_id:
+            return None, "source_guild_protected"
+        if target_guild is None:
+            return None, "target_guild_missing"
+        return target_guild, None
+
+    def _sync_controls(self) -> None:
+        page_guilds = self._page_guilds()
+        if page_guilds:
+            options = []
+            for guild in page_guilds:
+                protected = guild.id == self.guild_id
+                prefix = "🔒 " if protected else ""
+                description = (
+                    f"ID {guild.id} · {self._member_count(guild):,} member · "
+                    f"{self._channel_count(guild):,} channel"
+                )
+                if protected:
+                    description += " · Được bảo vệ"
+                options.append(
+                    discord.SelectOption(
+                        label=_component_text(
+                            f"{prefix}{getattr(guild, 'name', 'Không tên')}",
+                            100,
+                        ),
+                        value=str(guild.id),
+                        description=_component_text(description, 100),
+                        default=guild.id == self.selected_guild_id,
+                    )
+                )
+            self.guild_select.options = options
+            self.guild_select.disabled = self.completed
+        else:
+            self.guild_select.options = [
+                discord.SelectOption(label="Không có server", value="none")
+            ]
+            self.guild_select.disabled = True
+
+        page_count = max(1, math.ceil(len(self.guilds) / JOINED_SERVER_PAGE_SIZE))
+        self.previous_page.disabled = self.completed or self.page == 0
+        self.next_page.disabled = self.completed or self.page + 1 >= page_count
+        self.refresh_servers.disabled = self.completed
+        can_leave = (
+            not self.completed
+            and self.selected_guild_id is not None
+            and self.selected_guild_id != self.guild_id
+        )
+        self.leave_server.disabled = not can_leave
+        self.close.disabled = self.completed
+
+    def build_embed(self) -> discord.Embed:
+        page_count = max(1, math.ceil(len(self.guilds) / JOINED_SERVER_PAGE_SIZE))
+        embed = discord.Embed(
+            title="🌐 Server đã tham gia",
+            description=(
+                f"Bot đang ở **{len(self.guilds):,}** server. "
+                "Server mở bảng được đánh dấu 🔒 và không thể rời từ đây."
+            ),
+            color=discord.Color.blurple(),
+            timestamp=discord.utils.utcnow(),
+        )
+        page_guilds = self._page_guilds()
+        if not page_guilds:
+            embed.add_field(
+                name="Không có dữ liệu",
+                value="Không tìm thấy server nào trong cache của bot.",
+                inline=False,
+            )
+        for guild in page_guilds:
+            protected = guild.id == self.guild_id
+            marker = "🔒 " if protected else ""
+            status = "\n**Được bảo vệ:** server đang dùng lệnh" if protected else ""
+            embed.add_field(
+                name=f"{marker}{_safe_display(getattr(guild, 'name', 'Không tên'), 220)}",
+                value=(
+                    f"ID: `{guild.id}`\n"
+                    f"Member: **{self._member_count(guild):,}** · "
+                    f"Channel: **{self._channel_count(guild):,}**"
+                    f"{status}"
+                ),
+                inline=False,
+            )
+        if self.leave_armed and self.selected_guild_id is not None:
+            target = next(
+                (
+                    guild
+                    for guild in self.guilds
+                    if guild.id == self.selected_guild_id
+                ),
+                None,
+            )
+            target_name = getattr(target, "name", "Server không xác định")
+            embed.add_field(
+                name="⚠️ Cần xác nhận lần hai",
+                value=(
+                    f"Bạn sắp cho bot rời **{_safe_display(target_name, 180)}** "
+                    f"(`{self.selected_guild_id}`). Hành động này không thể hoàn tác "
+                    "từ bảng này; bot chỉ có thể quay lại bằng một link mời mới."
+                )[:1024],
+                inline=False,
+            )
+        selected = (
+            f" · Đã chọn `{self.selected_guild_id}`"
+            if self.selected_guild_id is not None
+            else ""
+        )
+        embed.set_footer(text=f"Trang {self.page + 1}/{page_count}{selected}")
+        return embed
+
+    async def select_guild(
+        self,
+        interaction: discord.Interaction,
+        selected_value: str,
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        async with self._navigation_lock:
+            if selected_value == "none":
+                return
+            try:
+                selected_id = int(selected_value)
+            except ValueError:
+                await interaction.followup.send(
+                    "Server đã chọn không hợp lệ.",
+                    ephemeral=True,
+                    allowed_mentions=NO_MENTIONS,
+                )
+                return
+            page_ids = {guild.id for guild in self._page_guilds()}
+            if selected_id not in page_ids or self.bot.get_guild(selected_id) is None:
+                await interaction.followup.send(
+                    "Server đã chọn không còn thuộc trang hiện tại.",
+                    ephemeral=True,
+                    allowed_mentions=NO_MENTIONS,
+                )
+                return
+            self.selected_guild_id = selected_id
+            self._reset_confirmation()
+            self._sync_controls()
+            await interaction.edit_original_response(
+                embed=self.build_embed(),
+                view=self,
+            )
+
+    async def _change_page(
+        self,
+        interaction: discord.Interaction,
+        offset: int,
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        async with self._navigation_lock:
+            page_count = max(
+                1,
+                math.ceil(len(self.guilds) / JOINED_SERVER_PAGE_SIZE),
+            )
+            self.page = max(0, min(self.page + offset, page_count - 1))
+            self.selected_guild_id = None
+            self._reset_confirmation()
+            self._sync_controls()
+            await interaction.edit_original_response(
+                embed=self.build_embed(),
+                view=self,
+            )
+
+    @discord.ui.button(
+        label="Trước",
+        emoji="⬅️",
+        style=discord.ButtonStyle.secondary,
+        row=1,
+    )
+    async def previous_page(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button,
+    ) -> None:
+        await self._change_page(interaction, -1)
+
+    @discord.ui.button(
+        label="Sau",
+        emoji="➡️",
+        style=discord.ButtonStyle.secondary,
+        row=1,
+    )
+    async def next_page(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button,
+    ) -> None:
+        await self._change_page(interaction, 1)
+
+    @discord.ui.button(
+        label="Làm mới",
+        emoji="🔄",
+        style=discord.ButtonStyle.primary,
+        row=1,
+    )
+    async def refresh_servers(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button,
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        async with self._navigation_lock:
+            self.selected_guild_id = None
+            self._reset_confirmation()
+            self.reload_guilds()
+            await interaction.edit_original_response(
+                embed=self.build_embed(),
+                view=self,
+            )
+
+    @discord.ui.button(
+        label="Rời server",
+        emoji="🚪",
+        style=discord.ButtonStyle.danger,
+        row=2,
+        disabled=True,
+    )
+    async def leave_server(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button,
+    ) -> None:
+        if self._action_lock.locked():
+            await _send_private(interaction, "Yêu cầu rời server đang được xử lý.")
+            return
+        async with self._action_lock:
+            if self.completed:
+                await _send_private(interaction, "Thao tác rời server đã hoàn tất.")
+                return
+            target_id = self.selected_guild_id
+            if target_id is None or target_id == self.guild_id:
+                await _send_private(
+                    interaction,
+                    "Không thể rời server đang dùng lệnh bot_status.",
+                )
+                return
+            if not self.leave_armed:
+                self.leave_armed = True
+                self.leave_server.label = "Xác nhận rời"
+                self.leave_server.style = discord.ButtonStyle.danger
+                await interaction.response.defer(ephemeral=True)
+                await interaction.edit_original_response(
+                    embed=self.build_embed(),
+                    view=self,
+                )
+                return
+
+            # Check once before replacing the panel so a stale/unauthorized
+            # confirmation does not misleadingly enter a processing state.
+            if not await _check_owner_access(
+                interaction,
+                bot=self.bot,
+                source_guild_id=self.guild_id,
+                author_id=int(self.author_id),
+            ):
+                return
+            target_guild, failure_reason = self._resolve_leave_target(target_id)
+            if failure_reason is not None:
+                await interaction.response.defer(ephemeral=True)
+                await self.cog.record_admin_action(
+                    interaction=interaction,
+                    action="leave_guild",
+                    status="failed",
+                    details={
+                        "target_guild_id": target_id,
+                        "reason": failure_reason,
+                    },
+                )
+                self.selected_guild_id = None
+                self._reset_confirmation()
+                self.reload_guilds()
+                await interaction.edit_original_response(
+                    embed=self.build_embed(),
+                    view=self,
+                )
+                await interaction.followup.send(
+                    "Server đích không còn khả dụng; danh sách đã được làm mới.",
+                    ephemeral=True,
+                    allowed_mentions=NO_MENTIONS,
+                )
+                return
+
+            target_name = str(getattr(target_guild, "name", target_id))
+            await interaction.response.defer(ephemeral=True)
+            _disable_view(self)
+            await interaction.edit_original_response(
+                embed=discord.Embed(
+                    title="🚪 Đang rời server",
+                    description=(
+                        f"Đang yêu cầu rời **{_safe_display(target_name, 200)}** "
+                        f"(`{target_id}`)…"
+                    ),
+                    color=discord.Color.orange(),
+                ),
+                view=self,
+            )
+
+            # Network waits above can race with permission, ownership, guild
+            # removal, or another manager panel. Repeat every guard now, then
+            # make the Discord call without any intervening await.
+            if not await _check_owner_access(
+                interaction,
+                bot=self.bot,
+                source_guild_id=self.guild_id,
+                author_id=int(self.author_id),
+            ):
+                self._reset_confirmation()
+                self._sync_controls()
+                await interaction.edit_original_response(
+                    embed=self.build_embed(),
+                    view=self,
+                )
+                return
+            target_guild, failure_reason = self._resolve_leave_target(target_id)
+            if failure_reason is not None:
+                await self.cog.record_admin_action(
+                    interaction=interaction,
+                    action="leave_guild",
+                    status="failed",
+                    details={
+                        "target_guild_id": target_id,
+                        "reason": failure_reason,
+                    },
+                )
+                self.selected_guild_id = None
+                self._reset_confirmation()
+                self.reload_guilds()
+                await interaction.edit_original_response(
+                    embed=self.build_embed(),
+                    view=self,
+                )
+                await interaction.followup.send(
+                    "Server nguồn hoặc server đích vừa thay đổi; danh sách đã được làm mới.",
+                    ephemeral=True,
+                    allowed_mentions=NO_MENTIONS,
+                )
+                return
+            if not self.cog._claim_guild_leave(target_id):
+                await self.cog.record_admin_action(
+                    interaction=interaction,
+                    action="leave_guild",
+                    status="failed",
+                    details={
+                        "target_guild_id": target_id,
+                        "reason": "target_leave_in_progress_or_completed",
+                    },
+                )
+                self._reset_confirmation()
+                self._sync_controls()
+                await interaction.edit_original_response(
+                    embed=self.build_embed(),
+                    view=self,
+                )
+                await interaction.followup.send(
+                    "Server này đang được xử lý hoặc bot đã rời server đó.",
+                    ephemeral=True,
+                    allowed_mentions=NO_MENTIONS,
+                )
+                return
+            try:
+                await target_guild.leave()
+            except discord.HTTPException as error:
+                self.cog._finish_guild_leave(target_id, succeeded=False)
+                logger.warning(
+                    "Failed to leave guild source=%s target=%s status=%s",
+                    self.guild_id,
+                    target_id,
+                    getattr(error, "status", None),
+                )
+                await self.cog.record_admin_action(
+                    interaction=interaction,
+                    action="leave_guild",
+                    status="failed",
+                    details={
+                        "target_guild_id": target_id,
+                        "target_guild_name": target_name,
+                        "reason": "discord_http_error",
+                        "http_status": getattr(error, "status", None),
+                        "discord_code": getattr(error, "code", None),
+                    },
+                )
+                self._reset_confirmation()
+                self._sync_controls()
+                await interaction.edit_original_response(
+                    embed=self.build_embed(),
+                    view=self,
+                )
+                await interaction.followup.send(
+                    "Discord từ chối yêu cầu rời server. Bạn có thể xác nhận lại để thử lại.",
+                    ephemeral=True,
+                    allowed_mentions=NO_MENTIONS,
+                )
+                return
+            except asyncio.CancelledError:
+                # The HTTP request may already have reached Discord. Latch the
+                # target so another panel cannot issue a duplicate leave.
+                self.cog._finish_guild_leave(target_id, succeeded=True)
+                self.completed = True
+                _disable_view(self)
+                self.stop()
+                raise
+            except Exception as error:
+                self.cog._finish_guild_leave(target_id, succeeded=False)
+                logger.exception(
+                    "Unexpected guild leave failure source=%s target=%s",
+                    self.guild_id,
+                    target_id,
+                )
+                await self.cog.record_admin_action(
+                    interaction=interaction,
+                    action="leave_guild",
+                    status="failed",
+                    details={
+                        "target_guild_id": target_id,
+                        "target_guild_name": target_name,
+                        "reason": "unexpected_error",
+                        "error_type": type(error).__name__,
+                    },
+                )
+                self._reset_confirmation()
+                self._sync_controls()
+                await interaction.edit_original_response(
+                    embed=self.build_embed(),
+                    view=self,
+                )
+                await interaction.followup.send(
+                    "Không thể rời server do lỗi ngoài dự kiến. "
+                    "Bạn có thể xác nhận lại để thử lại.",
+                    ephemeral=True,
+                    allowed_mentions=NO_MENTIONS,
+                )
+                return
+
+            # Latch success before MongoDB audit or response rendering can be
+            # cancelled or fail, preventing a second panel from leaving twice.
+            self.cog._finish_guild_leave(target_id, succeeded=True)
+            self.completed = True
+            _disable_view(self)
+            self.stop()
+            try:
+                action_recorded = await self.cog.record_admin_action(
+                    interaction=interaction,
+                    action="leave_guild",
+                    status="succeeded",
+                    details={
+                        "target_guild_id": target_id,
+                        "target_guild_name": target_name,
+                    },
+                )
+            except Exception:
+                logger.exception(
+                    "Unexpected leave audit failure source=%s target=%s",
+                    self.guild_id,
+                    target_id,
+                )
+                action_recorded = False
+            audit_note = (
+                "Đã ghi audit tại server nguồn."
+                if action_recorded
+                else "Không thể ghi audit tại server nguồn."
+            )
+            await interaction.edit_original_response(
+                embed=discord.Embed(
+                    title="✅ Đã rời server",
+                    description=(
+                        f"Bot đã rời **{_safe_display(target_name, 200)}** "
+                        f"(`{target_id}`). {audit_note}"
+                    ),
+                    color=discord.Color.green(),
+                ),
+                view=self,
+            )
+
+    @discord.ui.button(
+        label="Đóng",
+        style=discord.ButtonStyle.secondary,
+        row=2,
+    )
+    async def close(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button,
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        async with self._action_lock:
+            if self.completed:
+                return
+            _disable_view(self)
+            self.stop()
+            await interaction.edit_original_response(
+                content="Đã đóng danh sách server.",
+                embed=None,
+                view=self,
+                allowed_mentions=NO_MENTIONS,
+            )
+
+
 class OperationDashboardView(GuildAdminView):
     def __init__(
         self,
         *,
         cog: "OperationDashboardCog",
         guild_id: int,
+        owner_id: int | None = None,
     ) -> None:
         super().__init__(guild_id=guild_id)
         self.cog = cog
+        self.owner_id = owner_id
         self._refresh_lock = asyncio.Lock()
+        if owner_id is None:
+            self.remove_item(self.joined_servers)
+            self.remove_item(self.lifecycle_history)
+
+    async def _owner_control_allowed(
+        self,
+        interaction: discord.Interaction,
+    ) -> bool:
+        if self.owner_id is None:
+            await _send_private(
+                interaction,
+                "Bảng bot_status này không được mở bởi bot owner.",
+            )
+            return False
+        return await _check_owner_access(
+            interaction,
+            bot=self.cog.bot,
+            source_guild_id=self.guild_id,
+            author_id=self.owner_id,
+        )
 
     @discord.ui.button(
         label="Làm mới",
         emoji="🔄",
         style=discord.ButtonStyle.primary,
+        row=0,
     )
     async def refresh(
         self,
@@ -993,6 +1822,7 @@ class OperationDashboardView(GuildAdminView):
         label="Audit logs",
         emoji="📋",
         style=discord.ButtonStyle.secondary,
+        row=0,
     )
     async def audit_logs(
         self,
@@ -1027,6 +1857,7 @@ class OperationDashboardView(GuildAdminView):
         label="Tải CSV",
         emoji="📥",
         style=discord.ButtonStyle.success,
+        row=0,
     )
     async def export_logs(
         self,
@@ -1050,6 +1881,7 @@ class OperationDashboardView(GuildAdminView):
         label="Dọn log",
         emoji="🗑️",
         style=discord.ButtonStyle.danger,
+        row=0,
     )
     async def prune_logs(
         self,
@@ -1080,6 +1912,61 @@ class OperationDashboardView(GuildAdminView):
             allowed_mentions=NO_MENTIONS,
         )
 
+    @discord.ui.button(
+        label="Server đã tham gia",
+        emoji="🌐",
+        style=discord.ButtonStyle.secondary,
+        row=1,
+    )
+    async def joined_servers(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button,
+    ) -> None:
+        if not await self._owner_control_allowed(interaction):
+            return
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        view = JoinedServerView(
+            cog=self.cog,
+            guild_id=self.guild_id,
+            author_id=self.owner_id,
+        )
+        view.message = await interaction.followup.send(
+            embed=view.build_embed(),
+            view=view,
+            ephemeral=True,
+            wait=True,
+            allowed_mentions=NO_MENTIONS,
+        )
+
+    @discord.ui.button(
+        label="Lịch sử kết nối",
+        emoji="🔌",
+        style=discord.ButtonStyle.secondary,
+        row=1,
+    )
+    async def lifecycle_history(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button,
+    ) -> None:
+        if not await self._owner_control_allowed(interaction):
+            return
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        view = LifecycleHistoryView(
+            bot=self.cog.bot,
+            guild_id=self.guild_id,
+            author_id=self.owner_id,
+        )
+        await view.load_events()
+        view.message = await interaction.followup.send(
+            embed=view.build_embed(),
+            view=view,
+            ephemeral=True,
+            wait=True,
+            allowed_mentions=NO_MENTIONS,
+        )
+
 
 class OperationDashboardCog(commands.Cog):
     """Bot health dashboard and guild-scoped command audit trail."""
@@ -1090,6 +1977,8 @@ class OperationDashboardCog(commands.Cog):
         self.logs = self.db[LOG_COLLECTION]
         self.loaded_at = discord.utils.utcnow()
         self._index_task: asyncio.Task[None] | None = None
+        self._guild_leave_in_flight: set[int] = set()
+        self._departed_guild_ids: set[int] = set()
 
     async def cog_load(self) -> None:
         self._index_task = asyncio.create_task(self._ensure_indexes_until_ready())
@@ -1118,6 +2007,24 @@ class OperationDashboardCog(commands.Cog):
             if await asyncio.to_thread(self._ensure_indexes):
                 return
             await asyncio.sleep(INDEX_RETRY_SECONDS)
+
+    def _claim_guild_leave(self, guild_id: int) -> bool:
+        if (
+            guild_id in self._guild_leave_in_flight
+            or guild_id in self._departed_guild_ids
+        ):
+            return False
+        self._guild_leave_in_flight.add(guild_id)
+        return True
+
+    def _finish_guild_leave(self, guild_id: int, *, succeeded: bool) -> None:
+        self._guild_leave_in_flight.discard(guild_id)
+        if succeeded:
+            self._departed_guild_ids.add(guild_id)
+
+    @commands.Cog.listener()
+    async def on_guild_join(self, guild: discord.Guild) -> None:
+        self._departed_guild_ids.discard(guild.id)
 
     @staticmethod
     def _should_log_command(ctx: commands.Context) -> bool:
@@ -1379,9 +2286,15 @@ class OperationDashboardCog(commands.Cog):
         return True
 
     def _bot_started_at(self) -> datetime:
+        recorder = getattr(self.bot, "lifecycle_recorder", None)
+        process_started_at = getattr(recorder, "process_started_at", None)
+        if isinstance(process_started_at, datetime):
+            return _as_utc(process_started_at)
         server_stats = self.bot.get_cog("ServerStatsCog")
         started_at = getattr(server_stats, "start_time", None)
-        return started_at if isinstance(started_at, datetime) else self.loaded_at
+        if isinstance(started_at, datetime):
+            return _as_utc(started_at)
+        return _as_utc(self.loaded_at)
 
     async def collect_snapshot(self, guild: discord.Guild) -> DashboardSnapshot:
         now = discord.utils.utcnow()
@@ -1535,7 +2448,20 @@ class OperationDashboardCog(commands.Cog):
     @commands.has_guild_permissions(administrator=True)
     @commands.cooldown(1, 10, commands.BucketType.guild)
     async def show_bot_status(self, ctx: commands.Context) -> None:
-        view = OperationDashboardView(cog=self, guild_id=ctx.guild.id)
+        try:
+            is_owner = await self.bot.is_owner(ctx.author)
+        except Exception:
+            logger.exception(
+                "Failed to detect bot owner while opening dashboard guild=%s actor=%s",
+                ctx.guild.id,
+                ctx.author.id,
+            )
+            is_owner = False
+        view = OperationDashboardView(
+            cog=self,
+            guild_id=ctx.guild.id,
+            owner_id=ctx.author.id if is_owner else None,
+        )
         embed = await self.build_dashboard_embed(ctx.guild)
         view.message = await ctx.reply(
             embed=embed,

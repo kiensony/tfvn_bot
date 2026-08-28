@@ -182,10 +182,11 @@ tfvn_bot/
     │   └── gelbooru.py                  Age-gated Gelbooru API search
     ├── operation/
     │   ├── bot_status.py                Random Discord activity and timing rotation
+    │   ├── _lifecycle.py                Append-only process/gateway lifecycle event recorder
     │   ├── _operation_helpers.py        Audit ranges, sanitization, and safe CSV generation
     │   ├── _setup_helpers.py           Pure setup-check result and ID helpers
     │   ├── heartbeat.py                 Latency/health command
-    │   ├── operation_dashboard.py       Bot health UI, command audit, CSV export, and pruning
+    │   ├── operation_dashboard.py       Health/audit UI plus private Bot owner guild/lifecycle panels
     │   ├── server_stats.py              In-memory uptime and command/error counts
     │   ├── setup_check.py               Database, permission, ID, and cog diagnostics
     │   └── leave.py                     Administrator-controlled guild departure
@@ -235,6 +236,11 @@ MongoDB collections are created lazily. Major groups are:
 - Scheduling: `tasks`, `votes`, `giveaways`, `birthdays`, `birthday_announcements`
 - AFK and moderation: `afk_reminders`, `afk_pings`, `discipline_logs`, `old_roles`, `warnings`, `moderation_cases`
 - Operations audit: `operation_logs` stores guild-scoped recognized prefix-command outcomes and dashboard export/prune actions; records have no automatic TTL and are removed only through the Administrator dashboard
+- Bot lifecycle: `bot_lifecycle_events` stores global, append-only `initial_ready`,
+  `reidentified`, and `resumed` events indefinitely. The Bot owner dashboard reads
+  the newest 10 events for the current environment. This collection is separate
+  from `operation_logs` and is excluded from guild audit browsing, CSV export,
+  and pruning
 - Shared sequence counters: `feature_counters`
 - Games and boosters: card-game wagers use `user_accounts` plus `transaction_logs`;
   Crocodile Dentist uses `crocodile_games` plus guild-scoped IDs from
