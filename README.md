@@ -18,7 +18,7 @@ For a complete list of commands and automatic features, see [FUNCTIONS.md](FUNCT
 - **Social and fun commands:** member interactions, rankings, avatars, random members, community-themed cards, and a collection of playful “meter” commands.
 - **Operations:** an Administrator dashboard for bot/server health, guild command auditing, CSV export, and guarded log pruning.
 - **Optional age-restricted features:** NSFW interactions and Rule34/Gelbooru searches, guarded by Discord's NSFW channel setting.
-- **Persistent state:** MongoDB-backed balances, cultivation profiles, interactions, Crocodile Dentist games, game context, reminders, settings, giveaways, booster resources, moderation data, and guild command audit logs.
+- **Persistent state:** MongoDB-backed balances, cultivation profiles, interactions, Crocodile Dentist games, game context, reminders, settings, giveaways, booster resources, moderation data, signed content proofs, and guild command audit logs.
 
 ## How it works
 
@@ -77,6 +77,10 @@ DB_PASSWORD=replace_with_a_strong_password
 DB_HOST=localhost:27017
 DB_NAME=tfvn_bot
 
+# Required by femboy-card and quote proofs
+CONTENT_VERIFICATION_ACTIVE_KEY_ID=2026-08
+CONTENT_VERIFICATION_KEYS_JSON={"2026-08":"replace_with_32_byte_base64url_key"}
+
 # Optional feature controls
 DISABLED_COGS=
 
@@ -92,6 +96,34 @@ DB_METHOD://DB_USERNAME:DB_PASSWORD@DB_HOST/?retryWrites=true&w=majority
 ```
 
 Include the port in `DB_HOST`; the current connection builder does not read `DB_PORT`. Keep `.env` and `.env.prod` private—they are already ignored by Git.
+
+Generate each content-verification key with:
+
+```powershell
+python -c "import base64,secrets; print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode().rstrip('='))"
+```
+
+Use that output only as the JSON value; never reuse `DISCORD_TOKEN` or a database
+password. New cards and quotes fail closed when the keyring is missing or invalid.
+For rotation, add a new key ID, keep old key IDs in the JSON so existing proofs
+remain verifiable, then change `CONTENT_VERIFICATION_ACTIVE_KEY_ID` to the new ID.
+Use a different keyring for every bot deployment (for example development and
+production); instances that share an HMAC key can validate and mint each other's
+proofs.
+
+Internally, proofs use a `tfv1.<key-id>.<claims>.<signature>` token. New cards and
+quotes display only a 31-character `tfp1_<reference>` code; the signed token remains
+hidden in MongoDB. `hash_verify` resolves that exact reference, authenticates the
+hidden token, requires its signed ID to match the record ID, and then compares the
+saved snapshot with the signed digest. Full `tfv1` tokens remain accepted for older
+messages. A short reference is intentionally not a self-contained proof and needs
+MongoDB, but a database-only writer still cannot mint, redirect, or alter a valid
+result without the HMAC key. The signed claims bind the proof type, guild, issuer,
+source IDs, issue times, salt, and digest of the complete private snapshot; quote
+text stays out of the readable token. This is bot-verifiable HMAC—not an
+independently verifiable public-key signature—and it authenticates recorded
+member/role facts or quote text used by the bot rather than screenshot/PNG pixels,
+avatars, attachments, or embeds.
 
 Feature controls:
 
@@ -216,6 +248,7 @@ menu focused on their respective topics.
 | Tiên Lộ | `tutien`, `tutien thucong`, `tutien dotpha`, `tutien bicanh`, `tutien thiluyen`, `tutien doido` |
 | Moderation | `kick`, `ban`, `unban`, `softban`, `mute`, `timeout`, `warn`, `case`, `purge`, `slowmode`, `verified` |
 | Operations | `ping`, `server_stats`, `bot_status`, `setup check` |
+| Utilities | `quote`, `hash_verify`, `big_speaker`, `random_member` |
 | Booster tools | `custom_role`, `update_custom_role`, `custom_room` |
 | Social and fun | `kiss`, `hug`, `pat`, `avatar`, `quote`, `rank`, `ship`, `aura`, `redflag`, configurable `triggerreply`, and other meter commands |
 | Automatic features | Welcome and leave/kick/ban announcements, AFK monitoring, reminders, content filtering, scheduled cleanup, and persistent interaction handling |
@@ -379,6 +412,7 @@ tfvn_bot/
 ├── cogs/                   # Discord commands, listeners, tasks, and UI views
 │   ├── _beta_function.py   # Database-role guard for experimental commands
 │   ├── _feature_flags.py   # Feature and cog disable flag parsing
+│   ├── _hash_verification.py # Signed content-proof issuance and validation
 │   ├── settings/           # Mongo-backed runtime variables
 │   ├── economy/            # Trap Coin shop, inventory, badges, and role items
 │   ├── cultivation/        # Tiên Lộ progression, AFK calculations, PvE, and economy

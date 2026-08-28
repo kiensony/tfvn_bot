@@ -70,6 +70,7 @@ tfvn_bot/
 │   ├── test_community_features.py  Pure validation/time/helper regression tests
 │   ├── test_cultivation.py         Tiên Lộ calculations, state, UI, and persistence tests
 │   ├── test_help_menu.py           Help catalog completeness, limits, gates, and UI tests
+│   ├── test_hash_verification.py    Signed proof, forgery, tamper, producer, and privacy tests
 │   ├── test_meter_number_bars.py   unittest coverage for signed meter formatting
 │   └── word_stardardlize.py        Manual normalization utility; not auto-discovered as a test
 │
@@ -77,6 +78,7 @@ tfvn_bot/
     ├── __init__.py                 Root extension package marker
     ├── _beta_function.py           Multi-role Beta command access guard
     ├── _feature_flags.py           DISABLED_COGS pattern parsing
+    ├── _hash_verification.py       HMAC proof issuance and snapshot-integrity checks
     ├── general.py                  hello, invite, and verification-channel pointers
     ├── help.py                     Full-catalog dropdown help UI with an NSFW channel gate
     ├── afk_remind/
@@ -193,6 +195,7 @@ tfvn_bot/
         ├── vote.py                      Persistent reaction polls and result scheduling
         ├── quote.py                     Text-embed and PNG message quote modes
         ├── _quote_card.py               Quote text wrapping and PNG card rendering
+        ├── hash_verify.py               Signature-first femboy-card/quote proof verification
         ├── big_speaker.py               Paid TC big-text re-speak in current channel
         ├── _big_speaker_helpers.py      Size 1–6 → TC cost, mention sanitize, format helpers
         ├── random_member.py             Random guild member selection
@@ -211,6 +214,24 @@ MongoDB collections are created lazily. Major groups are:
 - Economy: `user_accounts` (including versioned `cultivation` state), `daily_rewards_logs`, `transaction_logs`, `shop_items`, `shop_inventory`
 - Cultivation audit: append-only `cultivation_events`; TC exchanges also write `transaction_logs`
 - Social state: `interactions`, `nsfw_settings`, `images`, `marriages`, `marriage_proposals`, `triggered_replies`
+- Content provenance: `hash_verifications` stores immutable, guild-scoped
+  femboy-card and quote snapshots. New records use their signed 128-bit token ID
+  as MongoDB `_id` and store the full HMAC token privately; legacy records remain
+  keyed by a token fingerprint. Cards and quotes display only a short canonical
+  `tfp1_<base32-token-id>` reference. Resolution requires the requested ID,
+  record `_id`, and ID signed inside the hidden token to match before comparing
+  the stored snapshot with its signed digest. Full
+  `tfv1.<key-id>.<claims>.<signature>` tokens remain accepted. MongoDB access
+  alone therefore cannot mint, redirect, or alter a valid result, though short
+  references depend on registry availability and are not portable proofs.
+  Signing keys come only from
+  `CONTENT_VERIFICATION_KEYS_JSON`; the active ID comes from
+  `CONTENT_VERIFICATION_ACTIVE_KEY_ID`, and missing/invalid keys fail closed.
+  This is bot-verifiable HMAC rather than public non-repudiation and proves the
+  recorded member/role facts or bot-used quote text, not screenshot/PNG pixels,
+  avatars, attachments, or embeds. Deployments must not share keyrings. Quote
+  text and names stay out of the readable token and are returned only inside the
+  exact source channel/thread; PyMongo reads/writes run in worker threads
 - Scheduling: `tasks`, `votes`, `giveaways`, `birthdays`, `birthday_announcements`
 - AFK and moderation: `afk_reminders`, `afk_pings`, `discipline_logs`, `old_roles`, `warnings`, `moderation_cases`
 - Operations audit: `operation_logs` stores guild-scoped recognized prefix-command outcomes and dashboard export/prune actions; records have no automatic TTL and are removed only through the Administrator dashboard

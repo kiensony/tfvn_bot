@@ -290,7 +290,7 @@ Most meters accept an optional `@member` (default: author). Scores are determini
 | `skillissue` | — | Skill-issue meter |
 | `touchgrass` | — | Touch-grass meter |
 | `yapper` | — | Yap meter |
-| `femboycard` | — | Personal femboy card from configured role names (`data/femboy_role.txt`) |
+| `femboycard` | — | Personal femboy card from configured role names (`data/femboy_role.txt`), issued with a signed TFVN proof that binds the member, role, guild, issuer, time, and saved snapshot; 10s per-user cooldown |
 | `birthday` | — | Open the interactive month and day picker |
 | `birthday set <day> <month>` | — | Register a birthday directly (announced by scheduled task) |
 
@@ -436,7 +436,8 @@ Duration range: 10 seconds–30 days; max 20 winners.
 
 | Command | Aliases | Access | Description |
 | --- | --- | --- | --- |
-| `quote [image] [message_link\|message_id]` | `q`, `quotes` | Everyone (guild) | Quote a replied/current-channel message as a text embed by default. Add `image` before the optional link/ID to generate a PNG card with bundled offline emoji/symbol fallback fonts. Both modes use the author's server avatar when available, link to the original message, and have a 5s per-user cooldown |
+| `quote [image] [message_link\|message_id]` | `q`, `quotes` | Everyone (guild) | Quote a replied/current-channel message as a text embed by default. Add `image` before the optional link/ID to generate a PNG card with bundled offline emoji/symbol fallback fonts. Both modes use the author's server avatar when available, link to the original message, include a signed TFVN proof bound to the source snapshot, and have a 5s per-user cooldown |
+| `hash_verify <proof_code>` | — | Everyone (guild) | Resolve a short `tfp1_…` code to its hidden signed token, require the requested/record/signed IDs to match, and verify the saved Femboy Card or quote snapshot against the signed digest. Full legacy `tfv1.…` tokens also work. Results are limited to the signed guild; private quote text is shown only in the exact source channel/thread with history access. Limited to 3 checks per 10 seconds per user |
 | `big_speaker <size> <message>` | `loa`, `speaker` | Everyone (guild) | Re-speak a message in large Discord markdown. **`size` is 1–6**; TC cost by size: **1 / 2 / 5 / 10 / 20 / 50**. Sizes 5–6 add separators; 6 is bold H1. Mentions: user only; strips `@everyone`, `@here`, role pings. 30s cooldown |
 | `random_member <@member\|@role>` | — | Everyone | Pick a random member (from role members if a role is given) |
 | `save_image <collection> [key value ...]` | — | Manage Messages | Persist attached images + optional metadata pairs to Mongo (`images`) |
@@ -582,7 +583,7 @@ locknsfw, unlocknsfw, verified, unverified
 custom_role, update_custom_role, custom_room
 jobremind, jobremind add
 giveaway, giveaway list, giveaway entries, giveaway end, giveaway reroll
-vote, quote, big_speaker, random_member, save_image
+vote, quote, hash_verify, big_speaker, random_member, save_image
 kick, ban, unban, softban, unsoftban, mute, unmute, timeout, untimeout, warn, check_warn
 nickchange, roleroll, roleunroll, rolecopy
 purge, purge_user, clean_before

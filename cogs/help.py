@@ -603,7 +603,10 @@ HELP_TOPICS = (
                     ),
                     _entry(
                         "femboycard",
-                        "Tạo thẻ cho chính bạn; cần một role trong danh sách femboy.",
+                        (
+                            "Tạo thẻ cho chính bạn kèm proof có chữ ký TFVN; "
+                            "cần một role trong danh sách femboy; cooldown 10 giây."
+                        ),
                     ),
                     _entry("ship", "Đo mức độ hợp đôi.", "ship @user1 @user2"),
                     _entry(
@@ -774,10 +777,18 @@ HELP_TOPICS = (
                         "quote",
                         (
                             "Quote reply/link/ID dạng embed; thêm `image` để tạo PNG; "
-                            "cooldown 5 giây/người."
+                            "cả hai dạng có proof có chữ ký; cooldown 5 giây/người."
                         ),
                         "quote [image] [message_link|message_id]",
                         aliases=("q", "quotes"),
+                    ),
+                    _entry(
+                        "hash_verify",
+                        (
+                            "Kiểm tra mã proof ngắn và snapshot của Femboy Card "
+                            "hoặc quote; vẫn nhận token tfv1 cũ; tối đa 3 lần/10 giây."
+                        ),
+                        "hash_verify <proof_code>",
                     ),
                     _entry(
                         "big_speaker",

@@ -31,6 +31,12 @@ bot = commands.Bot(
 
 bot.db = db.db
 bot.environment = environment
+bot.CONTENT_VERIFICATION_KEYS_JSON = os.getenv(
+    "CONTENT_VERIFICATION_KEYS_JSON"
+)
+bot.CONTENT_VERIFICATION_ACTIVE_KEY_ID = os.getenv(
+    "CONTENT_VERIFICATION_ACTIVE_KEY_ID"
+)
 
 # inject environment variables to all class
 # TODO: inject environment variables to all class for better practice
