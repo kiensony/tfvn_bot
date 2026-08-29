@@ -12,6 +12,7 @@ from pymongo import ASCENDING, DESCENDING
 from pymongo.errors import PyMongoError
 
 from cogs._beta_function import BetaFunctionError
+from cogs.operation._graceful_shutdown import ShutdownInProgress
 from cogs.operation import operation_dashboard as dashboard_module
 from cogs.operation._operation_helpers import (
     CSV_COLUMNS,
@@ -1397,6 +1398,7 @@ class TestServerStatsRegression(unittest.IsolatedAsyncioTestCase):
         await cog.on_command(ctx)
         await cog.on_command(ctx)
         await cog.on_command_error(ctx, BetaFunctionError("expected denial"))
+        await cog.on_command_error(ctx, ShutdownInProgress())
         await cog.on_command_error(ctx, commands.CommandError("unexpected"))
         with patch("cogs.operation.server_stats.discord.utils.utcnow", return_value=now):
             await ServerStatsCog.server_stats.callback(cog, ctx)

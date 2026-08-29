@@ -4,7 +4,7 @@ This document maps the maintained repository files and explains where each behav
 
 ## Runtime Flow
 
-1. `main.py` loads `.env`, creates the prefix-based `commands.Bot`, enables member and message-content intents, and attaches the MongoDB database from `db.py`.
+1. `main.py` loads `.env`, creates the prefix-based `commands.Bot`, enables member and message-content intents, attaches the MongoDB database from `db.py`, and owns graceful SIGINT/SIGTERM command draining.
 2. `DataLoader` loads shared lists from `data/` onto the bot instance.
 3. In production, every public Python module below `cogs/` is discovered recursively. Development uses the ignored `dev_cogs.txt`. Both use the database selected by `DB_NAME`.
 4. `cogs.settings.variable_setting` is loaded first when selected, populating `bot.global_vars` from MongoDB.
@@ -182,6 +182,7 @@ tfvn_bot/
     │   └── gelbooru.py                  Age-gated Gelbooru API search
     ├── operation/
     │   ├── bot_status.py                Random Discord activity and timing rotation
+    │   ├── _graceful_shutdown.py        Command admission, drain tracking, and signal helpers
     │   ├── _lifecycle.py                Append-only process/gateway lifecycle event recorder
     │   ├── _operation_helpers.py        Audit ranges, sanitization, and safe CSV generation
     │   ├── _setup_helpers.py           Pure setup-check result and ID helpers
@@ -270,6 +271,12 @@ Commands decorated with `@BetaFunction` are registered normally in any runtime,
 but the callback requires the invoking member to hold at least one role in
 `BETA_ROLE_IDS`. The role list is read only from `bot.global_vars`, populated by
 the MongoDB `global_variables` collection; environment role values are ignored.
+
+`main.py` registers a one-time global command admission check. The first SIGINT
+or SIGTERM rejects later prefix commands, waits for every previously admitted
+invocation to return, and then closes Discord and the lifecycle recorder. A
+second signal forces closure. Compose grants the process up to five minutes
+before container termination.
 
 ## Where to Make a Change
 

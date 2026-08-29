@@ -394,6 +394,13 @@ Stop it with:
 docker compose down
 ```
 
+SIGINT and SIGTERM trigger graceful command draining. The bot immediately stops
+admitting new prefix commands, tells later callers that shutdown is in progress,
+waits for commands already running, and then closes Discord and flushes its
+lifecycle recorder. Sending a second shutdown signal forces closure. Compose's
+five-minute stop grace period gives active commands time to finish before Docker
+terminates the container.
+
 The Compose file does **not** start MongoDB, so `DB_HOST` must point to an existing deployment reachable from the container. The bot opens no inbound port; it connects outbound to Discord, MongoDB, and any enabled external APIs.
 
 The GitHub Actions workflow also builds and publishes container images to GitHub Container Registry for configured branches and releases.

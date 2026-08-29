@@ -52,6 +52,8 @@ Examples below use that default. Replace with your configured prefix if differen
 
 When the Administrator is also the Bot owner, the dashboard adds two private controls. The joined-server manager lists every guild currently connected to the bot and can leave a selected guild only after confirmation; it cannot leave the guild where `bot_status` was invoked. The standalone `!tf leave` command remains unchanged and still leaves its current guild immediately. The lifecycle panel shows the 10 newest `initial_ready`, `reidentified`, or `resumed` events for the current environment. These append-only global events are retained indefinitely in `bot_lifecycle_events`; they are separate from `operation_logs` and are never included in guild audit browsing, CSV exports, or pruning.
 
+On SIGINT or SIGTERM, the process enters graceful drain mode. Commands admitted before the signal finish normally; later prefix commands receive a shutdown notice and do not execute. Discord closes after the active command set is empty. A second signal forces immediate closure.
+
 ---
 
 ## Triggered replies
