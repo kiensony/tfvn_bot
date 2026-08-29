@@ -174,7 +174,7 @@ tfvn_bot/
     │   ├── slowmode.py              Slow-mode inspection and guarded overrides
     │   ├── unban.py                     Reply/user-ID unban and reinvite orchestration
     │   ├── warn.py                      Warning commands
-    │   ├── verified.py                  Verified role and NSFW channel access management
+    │   ├── verified.py                  Verified role grant/revoke and member self-unverify confirmation
     │   └── area_51_guard.py             Honeypot channel, cancel view, bans, and reminders
     ├── nsfw/
     │   ├── __init__.py             NSFW extension package marker
