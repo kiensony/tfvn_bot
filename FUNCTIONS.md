@@ -37,6 +37,7 @@ Examples below use that default. Replace with your configured prefix if differen
 | `hello` | Everyone | Greets the invoking user |
 | `invite` | Everyone | Replies with the bot invite link (`INVITE_LINK` env) |
 | `verify` | Everyone | Points the user to the verification channel (`VERIFY_CHANNEL` env) |
+| `self_unverified` | Everyone (guild) | Confirm Yes/No to drop your own verified/NSFW-access role. Cancel or timeout requires running the command again. After confirmation, staff must grant the role again |
 | `ping` | Everyone | Heartbeat / liveness reply |
 | `beta_preview` | Beta | Confirms the member has a configured Beta role |
 | `server_stats` | Administrator | In-memory uptime, command, and error counts since process start; 10s per-guild cooldown |
@@ -380,6 +381,7 @@ All 16 SFW interactions require a non-bot target and have a 3-second per-command
 | --- | --- | --- |
 | `verified @user` | Manage Roles | Grant configured verified/NSFW-access role |
 | `unverified @user` | Manage Roles | Remove verified role |
+| `self_unverified` | Everyone (guild) | Member self-service: confirm Yes/No to remove their own verified role. There is no self-service restore; they must ask staff (`verified`) again |
 
 **Module:** `cogs.nsfw.*`, `cogs.interaction.nsfw_*`, `cogs.mod.verified`
 
@@ -554,7 +556,7 @@ These modules support features but are not discovered as extensions (leading `_`
 
 ```
 help, mod, nsfw
-hello, invite, verify, ping, beta_preview, server_stats, bot_status, leave
+hello, invite, verify, self_unverified, ping, beta_preview, server_stats, bot_status, leave
 setup, setup check
 triggerreply, triggerreply add, triggerreply update, triggerreply list, triggerreply remove
 afk, afk dynamic, afk time, afk clear, afk check
