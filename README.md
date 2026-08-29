@@ -210,7 +210,7 @@ menu focused on their respective topics.
 
 | Area | Representative commands |
 | --- | --- |
-| General | `help [topic]`, `hello`, `invite`, `verify`, `self_unverified`, `ping`, `server_stats` |
+| General | `help [topic]`, `hello`, `invite`, `verify`, `ping`, `server_stats` |
 | Community | `afk`, `jobremind add`, `birthday set`, `vote`, `giveaway` |
 | Economy and games | `daily`, `user_balance`, `user_transactions`, `shop`, `blackjack`, `poker`, `crocodile challenge`, `slot`, `flip_coin`, `sicbo_start`, `noitu`, `vtv` |
 | Tiên Lộ | `tutien`, `tutien thucong`, `tutien dotpha`, `tutien bicanh`, `tutien thiluyen`, `tutien doido` |
@@ -314,11 +314,7 @@ Reason and status edits retain an edit history. Status can be `open`,
 `resolved`, `appealed`, or `void`.
 
 Every state-changing moderation command except the intentionally unchanged
-`verified` / `unverified` staff workflow now ends with an explicit Yes/No guard.
-Members can drop their own verified/NSFW-access role with `self_unverified`;
-that command requires Yes/No confirmation, and cancel or timeout means they
-must run it again. After they confirm, they have to ask staff (`verified`) to
-get the role back.
+`verified` / `unverified` workflow now ends with an explicit Yes/No guard.
 Single-member actions can target a mention or the author of a same-channel reply;
 reply mode is argument-free so malformed input cannot silently change the target.
 Discord and database mutations happen only after the moderator completes the

@@ -91,13 +91,6 @@ HELP_TOPICS = (
                     _entry("hello", "Chào bot."),
                     _entry("invite", "Lấy liên kết mời bot."),
                     _entry("verify", "Đi tới kênh xác minh đã cấu hình."),
-                    _entry(
-                        "self_unverified",
-                        (
-                            "Tự gỡ role xác minh sau Yes/No; hết hạn phải gọi lại; "
-                            "muốn vào lại hỏi min mót."
-                        ),
-                    ),
                     _entry("ping", "Kiểm tra bot có đang phản hồi hay không."),
                 ),
             ),
@@ -1319,13 +1312,6 @@ HELP_TOPICS = (
                     _entry(
                         "unlocknsfw",
                         "Queen gỡ một lock còn hiệu lực do chính mình tạo.",
-                    ),
-                    _entry(
-                        "self_unverified",
-                        (
-                            "Tự gỡ role xác minh sau Yes/No; hết hạn phải gọi lại; "
-                            "muốn vào lại hỏi min mót."
-                        ),
                     ),
                 ),
                 note="King role nhân 3 điểm tương tác; chỉ Queen role dùng lock/unlock.",
