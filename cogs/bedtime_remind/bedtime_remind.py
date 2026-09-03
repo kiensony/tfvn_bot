@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any, Mapping
 
@@ -22,6 +23,7 @@ from cogs.bedtime_remind._bedtime_helpers import (
     parse_clock_time,
     to_mongo_utc,
 )
+from cogs.bedtime_remind._bedtime_ui import BedtimePanelView
 
 
 logger = logging.getLogger(__name__)
@@ -38,6 +40,15 @@ SCHEDULED_REMINDER_TEXT = (
 CHAT_REMINDER_TEXT = "🌙 {mention}, đến giờ đi ngủ rồi đó. Đi ngủ thôi!"
 
 NO_MENTIONS = discord.AllowedMentions.none()
+
+
+@dataclass(frozen=True, slots=True)
+class ScheduleCommandResult:
+    """User-facing outcome of an add/update/remove attempt."""
+
+    ok: bool
+    message: str
+    created: bool = False
 
 
 def _utcnow() -> datetime:
@@ -376,6 +387,274 @@ class BedtimeReminderCog(commands.Cog):
         permissions = channel.permissions_for(bot_member)
         return bool(permissions.view_channel and permissions.send_messages)
 
+    def can_send_to_channel(
+        self,
+        guild: discord.Guild,
+        channel: discord.TextChannel,
+    ) -> bool:
+        return self._can_send_to_channel(guild, channel, self.bot)
+
+    @property
+    def reminders_per_page(self) -> int:
+        return REMINDERS_PER_PAGE
+
+    def iter_guild_reminders(self, guild_id: int) -> list[dict[str, Any]]:
+        return sorted(
+            (
+                document
+                for (stored_guild_id, _), document in self.reminders_by_member.items()
+                if stored_guild_id == guild_id
+            ),
+            key=lambda document: int(document["user_id"]),
+        )
+
+    def format_reminder_line(
+        self,
+        guild: discord.Guild,
+        document: Mapping[str, Any],
+    ) -> str:
+        user_id = int(document["user_id"])
+        channel_id = int(document["channel_id"])
+        member = guild.get_member(user_id)
+        channel = guild.get_channel(channel_id)
+        member_name = (
+            discord.utils.escape_markdown(member.display_name)
+            if member is not None
+            else "Thành viên đã rời server"
+        )
+        channel_name = (
+            f"#{discord.utils.escape_markdown(channel.name)}"
+            if isinstance(channel, discord.TextChannel)
+            else "Kênh không còn tồn tại"
+        )
+        return (
+            f"**{member_name}** (`{user_id}`) · "
+            f"{format_clock_time(int(document['bedtime_minutes']))}–"
+            f"{format_clock_time(int(document['wake_minutes']))} · "
+            f"{channel_name} (`{channel_id}`)"
+        )
+
+    def _target_error(
+        self,
+        guild: discord.Guild,
+        member: discord.Member,
+        channel: discord.TextChannel,
+    ) -> str | None:
+        if member.bot:
+            return "Không thể đặt giờ ngủ cho bot."
+        if member.guild.id != guild.id:
+            return "Thành viên phải thuộc server này."
+        if channel.guild.id != guild.id:
+            return "Kênh nhắc phải thuộc server này."
+        if not self.can_send_to_channel(guild, channel):
+            return "Bot cần quyền View Channel và Send Messages trong kênh nhắc."
+        return None
+
+    def _success_save_message(
+        self,
+        *,
+        created: bool,
+        member: discord.Member,
+        channel: discord.TextChannel,
+        bedtime_minutes: int,
+        wake_minutes: int,
+    ) -> str:
+        action = "thêm" if created else "cập nhật"
+        display_name = discord.utils.escape_markdown(member.display_name)
+        return (
+            f"Đã {action} lịch ngủ cho **{display_name}** (`{member.id}`): "
+            f"{format_clock_time(bedtime_minutes)}–"
+            f"{format_clock_time(wake_minutes)} (UTC+7), nhắc tại "
+            f"**#{discord.utils.escape_markdown(channel.name)}**."
+        )
+
+    async def save_schedule(
+        self,
+        *,
+        guild: discord.Guild,
+        member: discord.Member,
+        channel: discord.TextChannel,
+        bedtime_minutes: int,
+        wake_minutes: int,
+        actor_id: int,
+    ) -> ScheduleCommandResult:
+        error = self._target_error(guild, member, channel)
+        if error is not None:
+            return ScheduleCommandResult(ok=False, message=error)
+        if bedtime_minutes == wake_minutes:
+            return ScheduleCommandResult(
+                ok=False,
+                message="Giờ ngủ và giờ dậy phải khác nhau.",
+            )
+
+        key = (guild.id, member.id)
+        created = False
+        async with self._member_lock(*key):
+            existing = self.reminders_by_member.get(key)
+            created = existing is None
+            now = as_utc(_utcnow())
+            window = active_sleep_window(now, bedtime_minutes, wake_minutes)
+            same_bedtime = bool(
+                existing is not None
+                and existing.get("bedtime_minutes") == bedtime_minutes
+            )
+            # The dedupe key identifies a local bedtime occurrence. Changing
+            # its channel or wake cutoff does not create a second occurrence,
+            # so preserve delivery state whenever bedtime itself is unchanged.
+            last_announced = (
+                existing.get("last_announced_bedtime_date")
+                if same_bedtime and existing is not None
+                else None
+            )
+            if window is not None and last_announced == bedtime_date_key(window):
+                next_mention_at = self._next_window_start(window)
+            else:
+                next_mention_at = next_reminder_deadline(
+                    now,
+                    bedtime_minutes,
+                    wake_minutes,
+                )
+
+            updated_fields: dict[str, Any] = {
+                "guild_id": guild.id,
+                "user_id": member.id,
+                "channel_id": channel.id,
+                "bedtime_minutes": bedtime_minutes,
+                "wake_minutes": wake_minutes,
+                "next_mention_at": to_mongo_utc(next_mention_at),
+                "last_announced_bedtime_date": last_announced,
+                "updated_by": actor_id,
+                "updated_at": to_mongo_utc(now),
+            }
+            created_fields: dict[str, Any] = {
+                "created_by": actor_id,
+                "created_at": to_mongo_utc(now),
+            }
+
+            try:
+                self.collection.update_one(
+                    {"guild_id": guild.id, "user_id": member.id},
+                    {
+                        "$set": updated_fields,
+                        "$setOnInsert": created_fields,
+                        "$unset": {"invalid_at": "", "invalid_reason": ""},
+                    },
+                    upsert=True,
+                )
+            except DuplicateKeyError:
+                logger.exception(
+                    "Duplicate bedtime reminder during upsert guild=%s user=%s",
+                    guild.id,
+                    member.id,
+                )
+                return ScheduleCommandResult(
+                    ok=False,
+                    message="Lịch ngủ vừa được thay đổi ở nơi khác. Hãy thử lại.",
+                )
+            except PyMongoError:
+                logger.exception(
+                    "Failed to save bedtime reminder guild=%s user=%s",
+                    guild.id,
+                    member.id,
+                )
+                return ScheduleCommandResult(
+                    ok=False,
+                    message="Không thể lưu lịch ngủ vào database lúc này.",
+                )
+
+            cached = dict(existing or created_fields)
+            cached.update(updated_fields)
+            cached.pop("invalid_at", None)
+            cached.pop("invalid_reason", None)
+            self.reminders_by_member[key] = cached
+
+        return ScheduleCommandResult(
+            ok=True,
+            created=created,
+            message=self._success_save_message(
+                created=created,
+                member=member,
+                channel=channel,
+                bedtime_minutes=bedtime_minutes,
+                wake_minutes=wake_minutes,
+            ),
+        )
+
+    async def delete_schedule(
+        self,
+        guild: discord.Guild,
+        user_id: int,
+    ) -> ScheduleCommandResult:
+        if not _valid_discord_id(user_id):
+            return ScheduleCommandResult(
+                ok=False,
+                message="User ID phải là Discord ID hợp lệ.",
+            )
+
+        key = (guild.id, user_id)
+        async with self._member_lock(*key):
+            was_cached = key in self.reminders_by_member
+            try:
+                result = self.collection.delete_one(
+                    {"guild_id": guild.id, "user_id": user_id}
+                )
+            except PyMongoError:
+                logger.exception(
+                    "Failed to remove bedtime reminder guild=%s user=%s",
+                    guild.id,
+                    user_id,
+                )
+                return ScheduleCommandResult(
+                    ok=False,
+                    message="Không thể xóa lịch ngủ khỏi database lúc này.",
+                )
+
+            deleted_count = getattr(result, "deleted_count", int(was_cached))
+            if deleted_count == 0 and not was_cached:
+                return ScheduleCommandResult(
+                    ok=False,
+                    message="Thành viên này chưa có lịch ngủ trong server.",
+                )
+
+            self.reminders_by_member.pop(key, None)
+
+        current_member = guild.get_member(user_id)
+        if current_member is None:
+            return ScheduleCommandResult(
+                ok=True,
+                message=f"Đã xóa lịch ngủ của user ID `{user_id}`.",
+            )
+        display_name = discord.utils.escape_markdown(current_member.display_name)
+        return ScheduleCommandResult(
+            ok=True,
+            message=f"Đã xóa lịch ngủ của **{display_name}** (`{user_id}`).",
+        )
+
+    async def open_bedtime_panel(self, ctx: commands.Context) -> None:
+        assert ctx.guild is not None
+        prefix = str(getattr(ctx, "clean_prefix", None) or ctx.prefix)
+        view = BedtimePanelView(
+            self,
+            guild_id=ctx.guild.id,
+            author_id=ctx.author.id,
+            prefix=prefix,
+        )
+        try:
+            message = await ctx.send(
+                embed=view.build_embed(),
+                view=view,
+                allowed_mentions=NO_MENTIONS,
+            )
+        except discord.HTTPException:
+            logger.exception(
+                "Failed to open bedtime panel guild=%s user=%s",
+                ctx.guild.id,
+                ctx.author.id,
+            )
+            await ctx.send("Không thể mở bảng giờ ngủ lúc này.")
+            return
+        view.message = message
+
     async def _process_due_document(
         self,
         raw_document: Mapping[str, Any],
@@ -628,20 +907,12 @@ class BedtimeReminderCog(commands.Cog):
     @commands.group(
         name="bedtime",
         invoke_without_command=True,
-        help="Quản lý giờ đi ngủ hằng ngày của thành viên.",
+        help="Mở bảng Discord để quản lý giờ đi ngủ hằng ngày của thành viên.",
     )
     @commands.guild_only()
     @commands.has_guild_permissions(administrator=True)
     async def bedtime(self, ctx: commands.Context) -> None:
-        prefix = getattr(ctx, "clean_prefix", None) or ctx.prefix
-        await ctx.send(
-            "**Nhắc giờ đi ngủ (UTC+7)**\n"
-            f"`{prefix}bedtime add @member <giờ_ngủ> <giờ_dậy> #channel`\n"
-            f"`{prefix}bedtime remove <@member|user_id>`\n"
-            f"`{prefix}bedtime list`\n"
-            "Thời gian dùng định dạng `H:MM` hoặc `HH:MM`.",
-            allowed_mentions=NO_MENTIONS,
-        )
+        await self.open_bedtime_panel(ctx)
 
     @bedtime.command(name="add", help="Thêm hoặc cập nhật giờ ngủ của thành viên.")
     @commands.guild_only()
@@ -655,21 +926,6 @@ class BedtimeReminderCog(commands.Cog):
         channel: discord.TextChannel,
     ) -> None:
         assert ctx.guild is not None
-        if member.bot:
-            await ctx.send("Không thể đặt giờ ngủ cho bot.")
-            return
-        if member.guild.id != ctx.guild.id:
-            await ctx.send("Thành viên phải thuộc server này.")
-            return
-        if channel.guild.id != ctx.guild.id:
-            await ctx.send("Kênh nhắc phải thuộc server này.")
-            return
-        if not self._can_send_to_channel(ctx.guild, channel, self.bot):
-            await ctx.send(
-                "Bot cần quyền View Channel và Send Messages trong kênh nhắc."
-            )
-            return
-
         try:
             bedtime_minutes = parse_clock_time(bedtime)
             wake_minutes = parse_clock_time(wake)
@@ -678,96 +934,19 @@ class BedtimeReminderCog(commands.Cog):
                 "Giờ không hợp lệ. Hãy dùng `H:MM` hoặc `HH:MM` theo đồng hồ 24 giờ."
             )
             return
-        if bedtime_minutes == wake_minutes:
-            await ctx.send("Giờ ngủ và giờ dậy phải khác nhau.")
-            return
 
-        key = (ctx.guild.id, member.id)
-        async with self._member_lock(*key):
-            existing = self.reminders_by_member.get(key)
-            now = as_utc(_utcnow())
-            window = active_sleep_window(now, bedtime_minutes, wake_minutes)
-            same_bedtime = bool(
-                existing is not None
-                and existing.get("bedtime_minutes") == bedtime_minutes
-            )
-            # The dedupe key identifies a local bedtime occurrence. Changing
-            # its channel or wake cutoff does not create a second occurrence,
-            # so preserve delivery state whenever bedtime itself is unchanged.
-            last_announced = (
-                existing.get("last_announced_bedtime_date")
-                if same_bedtime and existing is not None
-                else None
-            )
-            if window is not None and last_announced == bedtime_date_key(window):
-                next_mention_at = self._next_window_start(window)
-            else:
-                next_mention_at = next_reminder_deadline(
-                    now,
-                    bedtime_minutes,
-                    wake_minutes,
-                )
-
-            updated_fields: dict[str, Any] = {
-                "guild_id": ctx.guild.id,
-                "user_id": member.id,
-                "channel_id": channel.id,
-                "bedtime_minutes": bedtime_minutes,
-                "wake_minutes": wake_minutes,
-                "next_mention_at": to_mongo_utc(next_mention_at),
-                "last_announced_bedtime_date": last_announced,
-                "updated_by": ctx.author.id,
-                "updated_at": to_mongo_utc(now),
-            }
-            created_fields: dict[str, Any] = {
-                "created_by": ctx.author.id,
-                "created_at": to_mongo_utc(now),
-            }
-
-            try:
-                self.collection.update_one(
-                    {"guild_id": ctx.guild.id, "user_id": member.id},
-                    {
-                        "$set": updated_fields,
-                        "$setOnInsert": created_fields,
-                        "$unset": {"invalid_at": "", "invalid_reason": ""},
-                    },
-                    upsert=True,
-                )
-            except DuplicateKeyError:
-                logger.exception(
-                    "Duplicate bedtime reminder during upsert guild=%s user=%s",
-                    ctx.guild.id,
-                    member.id,
-                )
-                await ctx.send(
-                    "Lịch ngủ vừa được thay đổi ở nơi khác. Hãy thử lại."
-                )
-                return
-            except PyMongoError:
-                logger.exception(
-                    "Failed to save bedtime reminder guild=%s user=%s",
-                    ctx.guild.id,
-                    member.id,
-                )
-                await ctx.send("Không thể lưu lịch ngủ vào database lúc này.")
-                return
-
-            cached = dict(existing or created_fields)
-            cached.update(updated_fields)
-            cached.pop("invalid_at", None)
-            cached.pop("invalid_reason", None)
-            self.reminders_by_member[key] = cached
-
-        action = "cập nhật" if existing is not None else "thêm"
-        display_name = discord.utils.escape_markdown(member.display_name)
-        await ctx.send(
-            f"Đã {action} lịch ngủ cho **{display_name}** (`{member.id}`): "
-            f"{format_clock_time(bedtime_minutes)}–"
-            f"{format_clock_time(wake_minutes)} (UTC+7), nhắc tại "
-            f"**#{discord.utils.escape_markdown(channel.name)}**.",
-            allowed_mentions=NO_MENTIONS,
+        result = await self.save_schedule(
+            guild=ctx.guild,
+            member=member,
+            channel=channel,
+            bedtime_minutes=bedtime_minutes,
+            wake_minutes=wake_minutes,
+            actor_id=ctx.author.id,
         )
+        if not result.ok:
+            await ctx.send(result.message)
+            return
+        await ctx.send(result.message, allowed_mentions=NO_MENTIONS)
 
     @bedtime.command(name="remove", help="Xóa lịch ngủ của thành viên.")
     @commands.guild_only()
@@ -779,94 +958,34 @@ class BedtimeReminderCog(commands.Cog):
     ) -> None:
         assert ctx.guild is not None
         user_id = member if isinstance(member, int) else member.id
-        if not _valid_discord_id(user_id):
-            await ctx.send("User ID phải là Discord ID hợp lệ.")
+        result = await self.delete_schedule(ctx.guild, user_id)
+        if not result.ok:
+            await ctx.send(result.message)
             return
-
-        key = (ctx.guild.id, user_id)
-        async with self._member_lock(*key):
-            was_cached = key in self.reminders_by_member
-            try:
-                result = self.collection.delete_one(
-                    {"guild_id": ctx.guild.id, "user_id": user_id}
-                )
-            except PyMongoError:
-                logger.exception(
-                    "Failed to remove bedtime reminder guild=%s user=%s",
-                    ctx.guild.id,
-                    user_id,
-                )
-                await ctx.send("Không thể xóa lịch ngủ khỏi database lúc này.")
-                return
-
-            deleted_count = getattr(result, "deleted_count", int(was_cached))
-            if deleted_count == 0 and not was_cached:
-                await ctx.send("Thành viên này chưa có lịch ngủ trong server.")
-                return
-
-            self.reminders_by_member.pop(key, None)
-        current_member = (
-            ctx.guild.get_member(user_id)
-            if isinstance(member, int)
-            else member
-        )
-        if current_member is None:
-            await ctx.send(f"Đã xóa lịch ngủ của user ID `{user_id}`.")
-            return
-
-        display_name = discord.utils.escape_markdown(current_member.display_name)
-        await ctx.send(
-            f"Đã xóa lịch ngủ của **{display_name}** (`{user_id}`).",
-            allowed_mentions=NO_MENTIONS,
-        )
+        await ctx.send(result.message, allowed_mentions=NO_MENTIONS)
 
     @bedtime.command(name="list", help="Liệt kê lịch ngủ trong server.")
     @commands.guild_only()
     @commands.has_guild_permissions(administrator=True)
     async def bedtime_list(self, ctx: commands.Context) -> None:
         assert ctx.guild is not None
-        reminders = sorted(
-            (
-                document
-                for (guild_id, _), document in self.reminders_by_member.items()
-                if guild_id == ctx.guild.id
-            ),
-            key=lambda document: int(document["user_id"]),
-        )
+        reminders = self.iter_guild_reminders(ctx.guild.id)
         if not reminders:
             await ctx.send("Server chưa có lịch nhắc giờ đi ngủ nào.")
             return
 
-        page_count = (len(reminders) + REMINDERS_PER_PAGE - 1) // REMINDERS_PER_PAGE
-        for page_start in range(0, len(reminders), REMINDERS_PER_PAGE):
-            page = reminders[page_start : page_start + REMINDERS_PER_PAGE]
-            lines: list[str] = []
-            for reminder in page:
-                user_id = int(reminder["user_id"])
-                channel_id = int(reminder["channel_id"])
-                member = ctx.guild.get_member(user_id)
-                channel = ctx.guild.get_channel(channel_id)
-                member_name = (
-                    discord.utils.escape_markdown(member.display_name)
-                    if member is not None
-                    else "Thành viên đã rời server"
-                )
-                channel_name = (
-                    f"#{discord.utils.escape_markdown(channel.name)}"
-                    if isinstance(channel, discord.TextChannel)
-                    else "Kênh không còn tồn tại"
-                )
-                lines.append(
-                    f"**{member_name}** (`{user_id}`) · "
-                    f"{format_clock_time(int(reminder['bedtime_minutes']))}–"
-                    f"{format_clock_time(int(reminder['wake_minutes']))} · "
-                    f"{channel_name} (`{channel_id}`)"
-                )
-
-            page_number = page_start // REMINDERS_PER_PAGE + 1
+        page_count = (
+            len(reminders) + REMINDERS_PER_PAGE - 1
+        ) // REMINDERS_PER_PAGE
+        for page_index in range(page_count):
+            start = page_index * REMINDERS_PER_PAGE
+            page = reminders[start : start + REMINDERS_PER_PAGE]
             embed = discord.Embed(
-                title=f"Lịch nhắc giờ ngủ · {page_number}/{page_count}",
-                description="\n".join(lines),
+                title=f"Lịch nhắc giờ ngủ · {page_index + 1}/{page_count}",
+                description="\n".join(
+                    self.format_reminder_line(ctx.guild, reminder)
+                    for reminder in page
+                ),
                 color=discord.Color.dark_purple(),
             )
             embed.set_footer(text="Múi giờ cố định: UTC+7")
@@ -884,7 +1003,9 @@ class BedtimeReminderCog(commands.Cog):
             await ctx.send("Lệnh bedtime chỉ dùng được trong server.")
             return True
         if isinstance(error, commands.MissingRequiredArgument):
-            await ctx.send("Thiếu tham số. Xem cú pháp bằng lệnh `bedtime`.")
+            await ctx.send(
+                "Thiếu tham số. Mở bảng bằng lệnh `bedtime` hoặc xem cú pháp ở đó."
+            )
             return True
         if isinstance(error, commands.MemberNotFound):
             await ctx.send("Không tìm thấy thành viên đó trong server.")

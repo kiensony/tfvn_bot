@@ -251,7 +251,7 @@ menu focused on their respective topics.
 | Area | Representative commands |
 | --- | --- |
 | General | `help [topic]`, `hello`, `invite`, `verify`, `role_exam @user`, `self_unverified`, `ping`, `server_stats` |
-| Community | `afk`, `jobremind add`, `bedtime add @member <bedtime_HH:MM> <wake_HH:MM> #channel`, `birthday`, `vote`, `giveaway` |
+| Community | `afk`, `jobremind add`, `bedtime`, `bedtime add @member <bedtime_HH:MM> <wake_HH:MM> #channel`, `birthday`, `vote`, `giveaway` |
 | Economy and games | `daily`, `user_balance`, `user_transactions`, `shop`, `blackjack`, `poker`, `crocodile challenge`, `slot`, `flip_coin`, `sicbo_start`, `noitu`, `vtv` |
 | Tiên Lộ | `tutien`, `tutien thucong`, `tutien dotpha`, `tutien bicanh`, `tutien thiluyen`, `tutien doido` |
 | Moderation | `kick`, `ban`, `unban`, `softban`, `mute`, `timeout`, `warn`, `case`, `purge`, `slowmode`, `verified` |
@@ -270,9 +270,12 @@ implementation source of truth.
 
 ### Bedtime reminders
 
-Administrators can assign one recurring bedtime to each member in a guild:
+Administrators can assign one recurring bedtime to each member in a guild.
+`!tf bedtime` opens an interactive panel (member select, channel select, time
+modal, and paginated list). Prefix subcommands remain available:
 
 ```text
+!tf bedtime
 !tf bedtime add @member 23:00 07:00 #general
 !tf bedtime list
 !tf bedtime remove @member
@@ -461,7 +464,7 @@ tfvn_bot/
 │   ├── _beta_function.py   # Database-role guard for experimental commands
 │   ├── _feature_flags.py   # Feature and cog disable flag parsing
 │   ├── _hash_verification.py # Signed content-proof issuance and validation
-│   ├── bedtime_remind/     # Persistent UTC+7 bedtime schedules and chat reminders
+│   ├── bedtime_remind/     # Persistent UTC+7 bedtime schedules, admin UI, and chat reminders
 │   ├── settings/           # Mongo-backed runtime variables
 │   ├── economy/            # Trap Coin shop, inventory, badges, and role items
 │   ├── cultivation/        # Tiên Lộ progression, AFK calculations, PvE, and economy
