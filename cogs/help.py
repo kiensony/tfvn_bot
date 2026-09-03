@@ -713,6 +713,8 @@ HELP_TOPICS = (
                             ("stare", "stare @user"),
                             ("lick", "lick @user"),
                             ("smack", "smack @user"),
+                            ("sniff", "sniff @user"),
+                            ("kidnap", "kidnap @user"),
                         ),
                         "Tương tác SFW; cần @user, không nhận bot và cooldown 3 giây/lệnh.",
                     ),
@@ -771,7 +773,7 @@ HELP_TOPICS = (
                         (
                             "BXH bot-wide toàn thời gian: chủ động/được tương tác. Action: "
                             "kiss, hug, pat, slap, punch, hit, poke, cuddle, snuggle, boop, "
-                            "handhold, bonk, bite, stare, lick, smack."
+                            "handhold, bonk, bite, stare, lick, smack, sniff, kidnap."
                         ),
                         aliases=("ranking",),
                     ),

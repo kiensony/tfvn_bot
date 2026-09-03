@@ -15,6 +15,7 @@ from assets.gifs import (
     CUDDLE_GIFS,
     HANDHOLD_GIFS,
     HUG_GIFS,
+    KIDNAP_GIFS,
     KISS_GIFS,
     LICK_GIFS,
     PAT_GIFS,
@@ -22,6 +23,7 @@ from assets.gifs import (
     PUNCH_GIFS,
     SLAP_GIFS,
     SMACK_GIFS,
+    SNIFF_GIFS,
     SNUGGLE_GIFS,
     STARE_GIFS,
 )
@@ -207,6 +209,24 @@ SFW_ACTION_SPECS: tuple[InteractionSpec, ...] = (
         given_text="đấm yêu người khác",
         received_text="bị đấm yêu",
         allow_self=True,
+    ),
+    InteractionSpec(
+        name="sniff",
+        title="👃 Hít hà~",
+        verb="ngửi",
+        suffix="✨",
+        gifs=SNIFF_GIFS,
+        given_text="ngửi người khác",
+        received_text="bị ngửi",
+    ),
+    InteractionSpec(
+        name="kidnap",
+        title="🏃 Bắt cóc cái nào!",
+        verb="bắt cóc",
+        suffix="💨",
+        gifs=KIDNAP_GIFS,
+        given_text="bắt cóc người khác",
+        received_text="bị bắt cóc",
     ),
 )
 

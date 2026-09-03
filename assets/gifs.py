@@ -165,6 +165,46 @@ SMACK_GIFS = [
     "https://cdn.otakugifs.xyz/gifs/smack/bc7b0879f90cf6f7.gif",
 ]
 
+# Playful SFW sniff (otakugifs nuzzle + SFW sniff GIFs; verified HTTP 200).
+SNIFF_GIFS = [
+    "https://cdn.otakugifs.xyz/gifs/nuzzle/1ae08a4771de4193.gif",
+    "https://cdn.otakugifs.xyz/gifs/nuzzle/6oeT6lhDtf.gif",
+    "https://cdn.otakugifs.xyz/gifs/nuzzle/8d4759fdfb1066ef.gif",
+    "https://cdn.otakugifs.xyz/gifs/nuzzle/d6cf47bbe968808c.gif",
+    "https://cdn.otakugifs.xyz/gifs/nuzzle/6807c3928b3c7a8f.gif",
+    "https://cdn.otakugifs.xyz/gifs/nuzzle/f3dd457bfa848ea5.gif",
+    "https://cdn.otakugifs.xyz/gifs/nuzzle/zp8786it.gif",
+    "https://cdn.otakugifs.xyz/gifs/nuzzle/709PaNzpku.gif",
+    "https://cdn.otakugifs.xyz/gifs/nuzzle/b9f5073d29f3b7a2.gif",
+    "https://cdn.otakugifs.xyz/gifs/nuzzle/817a53c8b8a7b2a1.gif",
+    "https://media.giphy.com/media/aKL2jdZQeahWmfAe1i/giphy.gif",
+    "https://media.giphy.com/media/yGMKRainOG7zemvomB/giphy.gif",
+    "https://media1.tenor.com/m/jkMdAMp1besAAAAC/anime-sniffing-anime-sniffa.gif",
+    "https://media1.tenor.com/m/wHMAF-t9a_sAAAAC/sniff-anime.gif",
+    "https://media.tenor.com/-L7y-oMmTLcAAAAM/sniffing-komugi.gif",
+]
+
+# Playful SFW kidnap (gifukai carry + Tenor kidnap/carry; verified HTTP 200).
+KIDNAP_GIFS = [
+    "https://cdn.gifukai.com/carry/26fb0e4f-ff54-48d2-aabf-ef53f1552e53.gif",
+    "https://cdn.gifukai.com/carry/4dcd0408-e94d-459d-866b-b5c23e0a91a2.gif",
+    "https://cdn.gifukai.com/carry/9be189cd-9623-42d8-a894-b741831d8673.gif",
+    "https://cdn.gifukai.com/carry/d4fe4557-cf39-4f0d-894a-9e2bc771b7d2.gif",
+    "https://media.tenor.com/ePG7oBKInncAAAAM/anime-kidnap.gif",
+    "https://media.tenor.com/zb468YKShxoAAAAM/konosuba-kazuma.gif",
+    "https://media1.tenor.com/m/rIsOpF47AL0AAAAC/sannami-bridal-carry.gif",
+    "https://media.tenor.com/21GHv11j5GwAAAAM/princess-carry-bridal-carry.gif",
+    "https://media1.tenor.com/m/oQK4WXvAp_cAAAAC/anime-kidnap.gif",
+    "https://media1.tenor.com/m/0Wzg7M2v_bwAAAAC/closet-kidnapping.gif",
+    "https://media1.tenor.com/m/PtHyjUzSV4IAAAAC/shugo-chara-kidnap.gif",
+    "https://media1.tenor.com/m/SpHQ1t1VVYUAAAAC/princess-carry-anime.gif",
+    "https://media1.tenor.com/m/7BjPfwMbSIUAAAAC/princess-carry-mint-aizawa.gif",
+    "https://media.tenor.com/uWcLFLpx1EcAAAAM/dazzling-princess-carry.gif",
+    "https://media1.tenor.com/m/iiT7MuTdsA8AAAAC/princess-carry.gif",
+    "https://media1.tenor.com/m/qG577H1U2VIAAAAC/sekizan-takuya.gif",
+    "https://media1.tenor.com/m/kLl5D_j22Z4AAAAC/aggretsuko-retsuko.gif",
+]
+
 # Meme GIF ASSETS
 
 GIFS_36 = [

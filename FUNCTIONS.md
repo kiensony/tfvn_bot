@@ -325,6 +325,8 @@ Most meters accept an optional `@member` (default: author). Scores are determini
 | `stare @user` | — | Everyone | Stare |
 | `lick @user` | — | Everyone | Lick |
 | `smack @user` | — | Everyone | Affectionate punch (đấm yêu) |
+| `sniff @user` | — | Everyone | Sniff |
+| `kidnap @user` | — | Everyone | Playful kidnap / carry |
 | `avatar [@user]` | `av`, `global_avatar`, `globalav` | Everyone | Show Discord global avatar (default: author) |
 | `server_avatar [@user]` | `sav`, `guild_avatar`, `serverav` | Everyone (guild) | Show server avatar, or global avatar if unset |
 | `propose @user` | — | Everyone (guild) | Propose marriage; partner presses Yes/No (5m); expired proposals update UI) |
@@ -332,14 +334,14 @@ Most meters accept an optional `@member` (default: author). Scores are determini
 | `marriage help` | — | Everyone (guild) | Rules: XP, ranks, cooldowns |
 | `marriage top` | `lb`, `leaderboard`, `rank` | Everyone (guild) | Top 10 couples by XP |
 | `divorce` | — | Everyone (guild) | End active marriage after confirm buttons |
-| `rank [r] [action]` | `ranking` | Everyone | All-time bot-wide interaction leaderboards (`r` = receivers); action can be kiss, hug, pat, slap, punch, hit, poke, cuddle, snuggle, boop, handhold, bonk, bite, stare, lick, or smack |
+| `rank [r] [action]` | `ranking` | Everyone | All-time bot-wide interaction leaderboards (`r` = receivers); action can be kiss, hug, pat, slap, punch, hit, poke, cuddle, snuggle, boop, handhold, bonk, bite, stare, lick, smack, sniff, or kidnap |
 | `cat` | — | Everyone | Random cat image (external API) |
 | `dog` | — | Everyone | Random dog image (external API) |
 | `36` | — | Everyone | Static meme GIF reply |
 
 **Module:** `cogs.interaction.user_interaction`, `cat`, `dog`, `meme_interaction`
 
-All 16 SFW interactions require a non-bot target and have a 3-second per-command, per-user cooldown. Self-target is allowed only for `pat`, `slap`, `punch`, `hit`, `poke`, `bonk`, and `smack`.
+All 18 SFW interactions require a non-bot target and have a 3-second per-command, per-user cooldown. Self-target is allowed only for `pat`, `slap`, `punch`, `hit`, `poke`, `bonk`, and `smack`.
 
 ---
 
@@ -618,7 +620,7 @@ vtv, vtv status, vtv next, vtv hint
 gay, les, ship, penisize, titansize, aura, redflag, based, brainrot, clown, cope, cringe, delulu,
 gyatt, ick, mainchar, npc, ohio, rizz, simp, skillissue, touchgrass, yapper,
 femboycard, birthday, birthday set
-kiss, hug, pat, slap, punch, hit, poke, cuddle, snuggle, boop, handhold, bonk, bite, stare, lick, smack,
+kiss, hug, pat, slap, punch, hit, poke, cuddle, snuggle, boop, handhold, bonk, bite, stare, lick, smack, sniff, kidnap,
 avatar, server_avatar, propose, marriage, marriage help, marriage top, divorce, rank, cat, dog, 36
 r34, gbr, nsfwrule, bj, rj, hj, fj, aj, tj, spank, frot, fuck, cream, 3some, orgy, ranknsfw, mrank
 locknsfw, unlocknsfw, verified, unverified
