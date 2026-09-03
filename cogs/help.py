@@ -189,7 +189,7 @@ HELP_TOPICS = (
                 entries=(
                     _entry(
                         "bedtime",
-                        "Xem hướng dẫn quản lý lịch đi ngủ — Administrator, chỉ server.",
+                        "Mở bảng Discord để thêm, xóa và xem lịch đi ngủ — Administrator, chỉ server.",
                     ),
                     _entry(
                         "bedtime add",
@@ -216,9 +216,11 @@ HELP_TOPICS = (
                     ),
                 ),
                 note=(
-                    "Bot tag một lần trong kênh đã chọn khi tới giờ ngủ. Trong khoảng "
-                    "giờ ngủ (gồm) đến giờ dậy (không gồm), mỗi tin nhắn của member "
-                    "ở server đều nhận reply nhắc ngủ có tag; không có cooldown."
+                    "Bảng dùng user select, channel select và modal nhập giờ; "
+                    "lệnh chữ vẫn dùng được. Bot tag một lần trong kênh đã chọn khi "
+                    "tới giờ ngủ. Trong khoảng giờ ngủ (gồm) đến giờ dậy (không gồm), "
+                    "mỗi tin nhắn của member ở server đều nhận reply nhắc ngủ có tag; "
+                    "không có cooldown."
                 ),
             ),
             HelpSection(

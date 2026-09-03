@@ -428,10 +428,15 @@ times use fixed Vietnam time (UTC+7); `H:MM` and `HH:MM` are accepted and shown 
 
 | Command | Access | Description |
 | --- | --- | --- |
-| `bedtime` | Administrator (guild) | Show the bedtime command guide |
+| `bedtime` | Administrator (guild) | Open an interactive panel to add, remove, and page through schedules |
 | `bedtime add @member <bedtime_HH:MM> <wake_HH:MM> #channel` | Administrator (guild) | Add or update the member's schedule and announcement channel |
 | `bedtime remove <@member\|user_id>` | Administrator (guild) | Remove the member's schedule immediately; a saved ID works after they leave |
 | `bedtime list` | Administrator (guild) | List the guild's schedules in pages without mentioning their members |
+
+The panel is owner-locked and re-checks Administrator on every click. Add uses a
+member select, a text/announcement channel select, and a modal for `H:MM` /
+`HH:MM` times; remove uses a select of saved schedules, including members who
+already left. Text subcommands remain as a shortcut.
 
 **Background:** at bedtime the bot mentions the member once in the configured
 channel. From bedtime (inclusive) until wake time (exclusive), every non-bot
@@ -444,7 +449,8 @@ Schedules are guild-scoped and persisted in `bedtime_reminders`; the message
 listener uses an in-memory cache and does not query MongoDB for each message.
 
 **Module:** `cogs.bedtime_remind.bedtime_remind`,
-`cogs.bedtime_remind._bedtime_helpers`
+`cogs.bedtime_remind._bedtime_helpers`,
+`cogs.bedtime_remind._bedtime_ui`
 
 ---
 

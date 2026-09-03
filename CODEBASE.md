@@ -66,6 +66,7 @@ tfvn_bot/
 │
 ├── test/
 │   ├── test_bedtime_reminder.py    Bedtime time rules, persistence, commands, and listeners
+│   ├── test_bedtime_ui.py          Bedtime admin panel, selects, modal, and permission checks
 │   ├── test_card_games.py          Blackjack, Poker, deck, and payout rules
 │   ├── test_card_game_economy.py   Atomic card-game wager and refund helpers
 │   ├── test_crocodile_dentist.py   Crocodile rules, persistence, commands, and UI behavior
@@ -90,6 +91,7 @@ tfvn_bot/
     │   └── afk_monitor.py          AFK mention capture and return detection
     ├── bedtime_remind/
     │   ├── _bedtime_helpers.py     Pure UTC+7 parsing, sleep-window, and deadline rules
+    │   ├── _bedtime_ui.py          Admin panel, member/channel selects, and time modal
     │   └── bedtime_remind.py       Admin schedules, minute mentions, and chat reminders
     ├── announcement/
     │   ├── __init__.py             Announcement package marker
@@ -284,7 +286,9 @@ five-minute invitation deadlines and seven-day active-game inactivity expiry.
 Bedtime reminders use fixed Vietnam time (UTC+7). The cog validates MongoDB
 records into a `(guild_id, user_id)` memory cache, sends one configured-channel
 mention per active sleep window, and catches up after restarts only before that
-window's wake time. Its guild-message listener reads only that cache and replies
+window's wake time. `!tf bedtime` opens an owner-locked Discord panel with
+member/channel selects and a time modal; prefix subcommands remain as shortcuts.
+Its guild-message listener reads only that cache and replies
 with a target-only mention to every enrolled member message during the window.
 Missing Discord targets or permanent permission failures skip that day's notice;
 transient HTTP failures remain eligible for retry while the window is active.
