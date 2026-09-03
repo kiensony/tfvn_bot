@@ -5,12 +5,13 @@ import logging
 import uuid
 from collections import deque
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from pymongo import ASCENDING, DESCENDING
 from pymongo.errors import PyMongoError
 
+UTC = timezone.utc
 
 logger = logging.getLogger(__name__)
 
