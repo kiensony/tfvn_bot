@@ -91,6 +91,22 @@ HELP_TOPICS = (
                     _entry("hello", "Chào bot."),
                     _entry("invite", "Lấy liên kết mời bot."),
                     _entry("verify", "Đi tới kênh xác minh đã cấu hình."),
+                    _entry(
+                        "role_exam",
+                        (
+                            "Min mót có quyền Manage Roles mời `@user` làm bài riêng "
+                            "20 câu từ JSON; đủ phần trăm cấu hình sẽ nhận role an toàn. "
+                            "Trượt hoặc hết hạn cần min mót mở lại."
+                        ),
+                        "role_exam @user",
+                    ),
+                    _entry(
+                        "self_unverified",
+                        (
+                            "Tự gỡ role xác minh sau Yes/No; hết hạn phải gọi lại; "
+                            "muốn vào lại hỏi min mót."
+                        ),
+                    ),
                     _entry("ping", "Kiểm tra bot có đang phản hồi hay không."),
                 ),
             ),
@@ -124,7 +140,7 @@ HELP_TOPICS = (
         key="community",
         label="Cộng đồng",
         emoji="🫂",
-        option_description="AFK, nhắc việc, sinh nhật, vote và giveaway",
+        option_description="AFK, giờ ngủ, nhắc việc, sinh nhật và sự kiện",
         title="Cộng đồng & sự kiện",
         description="Các tiện ích giúp thành viên theo dõi và tham gia hoạt động server.",
         color=0x5865F2,
@@ -157,12 +173,54 @@ HELP_TOPICS = (
                         "jobremind add",
                         "Bot hỏi độ trễ `d/h/m/s` và tên việc, sau đó nhắc qua DM.",
                     ),
-                    _entry("birthday", "Xem hướng dẫn khai báo sinh nhật."),
+                    _entry(
+                        "birthday",
+                        "Mở biểu mẫu chọn tháng và ngày sinh.",
+                    ),
                     _entry(
                         "birthday set",
-                        "Lưu ngày sinh nhật của bạn.",
+                        "Lưu ngày sinh bằng cú pháp nhanh.",
                         "birthday set <ngày> <tháng>",
                     ),
+                ),
+            ),
+            HelpSection(
+                name="Giờ ngủ (UTC+7, quản trị)",
+                entries=(
+                    _entry(
+                        "bedtime",
+                        "Mở bảng Discord để thêm, xóa và xem lịch đi ngủ — Administrator, chỉ server.",
+                    ),
+                    _entry(
+                        "bedtime add",
+                        (
+                            "Thêm hoặc cập nhật lịch hằng ngày và kênh thông báo "
+                            "— Administrator."
+                        ),
+                        (
+                            "bedtime add @member <bedtime_HH:MM> "
+                            "<wake_HH:MM> #channel"
+                        ),
+                    ),
+                    _entry(
+                        "bedtime remove",
+                        "Xóa lịch của member ngay lập tức — Administrator.",
+                        "bedtime remove <@member|user_id>",
+                    ),
+                    _entry(
+                        "bedtime list",
+                        (
+                            "Liệt kê có phân trang các lịch của server mà không ping "
+                            "member — Administrator."
+                        ),
+                    ),
+                ),
+                note=(
+                    "Bảng dùng user select, channel select và modal nhập giờ; "
+                    "lệnh chữ vẫn dùng được. Bot tag một lần trong kênh đã chọn khi "
+                    "tới giờ ngủ. Trong khoảng giờ ngủ (gồm) đến giờ dậy (không gồm), "
+                    "mỗi tin nhắn của member ở server đều nhận reply nhắc ngủ có tag; "
+                    "không có cooldown."
                 ),
             ),
             HelpSection(
@@ -600,7 +658,10 @@ HELP_TOPICS = (
                     ),
                     _entry(
                         "femboycard",
-                        "Tạo thẻ cho chính bạn; cần một role trong danh sách femboy.",
+                        (
+                            "Tạo thẻ cho chính bạn kèm proof có chữ ký TFVN; "
+                            "cần một role trong danh sách femboy; cooldown 10 giây."
+                        ),
                     ),
                     _entry("ship", "Đo mức độ hợp đôi.", "ship @user1 @user2"),
                     _entry(
@@ -652,6 +713,8 @@ HELP_TOPICS = (
                             ("stare", "stare @user"),
                             ("lick", "lick @user"),
                             ("smack", "smack @user"),
+                            ("sniff", "sniff @user"),
+                            ("kidnap", "kidnap @user"),
                         ),
                         "Tương tác SFW; cần @user, không nhận bot và cooldown 3 giây/lệnh.",
                     ),
@@ -710,7 +773,7 @@ HELP_TOPICS = (
                         (
                             "BXH bot-wide toàn thời gian: chủ động/được tương tác. Action: "
                             "kiss, hug, pat, slap, punch, hit, poke, cuddle, snuggle, boop, "
-                            "handhold, bonk, bite, stare, lick, smack."
+                            "handhold, bonk, bite, stare, lick, smack, sniff, kidnap."
                         ),
                         aliases=("ranking",),
                     ),
@@ -771,10 +834,18 @@ HELP_TOPICS = (
                         "quote",
                         (
                             "Quote reply/link/ID dạng embed; thêm `image` để tạo PNG; "
-                            "cooldown 5 giây/người."
+                            "cả hai dạng có proof có chữ ký; cooldown 5 giây/người."
                         ),
                         "quote [image] [message_link|message_id]",
                         aliases=("q", "quotes"),
+                    ),
+                    _entry(
+                        "hash_verify",
+                        (
+                            "Kiểm tra mã proof ngắn và snapshot của Femboy Card "
+                            "hoặc quote; vẫn nhận token tfv1 cũ; tối đa 3 lần/10 giây."
+                        ),
+                        "hash_verify <proof_code>",
                     ),
                     _entry(
                         "big_speaker",
@@ -844,6 +915,8 @@ HELP_TOPICS = (
                 note=(
                     "• Ghi lại ai mention member đang AFK và tự xóa dynamic AFK khi họ trở lại.\n"
                     "• Kiểm tra lịch nhắc việc mỗi phút rồi gửi DM.\n"
+                    "• Theo lịch ngủ UTC+7, tag member khi tới giờ và reply có tag cho "
+                    "mọi tin họ gửi trước giờ dậy.\n"
                     "• Triggered reply khớp contains/exact, không phân biệt hoa thường "
                     "và không ping."
                 ),
@@ -1092,8 +1165,8 @@ HELP_TOPICS = (
                     _entry(
                         "bot_status",
                         (
-                            "Dashboard trạng thái bot, audit command, tải CSV và dọn log "
-                            "— Administrator."
+                            "Status/audit — Admin; riêng chủ bot xem/rời server "
+                            "(trừ server gốc) + 10 sự kiện vòng đời."
                         ),
                     ),
                     _entry(
@@ -1312,6 +1385,13 @@ HELP_TOPICS = (
                     _entry(
                         "unlocknsfw",
                         "Queen gỡ một lock còn hiệu lực do chính mình tạo.",
+                    ),
+                    _entry(
+                        "self_unverified",
+                        (
+                            "Tự gỡ role xác minh sau Yes/No; hết hạn phải gọi lại; "
+                            "muốn vào lại hỏi min mót."
+                        ),
                     ),
                 ),
                 note="King role nhân 3 điểm tương tác; chỉ Queen role dùng lock/unlock.",

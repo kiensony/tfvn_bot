@@ -4,7 +4,7 @@ This document maps the maintained repository files and explains where each behav
 
 ## Runtime Flow
 
-1. `main.py` loads `.env`, creates the prefix-based `commands.Bot`, enables member and message-content intents, and attaches the MongoDB database from `db.py`.
+1. `main.py` loads `.env`, creates the prefix-based `commands.Bot`, enables member and message-content intents, attaches the MongoDB database from `db.py`, and owns graceful SIGINT/SIGTERM command draining.
 2. `DataLoader` loads shared lists from `data/` onto the bot instance.
 3. In production, every public Python module below `cogs/` is discovered recursively. Development uses the ignored `dev_cogs.txt`. Both use the database selected by `DB_NAME`.
 4. `cogs.settings.variable_setting` is loaded first when selected, populating `bot.global_vars` from MongoDB.
@@ -54,6 +54,7 @@ tfvn_bot/
 │   ├── fake_loading_sentences.txt  Random progress text for fun commands
 │   ├── femboy_role.txt             Role names used by the femboy card command
 │   ├── nsfw_channel.json           Verification-managed NSFW channel definitions
+│   ├── role_exam.json              Role-exam questions, pass percentage, and reward role ID
 │   ├── vietnamese_king_data.json   Generated Vua Tiếng Việt puzzle dataset
 │   └── word_connect_valid_list.txt Valid Vietnamese word-chain entries
 │
@@ -64,24 +65,34 @@ tfvn_bot/
 │   └── words.txt                   Source records for Vietnamese data preparation
 │
 ├── test/
+│   ├── test_bedtime_reminder.py    Bedtime time rules, persistence, commands, and listeners
+│   ├── test_bedtime_ui.py          Bedtime admin panel, selects, modal, and permission checks
 │   ├── test_card_games.py          Blackjack, Poker, deck, and payout rules
 │   ├── test_card_game_economy.py   Atomic card-game wager and refund helpers
 │   ├── test_crocodile_dentist.py   Crocodile rules, persistence, commands, and UI behavior
 │   ├── test_community_features.py  Pure validation/time/helper regression tests
 │   ├── test_cultivation.py         Tiên Lộ calculations, state, UI, and persistence tests
 │   ├── test_help_menu.py           Help catalog completeness, limits, gates, and UI tests
+│   ├── test_hash_verification.py    Signed proof, forgery, tamper, producer, and privacy tests
 │   ├── test_meter_number_bars.py   unittest coverage for signed meter formatting
+│   ├── test_role_exam.py           Role-exam invitation, UI, safety, and role-grant tests
+│   ├── test_role_exam_helpers.py   Role-exam JSON validation, shuffling, and scoring tests
 │   └── word_stardardlize.py        Manual normalization utility; not auto-discovered as a test
 │
 └── cogs/
     ├── __init__.py                 Root extension package marker
     ├── _beta_function.py           Multi-role Beta command access guard
     ├── _feature_flags.py           DISABLED_COGS pattern parsing
+    ├── _hash_verification.py       HMAC proof issuance and snapshot-integrity checks
     ├── general.py                  hello, invite, and verification-channel pointers
     ├── help.py                     Full-catalog dropdown help UI with an NSFW channel gate
     ├── afk_remind/
     │   ├── afk_set.py              Timed/dynamic AFK setup, clearing, and ping review
     │   └── afk_monitor.py          AFK mention capture and return detection
+    ├── bedtime_remind/
+    │   ├── _bedtime_helpers.py     Pure UTC+7 parsing, sleep-window, and deadline rules
+    │   ├── _bedtime_ui.py          Admin panel, member/channel selects, and time modal
+    │   └── bedtime_remind.py       Admin schedules, minute mentions, and chat reminders
     ├── announcement/
     │   ├── __init__.py             Announcement package marker
     │   ├── welcome.py              Member-join announcement
@@ -107,6 +118,7 @@ tfvn_bot/
     ├── discipline/discipline.py    Banned-word listener, logging, warning, and deletion
     ├── funny_things/
     │   ├── _meter_helper.py        Deterministic scores, bars, loading, and embed helpers
+    │   ├── _birthday_ui.py         Owner-only month and day picker view
     │   ├── aura.py                 Signed aura score and icon bar
     │   ├── redflag.py              Signed red/green flag score and icon bar
     │   ├── birthday.py             Birthday registration and announcement task
@@ -171,18 +183,23 @@ tfvn_bot/
     │   ├── slowmode.py              Slow-mode inspection and guarded overrides
     │   ├── unban.py                     Reply/user-ID unban and reinvite orchestration
     │   ├── warn.py                      Warning commands
-    │   ├── verified.py                  Verified role and NSFW channel access management
+    │   ├── verified.py                  Verified role grant/revoke and member self-unverify confirmation
     │   └── area_51_guard.py             Honeypot channel, cancel view, bans, and reminders
     ├── nsfw/
     │   ├── __init__.py             NSFW extension package marker
     │   ├── r34.py                       Age-gated Rule34 API search
     │   └── gelbooru.py                  Age-gated Gelbooru API search
+    ├── onboarding/
+    │   ├── _role_exam_helpers.py       Pure role-exam configuration, validation, and scoring
+    │   └── role_exam.py                Staff invitation, private exam UI, and safe role grant
     ├── operation/
     │   ├── bot_status.py                Random Discord activity and timing rotation
+    │   ├── _graceful_shutdown.py        Command admission, drain tracking, and signal helpers
+    │   ├── _lifecycle.py                Append-only process/gateway lifecycle event recorder
     │   ├── _operation_helpers.py        Audit ranges, sanitization, and safe CSV generation
     │   ├── _setup_helpers.py           Pure setup-check result and ID helpers
     │   ├── heartbeat.py                 Latency/health command
-    │   ├── operation_dashboard.py       Bot health UI, command audit, CSV export, and pruning
+    │   ├── operation_dashboard.py       Health/audit UI plus private Bot owner guild/lifecycle panels
     │   ├── server_stats.py              In-memory uptime and command/error counts
     │   ├── setup_check.py               Database, permission, ID, and cog diagnostics
     │   └── leave.py                     Administrator-controlled guild departure
@@ -192,6 +209,7 @@ tfvn_bot/
         ├── vote.py                      Persistent reaction polls and result scheduling
         ├── quote.py                     Text-embed and PNG message quote modes
         ├── _quote_card.py               Quote text wrapping and PNG card rendering
+        ├── hash_verify.py               Signature-first femboy-card/quote proof verification
         ├── big_speaker.py               Paid TC big-text re-speak in current channel
         ├── _big_speaker_helpers.py      Size 1–6 → TC cost, mention sanitize, format helpers
         ├── random_member.py             Random guild member selection
@@ -210,9 +228,36 @@ MongoDB collections are created lazily. Major groups are:
 - Economy: `user_accounts` (including versioned `cultivation` state), `daily_rewards_logs`, `transaction_logs`, `shop_items`, `shop_inventory`
 - Cultivation audit: append-only `cultivation_events`; TC exchanges also write `transaction_logs`
 - Social state: `interactions`, `nsfw_settings`, `images`, `marriages`, `marriage_proposals`, `triggered_replies`
-- Scheduling: `tasks`, `votes`, `giveaways`, `birthdays`, `birthday_announcements`
+- Content provenance: `hash_verifications` stores immutable, guild-scoped
+  femboy-card and quote snapshots. New records use their signed 128-bit token ID
+  as MongoDB `_id` and store the full HMAC token privately; legacy records remain
+  keyed by a token fingerprint. Cards and quotes display only a short canonical
+  `tfp1_<base32-token-id>` reference. Resolution requires the requested ID,
+  record `_id`, and ID signed inside the hidden token to match before comparing
+  the stored snapshot with its signed digest. Full
+  `tfv1.<key-id>.<claims>.<signature>` tokens remain accepted. MongoDB access
+  alone therefore cannot mint, redirect, or alter a valid result, though short
+  references depend on registry availability and are not portable proofs.
+  Signing keys come only from
+  `CONTENT_VERIFICATION_KEYS_JSON`; the active ID comes from
+  `CONTENT_VERIFICATION_ACTIVE_KEY_ID`, and missing/invalid keys fail closed.
+  This is bot-verifiable HMAC rather than public non-repudiation and proves the
+  recorded member/role facts or bot-used quote text, not screenshot/PNG pixels,
+  avatars, attachments, or embeds. Deployments must not share keyrings. Quote
+  text and names stay out of the readable token and are returned only inside the
+  exact source channel/thread; PyMongo reads/writes run in worker threads
+- Scheduling: `tasks`, `votes`, `giveaways`, `birthdays`, `birthday_announcements`,
+  `bedtime_reminders`. Bedtime records are guild/member scoped and hold normalized
+  sleep minutes, announcement channel, next UTC deadline, local-date deduplication,
+  and audit timestamps; unique guild/member and due-time indexes enforce one schedule
+  per member and support the minute scheduler
 - AFK and moderation: `afk_reminders`, `afk_pings`, `discipline_logs`, `old_roles`, `warnings`, `moderation_cases`
 - Operations audit: `operation_logs` stores guild-scoped recognized prefix-command outcomes and dashboard export/prune actions; records have no automatic TTL and are removed only through the Administrator dashboard
+- Bot lifecycle: `bot_lifecycle_events` stores global, append-only `initial_ready`,
+  `reidentified`, and `resumed` events indefinitely. The Bot owner dashboard reads
+  the newest 10 events for the current environment. This collection is separate
+  from `operation_logs` and is excluded from guild audit browsing, CSV export,
+  and pruning
 - Shared sequence counters: `feature_counters`
 - Games and boosters: card-game wagers use `user_accounts` plus `transaction_logs`;
   Crocodile Dentist uses `crocodile_games` plus guild-scoped IDs from
@@ -238,10 +283,26 @@ prevent duplicate responses, concurrent tooth presses, and stale replacement
 panels from changing state. A background sweep and command/interaction reads settle
 five-minute invitation deadlines and seven-day active-game inactivity expiry.
 
+Bedtime reminders use fixed Vietnam time (UTC+7). The cog validates MongoDB
+records into a `(guild_id, user_id)` memory cache, sends one configured-channel
+mention per active sleep window, and catches up after restarts only before that
+window's wake time. `!tf bedtime` opens an owner-locked Discord panel with
+member/channel selects and a time modal; prefix subcommands remain as shortcuts.
+Its guild-message listener reads only that cache and replies
+with a target-only mention to every enrolled member message during the window.
+Missing Discord targets or permanent permission failures skip that day's notice;
+transient HTTP failures remain eligible for retry while the window is active.
+
 Commands decorated with `@BetaFunction` are registered normally in any runtime,
 but the callback requires the invoking member to hold at least one role in
 `BETA_ROLE_IDS`. The role list is read only from `bot.global_vars`, populated by
 the MongoDB `global_variables` collection; environment role values are ignored.
+
+`main.py` registers a one-time global command admission check. The first SIGINT
+or SIGTERM rejects later prefix commands, waits for every previously admitted
+invocation to return, and then closes Discord and the lifecycle recorder. A
+second signal forces closure. Compose grants the process up to five minutes
+before container termination.
 
 ## Where to Make a Change
 

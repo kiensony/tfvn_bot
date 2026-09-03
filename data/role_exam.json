@@ -1,0 +1,229 @@
+{
+  "schema_version": 1,
+  "title": "Bài kiểm tra nhận role",
+  "instructions": "Trả lời đủ 20 câu rồi nộp bài.",
+  "role_id": "1461382224103604407",
+  "required_percent": 80,
+  "questions": [
+    {
+      "id": "q01",
+      "prompt": "[TODO] Nội dung câu hỏi 01",
+      "choices": [
+        {"id": "a", "text": "[TODO] Lựa chọn A"},
+        {"id": "b", "text": "[TODO] Lựa chọn B"},
+        {"id": "c", "text": "[TODO] Lựa chọn C"},
+        {"id": "d", "text": "[TODO] Lựa chọn D"}
+      ],
+      "correct_choice_id": "a"
+    },
+    {
+      "id": "q02",
+      "prompt": "[TODO] Nội dung câu hỏi 02",
+      "choices": [
+        {"id": "a", "text": "[TODO] Lựa chọn A"},
+        {"id": "b", "text": "[TODO] Lựa chọn B"},
+        {"id": "c", "text": "[TODO] Lựa chọn C"},
+        {"id": "d", "text": "[TODO] Lựa chọn D"}
+      ],
+      "correct_choice_id": "a"
+    },
+    {
+      "id": "q03",
+      "prompt": "[TODO] Nội dung câu hỏi 03",
+      "choices": [
+        {"id": "a", "text": "[TODO] Lựa chọn A"},
+        {"id": "b", "text": "[TODO] Lựa chọn B"},
+        {"id": "c", "text": "[TODO] Lựa chọn C"},
+        {"id": "d", "text": "[TODO] Lựa chọn D"}
+      ],
+      "correct_choice_id": "a"
+    },
+    {
+      "id": "q04",
+      "prompt": "[TODO] Nội dung câu hỏi 04",
+      "choices": [
+        {"id": "a", "text": "[TODO] Lựa chọn A"},
+        {"id": "b", "text": "[TODO] Lựa chọn B"},
+        {"id": "c", "text": "[TODO] Lựa chọn C"},
+        {"id": "d", "text": "[TODO] Lựa chọn D"}
+      ],
+      "correct_choice_id": "a"
+    },
+    {
+      "id": "q05",
+      "prompt": "[TODO] Nội dung câu hỏi 05",
+      "choices": [
+        {"id": "a", "text": "[TODO] Lựa chọn A"},
+        {"id": "b", "text": "[TODO] Lựa chọn B"},
+        {"id": "c", "text": "[TODO] Lựa chọn C"},
+        {"id": "d", "text": "[TODO] Lựa chọn D"}
+      ],
+      "correct_choice_id": "a"
+    },
+    {
+      "id": "q06",
+      "prompt": "[TODO] Nội dung câu hỏi 06",
+      "choices": [
+        {"id": "a", "text": "[TODO] Lựa chọn A"},
+        {"id": "b", "text": "[TODO] Lựa chọn B"},
+        {"id": "c", "text": "[TODO] Lựa chọn C"},
+        {"id": "d", "text": "[TODO] Lựa chọn D"}
+      ],
+      "correct_choice_id": "a"
+    },
+    {
+      "id": "q07",
+      "prompt": "[TODO] Nội dung câu hỏi 07",
+      "choices": [
+        {"id": "a", "text": "[TODO] Lựa chọn A"},
+        {"id": "b", "text": "[TODO] Lựa chọn B"},
+        {"id": "c", "text": "[TODO] Lựa chọn C"},
+        {"id": "d", "text": "[TODO] Lựa chọn D"}
+      ],
+      "correct_choice_id": "a"
+    },
+    {
+      "id": "q08",
+      "prompt": "[TODO] Nội dung câu hỏi 08",
+      "choices": [
+        {"id": "a", "text": "[TODO] Lựa chọn A"},
+        {"id": "b", "text": "[TODO] Lựa chọn B"},
+        {"id": "c", "text": "[TODO] Lựa chọn C"},
+        {"id": "d", "text": "[TODO] Lựa chọn D"}
+      ],
+      "correct_choice_id": "a"
+    },
+    {
+      "id": "q09",
+      "prompt": "[TODO] Nội dung câu hỏi 09",
+      "choices": [
+        {"id": "a", "text": "[TODO] Lựa chọn A"},
+        {"id": "b", "text": "[TODO] Lựa chọn B"},
+        {"id": "c", "text": "[TODO] Lựa chọn C"},
+        {"id": "d", "text": "[TODO] Lựa chọn D"}
+      ],
+      "correct_choice_id": "a"
+    },
+    {
+      "id": "q10",
+      "prompt": "[TODO] Nội dung câu hỏi 10",
+      "choices": [
+        {"id": "a", "text": "[TODO] Lựa chọn A"},
+        {"id": "b", "text": "[TODO] Lựa chọn B"},
+        {"id": "c", "text": "[TODO] Lựa chọn C"},
+        {"id": "d", "text": "[TODO] Lựa chọn D"}
+      ],
+      "correct_choice_id": "a"
+    },
+    {
+      "id": "q11",
+      "prompt": "[TODO] Nội dung câu hỏi 11",
+      "choices": [
+        {"id": "a", "text": "[TODO] Lựa chọn A"},
+        {"id": "b", "text": "[TODO] Lựa chọn B"},
+        {"id": "c", "text": "[TODO] Lựa chọn C"},
+        {"id": "d", "text": "[TODO] Lựa chọn D"}
+      ],
+      "correct_choice_id": "a"
+    },
+    {
+      "id": "q12",
+      "prompt": "[TODO] Nội dung câu hỏi 12",
+      "choices": [
+        {"id": "a", "text": "[TODO] Lựa chọn A"},
+        {"id": "b", "text": "[TODO] Lựa chọn B"},
+        {"id": "c", "text": "[TODO] Lựa chọn C"},
+        {"id": "d", "text": "[TODO] Lựa chọn D"}
+      ],
+      "correct_choice_id": "a"
+    },
+    {
+      "id": "q13",
+      "prompt": "[TODO] Nội dung câu hỏi 13",
+      "choices": [
+        {"id": "a", "text": "[TODO] Lựa chọn A"},
+        {"id": "b", "text": "[TODO] Lựa chọn B"},
+        {"id": "c", "text": "[TODO] Lựa chọn C"},
+        {"id": "d", "text": "[TODO] Lựa chọn D"}
+      ],
+      "correct_choice_id": "a"
+    },
+    {
+      "id": "q14",
+      "prompt": "[TODO] Nội dung câu hỏi 14",
+      "choices": [
+        {"id": "a", "text": "[TODO] Lựa chọn A"},
+        {"id": "b", "text": "[TODO] Lựa chọn B"},
+        {"id": "c", "text": "[TODO] Lựa chọn C"},
+        {"id": "d", "text": "[TODO] Lựa chọn D"}
+      ],
+      "correct_choice_id": "a"
+    },
+    {
+      "id": "q15",
+      "prompt": "[TODO] Nội dung câu hỏi 15",
+      "choices": [
+        {"id": "a", "text": "[TODO] Lựa chọn A"},
+        {"id": "b", "text": "[TODO] Lựa chọn B"},
+        {"id": "c", "text": "[TODO] Lựa chọn C"},
+        {"id": "d", "text": "[TODO] Lựa chọn D"}
+      ],
+      "correct_choice_id": "a"
+    },
+    {
+      "id": "q16",
+      "prompt": "[TODO] Nội dung câu hỏi 16",
+      "choices": [
+        {"id": "a", "text": "[TODO] Lựa chọn A"},
+        {"id": "b", "text": "[TODO] Lựa chọn B"},
+        {"id": "c", "text": "[TODO] Lựa chọn C"},
+        {"id": "d", "text": "[TODO] Lựa chọn D"}
+      ],
+      "correct_choice_id": "a"
+    },
+    {
+      "id": "q17",
+      "prompt": "[TODO] Nội dung câu hỏi 17",
+      "choices": [
+        {"id": "a", "text": "[TODO] Lựa chọn A"},
+        {"id": "b", "text": "[TODO] Lựa chọn B"},
+        {"id": "c", "text": "[TODO] Lựa chọn C"},
+        {"id": "d", "text": "[TODO] Lựa chọn D"}
+      ],
+      "correct_choice_id": "a"
+    },
+    {
+      "id": "q18",
+      "prompt": "[TODO] Nội dung câu hỏi 18",
+      "choices": [
+        {"id": "a", "text": "[TODO] Lựa chọn A"},
+        {"id": "b", "text": "[TODO] Lựa chọn B"},
+        {"id": "c", "text": "[TODO] Lựa chọn C"},
+        {"id": "d", "text": "[TODO] Lựa chọn D"}
+      ],
+      "correct_choice_id": "a"
+    },
+    {
+      "id": "q19",
+      "prompt": "[TODO] Nội dung câu hỏi 19",
+      "choices": [
+        {"id": "a", "text": "[TODO] Lựa chọn A"},
+        {"id": "b", "text": "[TODO] Lựa chọn B"},
+        {"id": "c", "text": "[TODO] Lựa chọn C"},
+        {"id": "d", "text": "[TODO] Lựa chọn D"}
+      ],
+      "correct_choice_id": "a"
+    },
+    {
+      "id": "q20",
+      "prompt": "[TODO] Nội dung câu hỏi 20",
+      "choices": [
+        {"id": "a", "text": "[TODO] Lựa chọn A"},
+        {"id": "b", "text": "[TODO] Lựa chọn B"},
+        {"id": "c", "text": "[TODO] Lựa chọn C"},
+        {"id": "d", "text": "[TODO] Lựa chọn D"}
+      ],
+      "correct_choice_id": "a"
+    }
+  ]
+}

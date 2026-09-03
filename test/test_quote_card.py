@@ -4,6 +4,7 @@ from io import BytesIO
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
+import discord
 from PIL import Image
 
 from cogs.utils._quote_card import (
@@ -271,6 +272,80 @@ class TestTextQuoteSending(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(embed.author.icon_url, server_avatar.url)
         self.assertEqual(embed.url, message.jump_url)
 
+    async def test_embed_includes_verification_proof_and_command(self):
+        verification_proof = "tfp1_" + "a" * 26
+        author = SimpleNamespace(
+            guild_avatar=None,
+            display_avatar=SimpleNamespace(url="https://cdn.example/avatar.png"),
+            display_name="Kiên",
+            name="kien",
+        )
+        message = SimpleNamespace(
+            author=author,
+            jump_url="https://discord.com/channels/1/2/3",
+            created_at=datetime(2026, 8, 1, tzinfo=timezone.utc),
+            channel=SimpleNamespace(name="general"),
+        )
+        ctx = SimpleNamespace(send=AsyncMock(), prefix="!tf ")
+
+        await QuoteCog(SimpleNamespace())._send_text_quote(
+            ctx,
+            message,
+            "Xin chào ✨",
+            verification_proof=verification_proof,
+        )
+
+        embed = ctx.send.await_args.kwargs["embed"]
+        verification_field = next(
+            field
+            for field in embed.fields
+            if field.name == "🔐 Mã proof TFVN"
+        )
+        self.assertIn(verification_proof, verification_field.value)
+        self.assertIn("!tf hash_verify", verification_field.value)
+        self.assertEqual(verification_field.value.count(verification_proof), 1)
+        self.assertLessEqual(len(verification_field.value), 1_024)
+
+    async def test_plain_fallback_stays_within_message_limit_with_proof(self):
+        verification_proof = "tfp1_" + "c" * 26
+        author = SimpleNamespace(
+            guild_avatar=None,
+            display_avatar=SimpleNamespace(url="https://cdn.example/avatar.png"),
+            display_name="Kiên",
+            name="kien",
+        )
+        message = SimpleNamespace(
+            author=author,
+            jump_url="https://discord.com/channels/1/2/3",
+            created_at=datetime(2026, 8, 1, tzinfo=timezone.utc),
+            channel=SimpleNamespace(name="general"),
+        )
+        response = SimpleNamespace(status=500, reason="Server Error")
+        ctx = SimpleNamespace(
+            send=AsyncMock(
+                side_effect=[
+                    discord.HTTPException(response, "failed"),
+                    None,
+                ]
+            ),
+            prefix="!tf ",
+        )
+
+        await QuoteCog(SimpleNamespace())._send_text_quote(
+            ctx,
+            message,
+            "x" * 4_000,
+            verification_proof=verification_proof,
+        )
+
+        fallback = ctx.send.await_args_list[1].args[0]
+        self.assertLessEqual(len(fallback), 2_000)
+        self.assertIn(verification_proof, fallback)
+        self.assertEqual(fallback.count(verification_proof), 1)
+        self.assertTrue(
+            fallback.endswith(f"hash_verify {verification_proof}`")
+        )
+
 
 class AsyncContext:
     async def __aenter__(self):
@@ -281,6 +356,9 @@ class AsyncContext:
 
 
 class TestQuoteCommandModes(unittest.IsolatedAsyncioTestCase):
+    verification_token = "tfv1.hidden-token"
+    verification_proof = "tfp1_" + "b" * 26
+
     def _message(self):
         return SimpleNamespace(
             id=123456789012345678,
@@ -296,16 +374,29 @@ class TestQuoteCommandModes(unittest.IsolatedAsyncioTestCase):
 
     async def test_default_command_uses_text_embed(self):
         cog = QuoteCog(SimpleNamespace())
+        cog._issue_quote_proof = AsyncMock(
+            return_value=self.verification_token
+        )
         message = self._message()
         cog._resolve_message = AsyncMock(return_value=message)
         cog._send_text_quote = AsyncMock()
         cog._avatar_bytes = AsyncMock()
-        ctx = SimpleNamespace(send=AsyncMock())
+        ctx = SimpleNamespace(send=AsyncMock(), prefix="!tf ")
 
-        await cog.quote.callback(cog, ctx, message_reference=None)
+        with patch(
+            "cogs.utils.quote.verification_reference_from_token",
+            return_value=self.verification_proof,
+        ):
+            await cog.quote.callback(cog, ctx, message_reference=None)
 
         cog._resolve_message.assert_awaited_once_with(ctx, None)
         cog._send_text_quote.assert_awaited_once_with(
+            ctx,
+            message,
+            "Xin chào ✨",
+            verification_proof=self.verification_proof,
+        )
+        cog._issue_quote_proof.assert_awaited_once_with(
             ctx,
             message,
             "Xin chào ✨",
@@ -314,6 +405,9 @@ class TestQuoteCommandModes(unittest.IsolatedAsyncioTestCase):
 
     async def test_image_keyword_uses_png_mode(self):
         cog = QuoteCog(SimpleNamespace())
+        cog._issue_quote_proof = AsyncMock(
+            return_value=self.verification_token
+        )
         message = self._message()
         cog._resolve_message = AsyncMock(return_value=message)
         cog._send_text_quote = AsyncMock()
@@ -321,12 +415,16 @@ class TestQuoteCommandModes(unittest.IsolatedAsyncioTestCase):
         ctx = SimpleNamespace(
             send=AsyncMock(),
             typing=lambda: AsyncContext(),
+            prefix="!tf ",
         )
 
         with patch(
             "cogs.utils.quote.asyncio.to_thread",
             AsyncMock(return_value=b"png"),
-        ) as render_thread:
+        ) as render_thread, patch(
+            "cogs.utils.quote.verification_reference_from_token",
+            return_value=self.verification_proof,
+        ):
             await cog.quote.callback(
                 cog,
                 ctx,
@@ -340,9 +438,17 @@ class TestQuoteCommandModes(unittest.IsolatedAsyncioTestCase):
             "01/08/2026 00:00 UTC",
         )
         self.assertIn("file", ctx.send.await_args.kwargs)
+        self.assertIn(self.verification_proof, ctx.send.await_args.args[0])
+        self.assertEqual(
+            ctx.send.await_args.args[0].count(self.verification_proof),
+            1,
+        )
 
     async def test_image_render_failure_falls_back_to_embed(self):
         cog = QuoteCog(SimpleNamespace())
+        cog._issue_quote_proof = AsyncMock(
+            return_value=self.verification_token
+        )
         message = self._message()
         cog._resolve_message = AsyncMock(return_value=message)
         cog._send_text_quote = AsyncMock()
@@ -350,12 +456,17 @@ class TestQuoteCommandModes(unittest.IsolatedAsyncioTestCase):
         ctx = SimpleNamespace(
             send=AsyncMock(),
             typing=lambda: AsyncContext(),
+            prefix="!tf ",
         )
 
         with (
             patch(
                 "cogs.utils.quote.asyncio.to_thread",
                 AsyncMock(side_effect=RuntimeError("render failed")),
+            ),
+            patch(
+                "cogs.utils.quote.verification_reference_from_token",
+                return_value=self.verification_proof,
             ),
             patch("cogs.utils.quote.logger.exception") as log_exception,
         ):
@@ -369,6 +480,7 @@ class TestQuoteCommandModes(unittest.IsolatedAsyncioTestCase):
             ctx,
             message,
             "Xin chào ✨",
+            verification_proof=self.verification_proof,
         )
         log_exception.assert_called_once_with("Failed to render quote card")
 

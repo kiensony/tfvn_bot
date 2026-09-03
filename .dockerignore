@@ -19,7 +19,7 @@ __pycache__/
 bot.log
 
 # Environment files (sensitive; pass via docker run -e instead)
-.env
+.env*
 
 # Documentation and misc
 README.md

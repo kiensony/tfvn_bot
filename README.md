@@ -11,14 +11,14 @@ For a complete list of commands and automatic features, see [FUNCTIONS.md](FUNCT
 
 ## Highlights
 
-- **Community management:** welcome and differentiated leave/kick/ban announcements, verification, AFK tracking, birthdays, reminders, votes, and giveaways.
+- **Community management:** welcome and differentiated leave/kick/ban announcements, verification, AFK tracking, birthdays, scheduled bedtime reminders, votes, and giveaways.
 - **Moderation:** kick, ban/unban, soft-ban, mute, timeout, warnings, numbered audit cases, message cleanup, slow mode, nickname/role tools, and the Area 51 guard workflow.
 - **Booster perks:** custom roles and voice rooms, with automatic cleanup after a member stops boosting.
 - **Games and economy:** the global, persistent Tiên Lộ AFK cultivation game, daily Trap Coins, a configurable role/badge shop, transaction history, interactive Blackjack and five-card-draw Poker, persistent multiplayer Crocodile Dentist, slots, coin flips, Sic Bo, Vietnamese word chaining (`noitu`), and Vua Tiếng Việt (`vtv`).
 - **Social and fun commands:** member interactions, rankings, avatars, random members, community-themed cards, and a collection of playful “meter” commands.
-- **Operations:** an Administrator dashboard for bot/server health, guild command auditing, CSV export, and guarded log pruning.
+- **Operations:** an Administrator dashboard for bot/server health, guild command auditing, CSV export, and guarded log pruning, with private Bot owner panels for joined-server management and recent lifecycle history.
 - **Optional age-restricted features:** NSFW interactions and Rule34/Gelbooru searches, guarded by Discord's NSFW channel setting.
-- **Persistent state:** MongoDB-backed balances, cultivation profiles, interactions, Crocodile Dentist games, game context, reminders, settings, giveaways, booster resources, moderation data, and guild command audit logs.
+- **Persistent state:** MongoDB-backed balances, cultivation profiles, interactions, Crocodile Dentist games, game context, reminders, settings, giveaways, booster resources, moderation data, signed content proofs, guild command audit logs, and append-only bot lifecycle events.
 
 ## How it works
 
@@ -77,6 +77,10 @@ DB_PASSWORD=replace_with_a_strong_password
 DB_HOST=localhost:27017
 DB_NAME=tfvn_bot
 
+# Required by femboy-card and quote proofs
+CONTENT_VERIFICATION_ACTIVE_KEY_ID=2026-08
+CONTENT_VERIFICATION_KEYS_JSON={"2026-08":"replace_with_32_byte_base64url_key"}
+
 # Optional feature controls
 DISABLED_COGS=
 
@@ -92,6 +96,34 @@ DB_METHOD://DB_USERNAME:DB_PASSWORD@DB_HOST/?retryWrites=true&w=majority
 ```
 
 Include the port in `DB_HOST`; the current connection builder does not read `DB_PORT`. Keep `.env` and `.env.prod` private—they are already ignored by Git.
+
+Generate each content-verification key with:
+
+```powershell
+python -c "import base64,secrets; print(base64.urlsafe_b64encode(secrets.token_bytes(32)).decode().rstrip('='))"
+```
+
+Use that output only as the JSON value; never reuse `DISCORD_TOKEN` or a database
+password. New cards and quotes fail closed when the keyring is missing or invalid.
+For rotation, add a new key ID, keep old key IDs in the JSON so existing proofs
+remain verifiable, then change `CONTENT_VERIFICATION_ACTIVE_KEY_ID` to the new ID.
+Use a different keyring for every bot deployment (for example development and
+production); instances that share an HMAC key can validate and mint each other's
+proofs.
+
+Internally, proofs use a `tfv1.<key-id>.<claims>.<signature>` token. New cards and
+quotes display only a 31-character `tfp1_<reference>` code; the signed token remains
+hidden in MongoDB. `hash_verify` resolves that exact reference, authenticates the
+hidden token, requires its signed ID to match the record ID, and then compares the
+saved snapshot with the signed digest. Full `tfv1` tokens remain accepted for older
+messages. A short reference is intentionally not a self-contained proof and needs
+MongoDB, but a database-only writer still cannot mint, redirect, or alter a valid
+result without the HMAC key. The signed claims bind the proof type, guild, issuer,
+source IDs, issue times, salt, and digest of the complete private snapshot; quote
+text stays out of the readable token. This is bot-verifiable HMAC—not an
+independently verifiable public-key signature—and it authenticates recorded
+member/role facts or quote text used by the bot rather than screenshot/PNG pixels,
+avatars, attachments, or embeds.
 
 Feature controls:
 
@@ -187,6 +219,14 @@ commands rather than `setting set_variable`:
 | Moderation cases | `!tf case log_channel #mod-log` |
 | Shop | Add a role or badge item; no separate setup command is required |
 
+The role exam uses the repository file `data/role_exam.json` instead of MongoDB.
+It ships with `role_id` set to JSON `null`; after replacing all 20 placeholder
+questions and answers, set it to the reward role's decimal ID as a JSON string
+(for example, `"123456789012345678"`). Set `required_percent` to an integer from
+1 through 100. The reward role must not grant privileged permissions and must be
+below both the invoking staff member and the bot in the Discord role hierarchy.
+Restart the bot or reload the role-exam cog after every file change.
+
 ### Optional booru API configuration
 
 The `r34` and `gbr` cogs read their credentials from `.env`:
@@ -210,15 +250,16 @@ menu focused on their respective topics.
 
 | Area | Representative commands |
 | --- | --- |
-| General | `help [topic]`, `hello`, `invite`, `verify`, `ping`, `server_stats` |
-| Community | `afk`, `jobremind add`, `birthday set`, `vote`, `giveaway` |
+| General | `help [topic]`, `hello`, `invite`, `verify`, `role_exam @user`, `self_unverified`, `ping`, `server_stats` |
+| Community | `afk`, `jobremind add`, `bedtime`, `bedtime add @member <bedtime_HH:MM> <wake_HH:MM> #channel`, `birthday`, `vote`, `giveaway` |
 | Economy and games | `daily`, `user_balance`, `user_transactions`, `shop`, `blackjack`, `poker`, `crocodile challenge`, `slot`, `flip_coin`, `sicbo_start`, `noitu`, `vtv` |
 | Tiên Lộ | `tutien`, `tutien thucong`, `tutien dotpha`, `tutien bicanh`, `tutien thiluyen`, `tutien doido` |
 | Moderation | `kick`, `ban`, `unban`, `softban`, `mute`, `timeout`, `warn`, `case`, `purge`, `slowmode`, `verified` |
 | Operations | `ping`, `server_stats`, `bot_status`, `setup check` |
+| Utilities | `quote`, `hash_verify`, `big_speaker`, `random_member` |
 | Booster tools | `custom_role`, `update_custom_role`, `custom_room` |
 | Social and fun | `kiss`, `hug`, `pat`, `avatar`, `quote`, `rank`, `ship`, `aura`, `redflag`, configurable `triggerreply`, and other meter commands |
-| Automatic features | Welcome and leave/kick/ban announcements, AFK monitoring, reminders, content filtering, scheduled cleanup, and persistent interaction handling |
+| Automatic features | Welcome and leave/kick/ban announcements, AFK monitoring, job and bedtime reminders, bedtime chat replies, content filtering, scheduled cleanup, and persistent interaction handling |
 | Optional NSFW | `nsfw`, `r34`, `gbr`, NSFW interactions, rankings, and role-based locks |
 
 This table is only an overview. The in-Discord dropdown and [FUNCTIONS.md](FUNCTIONS.md)
@@ -226,6 +267,28 @@ provide the complete user-facing catalog; each module under `cogs/` remains the
 implementation source of truth.
 
 ## Community systems
+
+### Bedtime reminders
+
+Administrators can assign one recurring bedtime to each member in a guild.
+`!tf bedtime` opens an interactive panel (member select, channel select, time
+modal, and paginated list). Prefix subcommands remain available:
+
+```text
+!tf bedtime
+!tf bedtime add @member 23:00 07:00 #general
+!tf bedtime list
+!tf bedtime remove @member
+!tf bedtime remove 123456789012345678
+```
+
+Times use fixed Vietnam time (UTC+7), accepting `H:MM` or `HH:MM`. At bedtime the
+bot mentions the member once in the configured announcement channel. Until the
+following wake time, every message that member sends anywhere in the guild gets a
+mentioning bedtime reply in the same channel; there is no cooldown. Schedules
+survive restarts in the guild-scoped `bedtime_reminders` MongoDB collection.
+If a member leaves, administrators can remove the retained entry by the user ID
+shown by `bedtime list`.
 
 ### Tiên Lộ cultivation game
 
@@ -314,7 +377,11 @@ Reason and status edits retain an edit history. Status can be `open`,
 `resolved`, `appealed`, or `void`.
 
 Every state-changing moderation command except the intentionally unchanged
-`verified` / `unverified` workflow now ends with an explicit Yes/No guard.
+`verified` / `unverified` staff workflow now ends with an explicit Yes/No guard.
+Members can drop their own verified/NSFW-access role with `self_unverified`;
+that command requires Yes/No confirmation, and cancel or timeout means they
+must run it again. After they confirm, they have to ask staff (`verified`) to
+get the role back.
 Single-member actions can target a mention or the author of a same-channel reply;
 reply mode is argument-free so malformed input cannot silently change the target.
 Discord and database mutations happen only after the moderator completes the
@@ -336,6 +403,16 @@ guild command outcomes, export retained records as CSV, and prune old records af
 confirmation. These records are guild-scoped in MongoDB's `operation_logs` collection;
 direct messages and unknown commands are not retained.
 
+If the invoking Administrator is also the Bot owner, `bot_status` adds private
+panels for the bot's joined servers and lifecycle history. The server manager can
+inspect every connected guild and confirm leaving a selected guild, but it cannot
+leave the guild where the dashboard was opened. This restriction applies only to
+the manager; the standalone `!tf leave` command is unchanged. The lifecycle panel
+shows the latest 10 `initial_ready`, `reidentified`, and `resumed` events for the
+current environment. Lifecycle events are append-only, retained indefinitely in
+the global `bot_lifecycle_events` collection, and excluded from guild audit
+browsing, CSV export, and pruning.
+
 ## Docker
 
 The Compose service builds the bot, reads `.env`, and runs it with a restart policy:
@@ -351,6 +428,13 @@ Stop it with:
 docker compose down
 ```
 
+SIGINT and SIGTERM trigger graceful command draining. The bot immediately stops
+admitting new prefix commands, tells later callers that shutdown is in progress,
+waits for commands already running, and then closes Discord and flushes its
+lifecycle recorder. Sending a second shutdown signal forces closure. Compose's
+five-minute stop grace period gives active commands time to finish before Docker
+terminates the container.
+
 The Compose file does **not** start MongoDB, so `DB_HOST` must point to an existing deployment reachable from the container. The bot opens no inbound port; it connects outbound to Discord, MongoDB, and any enabled external APIs.
 
 The GitHub Actions workflow also builds and publishes container images to GitHub Container Registry for configured branches and releases.
@@ -364,9 +448,9 @@ python -m unittest discover -s test -p "test_*.py"
 ```
 
 The automated tests cover cultivation calculations and state transitions, card-game
-rules and wagers, persistent Crocodile Dentist state and UI behavior, the categorized
-help menu, meter formatting, quote-card rendering, cog flags, and validation helpers
-used by the shop, cases, and setup diagnostics.
+rules and wagers, persistent Crocodile Dentist and bedtime-reminder behavior, the
+categorized help menu, meter formatting, quote-card rendering, cog flags, and
+validation helpers used by the shop, cases, and setup diagnostics.
 
 ## Project structure
 
@@ -379,10 +463,13 @@ tfvn_bot/
 ├── cogs/                   # Discord commands, listeners, tasks, and UI views
 │   ├── _beta_function.py   # Database-role guard for experimental commands
 │   ├── _feature_flags.py   # Feature and cog disable flag parsing
+│   ├── _hash_verification.py # Signed content-proof issuance and validation
+│   ├── bedtime_remind/     # Persistent UTC+7 bedtime schedules, admin UI, and chat reminders
 │   ├── settings/           # Mongo-backed runtime variables
 │   ├── economy/            # Trap Coin shop, inventory, badges, and role items
 │   ├── cultivation/        # Tiên Lộ progression, AFK calculations, PvE, and economy
 │   ├── mod/                # Moderation and verification
+│   ├── operation/          # Health/audit UI, owner controls, and lifecycle events
 │   ├── booster/            # Booster custom roles/rooms and cleanup
 │   ├── minigames/          # Economy/card, persistent multiplayer, and Vietnamese word games
 │   ├── funny_things/       # Fun meters, cards, and birthday features
