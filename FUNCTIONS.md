@@ -420,6 +420,34 @@ All 16 SFW interactions require a non-bot target and have a 3-second per-command
 
 ---
 
+## Bedtime reminders
+
+Guild administrators maintain one recurring daily sleep schedule per member. All
+times use fixed Vietnam time (UTC+7); `H:MM` and `HH:MM` are accepted and shown as
+`HH:MM`. The configured wake time is the next occurrence after bedtime.
+
+| Command | Access | Description |
+| --- | --- | --- |
+| `bedtime` | Administrator (guild) | Show the bedtime command guide |
+| `bedtime add @member <bedtime_HH:MM> <wake_HH:MM> #channel` | Administrator (guild) | Add or update the member's schedule and announcement channel |
+| `bedtime remove <@member\|user_id>` | Administrator (guild) | Remove the member's schedule immediately; a saved ID works after they leave |
+| `bedtime list` | Administrator (guild) | List the guild's schedules in pages without mentioning their members |
+
+**Background:** at bedtime the bot mentions the member once in the configured
+channel. From bedtime (inclusive) until wake time (exclusive), every non-bot
+message that member sends anywhere in the guild—including commands and
+attachment-only messages—receives a mentioning reply in the same channel, with
+no cooldown. The minute scheduler catches up after a restart only while the
+current sleep window remains active.
+
+Schedules are guild-scoped and persisted in `bedtime_reminders`; the message
+listener uses an in-memory cache and does not query MongoDB for each message.
+
+**Module:** `cogs.bedtime_remind.bedtime_remind`,
+`cogs.bedtime_remind._bedtime_helpers`
+
+---
+
 ## Community utilities
 
 ### Giveaways
@@ -590,6 +618,7 @@ r34, gbr, nsfwrule, bj, rj, hj, fj, aj, tj, spank, frot, fuck, cream, 3some, org
 locknsfw, unlocknsfw, verified, unverified
 custom_role, update_custom_role, custom_room
 jobremind, jobremind add
+bedtime, bedtime add, bedtime remove, bedtime list
 giveaway, giveaway list, giveaway entries, giveaway end, giveaway reroll
 vote, quote, hash_verify, big_speaker, random_member, save_image
 kick, ban, unban, softban, unsoftban, mute, unmute, timeout, untimeout, warn, check_warn
@@ -601,7 +630,7 @@ area51_fire
 setting, setting set_variable, setting get_variable
 ```
 
-**Automatic features:** random bot activity rotation at random 5–15 minute intervals; welcome and differentiated leave/kick/ban announcements, AFK monitoring, banned-word discipline, booster unboost janitor, birthday announcements, job-reminder loop, giveaway/vote end scheduling, Area 51 honeypot, Lunar New Year greeting, word-game message handling. All departure variants use `BYE_CHANNEL`; View Audit Log permission is required to reliably distinguish kicks from voluntary leaves.
+**Automatic features:** random bot activity rotation at random 5–15 minute intervals; welcome and differentiated leave/kick/ban announcements, AFK monitoring, banned-word discipline, booster unboost janitor, birthday announcements, job-reminder and bedtime-reminder loops, bedtime chat replies, giveaway/vote end scheduling, Area 51 honeypot, Lunar New Year greeting, word-game message handling. All departure variants use `BYE_CHANNEL`; View Audit Log permission is required to reliably distinguish kicks from voluntary leaves.
 
 Bot status data uses `type` + `think` for `CUSTOM` entries. All other activity types use `type` + `text` so their action-card text remains prominent.
 

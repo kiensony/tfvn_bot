@@ -65,6 +65,7 @@ tfvn_bot/
 │   └── words.txt                   Source records for Vietnamese data preparation
 │
 ├── test/
+│   ├── test_bedtime_reminder.py    Bedtime time rules, persistence, commands, and listeners
 │   ├── test_card_games.py          Blackjack, Poker, deck, and payout rules
 │   ├── test_card_game_economy.py   Atomic card-game wager and refund helpers
 │   ├── test_crocodile_dentist.py   Crocodile rules, persistence, commands, and UI behavior
@@ -87,6 +88,9 @@ tfvn_bot/
     ├── afk_remind/
     │   ├── afk_set.py              Timed/dynamic AFK setup, clearing, and ping review
     │   └── afk_monitor.py          AFK mention capture and return detection
+    ├── bedtime_remind/
+    │   ├── _bedtime_helpers.py     Pure UTC+7 parsing, sleep-window, and deadline rules
+    │   └── bedtime_remind.py       Admin schedules, minute mentions, and chat reminders
     ├── announcement/
     │   ├── __init__.py             Announcement package marker
     │   ├── welcome.py              Member-join announcement
@@ -240,7 +244,11 @@ MongoDB collections are created lazily. Major groups are:
   avatars, attachments, or embeds. Deployments must not share keyrings. Quote
   text and names stay out of the readable token and are returned only inside the
   exact source channel/thread; PyMongo reads/writes run in worker threads
-- Scheduling: `tasks`, `votes`, `giveaways`, `birthdays`, `birthday_announcements`
+- Scheduling: `tasks`, `votes`, `giveaways`, `birthdays`, `birthday_announcements`,
+  `bedtime_reminders`. Bedtime records are guild/member scoped and hold normalized
+  sleep minutes, announcement channel, next UTC deadline, local-date deduplication,
+  and audit timestamps; unique guild/member and due-time indexes enforce one schedule
+  per member and support the minute scheduler
 - AFK and moderation: `afk_reminders`, `afk_pings`, `discipline_logs`, `old_roles`, `warnings`, `moderation_cases`
 - Operations audit: `operation_logs` stores guild-scoped recognized prefix-command outcomes and dashboard export/prune actions; records have no automatic TTL and are removed only through the Administrator dashboard
 - Bot lifecycle: `bot_lifecycle_events` stores global, append-only `initial_ready`,
@@ -272,6 +280,14 @@ and tooth custom IDs after restart, while revision and canonical-message guards
 prevent duplicate responses, concurrent tooth presses, and stale replacement
 panels from changing state. A background sweep and command/interaction reads settle
 five-minute invitation deadlines and seven-day active-game inactivity expiry.
+
+Bedtime reminders use fixed Vietnam time (UTC+7). The cog validates MongoDB
+records into a `(guild_id, user_id)` memory cache, sends one configured-channel
+mention per active sleep window, and catches up after restarts only before that
+window's wake time. Its guild-message listener reads only that cache and replies
+with a target-only mention to every enrolled member message during the window.
+Missing Discord targets or permanent permission failures skip that day's notice;
+transient HTTP failures remain eligible for retry while the window is active.
 
 Commands decorated with `@BetaFunction` are registered normally in any runtime,
 but the callback requires the invoking member to hold at least one role in

@@ -11,7 +11,7 @@ For a complete list of commands and automatic features, see [FUNCTIONS.md](FUNCT
 
 ## Highlights
 
-- **Community management:** welcome and differentiated leave/kick/ban announcements, verification, AFK tracking, birthdays, reminders, votes, and giveaways.
+- **Community management:** welcome and differentiated leave/kick/ban announcements, verification, AFK tracking, birthdays, scheduled bedtime reminders, votes, and giveaways.
 - **Moderation:** kick, ban/unban, soft-ban, mute, timeout, warnings, numbered audit cases, message cleanup, slow mode, nickname/role tools, and the Area 51 guard workflow.
 - **Booster perks:** custom roles and voice rooms, with automatic cleanup after a member stops boosting.
 - **Games and economy:** the global, persistent Tiên Lộ AFK cultivation game, daily Trap Coins, a configurable role/badge shop, transaction history, interactive Blackjack and five-card-draw Poker, persistent multiplayer Crocodile Dentist, slots, coin flips, Sic Bo, Vietnamese word chaining (`noitu`), and Vua Tiếng Việt (`vtv`).
@@ -251,7 +251,7 @@ menu focused on their respective topics.
 | Area | Representative commands |
 | --- | --- |
 | General | `help [topic]`, `hello`, `invite`, `verify`, `role_exam @user`, `self_unverified`, `ping`, `server_stats` |
-| Community | `afk`, `jobremind add`, `birthday` (month/day picker), `birthday set`, `vote`, `giveaway` |
+| Community | `afk`, `jobremind add`, `bedtime add @member <bedtime_HH:MM> <wake_HH:MM> #channel`, `birthday`, `vote`, `giveaway` |
 | Economy and games | `daily`, `user_balance`, `user_transactions`, `shop`, `blackjack`, `poker`, `crocodile challenge`, `slot`, `flip_coin`, `sicbo_start`, `noitu`, `vtv` |
 | Tiên Lộ | `tutien`, `tutien thucong`, `tutien dotpha`, `tutien bicanh`, `tutien thiluyen`, `tutien doido` |
 | Moderation | `kick`, `ban`, `unban`, `softban`, `mute`, `timeout`, `warn`, `case`, `purge`, `slowmode`, `verified` |
@@ -259,7 +259,7 @@ menu focused on their respective topics.
 | Utilities | `quote`, `hash_verify`, `big_speaker`, `random_member` |
 | Booster tools | `custom_role`, `update_custom_role`, `custom_room` |
 | Social and fun | `kiss`, `hug`, `pat`, `avatar`, `quote`, `rank`, `ship`, `aura`, `redflag`, configurable `triggerreply`, and other meter commands |
-| Automatic features | Welcome and leave/kick/ban announcements, AFK monitoring, reminders, content filtering, scheduled cleanup, and persistent interaction handling |
+| Automatic features | Welcome and leave/kick/ban announcements, AFK monitoring, job and bedtime reminders, bedtime chat replies, content filtering, scheduled cleanup, and persistent interaction handling |
 | Optional NSFW | `nsfw`, `r34`, `gbr`, NSFW interactions, rankings, and role-based locks |
 
 This table is only an overview. The in-Discord dropdown and [FUNCTIONS.md](FUNCTIONS.md)
@@ -267,6 +267,25 @@ provide the complete user-facing catalog; each module under `cogs/` remains the
 implementation source of truth.
 
 ## Community systems
+
+### Bedtime reminders
+
+Administrators can assign one recurring bedtime to each member in a guild:
+
+```text
+!tf bedtime add @member 23:00 07:00 #general
+!tf bedtime list
+!tf bedtime remove @member
+!tf bedtime remove 123456789012345678
+```
+
+Times use fixed Vietnam time (UTC+7), accepting `H:MM` or `HH:MM`. At bedtime the
+bot mentions the member once in the configured announcement channel. Until the
+following wake time, every message that member sends anywhere in the guild gets a
+mentioning bedtime reply in the same channel; there is no cooldown. Schedules
+survive restarts in the guild-scoped `bedtime_reminders` MongoDB collection.
+If a member leaves, administrators can remove the retained entry by the user ID
+shown by `bedtime list`.
 
 ### Tiên Lộ cultivation game
 
@@ -426,9 +445,9 @@ python -m unittest discover -s test -p "test_*.py"
 ```
 
 The automated tests cover cultivation calculations and state transitions, card-game
-rules and wagers, persistent Crocodile Dentist state and UI behavior, the categorized
-help menu, meter formatting, quote-card rendering, cog flags, and validation helpers
-used by the shop, cases, and setup diagnostics.
+rules and wagers, persistent Crocodile Dentist and bedtime-reminder behavior, the
+categorized help menu, meter formatting, quote-card rendering, cog flags, and
+validation helpers used by the shop, cases, and setup diagnostics.
 
 ## Project structure
 
@@ -442,6 +461,7 @@ tfvn_bot/
 │   ├── _beta_function.py   # Database-role guard for experimental commands
 │   ├── _feature_flags.py   # Feature and cog disable flag parsing
 │   ├── _hash_verification.py # Signed content-proof issuance and validation
+│   ├── bedtime_remind/     # Persistent UTC+7 bedtime schedules and chat reminders
 │   ├── settings/           # Mongo-backed runtime variables
 │   ├── economy/            # Trap Coin shop, inventory, badges, and role items
 │   ├── cultivation/        # Tiên Lộ progression, AFK calculations, PvE, and economy

@@ -140,7 +140,7 @@ HELP_TOPICS = (
         key="community",
         label="Cộng đồng",
         emoji="🫂",
-        option_description="AFK, nhắc việc, sinh nhật, vote và giveaway",
+        option_description="AFK, giờ ngủ, nhắc việc, sinh nhật và sự kiện",
         title="Cộng đồng & sự kiện",
         description="Các tiện ích giúp thành viên theo dõi và tham gia hoạt động server.",
         color=0x5865F2,
@@ -182,6 +182,43 @@ HELP_TOPICS = (
                         "Lưu ngày sinh bằng cú pháp nhanh.",
                         "birthday set <ngày> <tháng>",
                     ),
+                ),
+            ),
+            HelpSection(
+                name="Giờ ngủ (UTC+7, quản trị)",
+                entries=(
+                    _entry(
+                        "bedtime",
+                        "Xem hướng dẫn quản lý lịch đi ngủ — Administrator, chỉ server.",
+                    ),
+                    _entry(
+                        "bedtime add",
+                        (
+                            "Thêm hoặc cập nhật lịch hằng ngày và kênh thông báo "
+                            "— Administrator."
+                        ),
+                        (
+                            "bedtime add @member <bedtime_HH:MM> "
+                            "<wake_HH:MM> #channel"
+                        ),
+                    ),
+                    _entry(
+                        "bedtime remove",
+                        "Xóa lịch của member ngay lập tức — Administrator.",
+                        "bedtime remove <@member|user_id>",
+                    ),
+                    _entry(
+                        "bedtime list",
+                        (
+                            "Liệt kê có phân trang các lịch của server mà không ping "
+                            "member — Administrator."
+                        ),
+                    ),
+                ),
+                note=(
+                    "Bot tag một lần trong kênh đã chọn khi tới giờ ngủ. Trong khoảng "
+                    "giờ ngủ (gồm) đến giờ dậy (không gồm), mỗi tin nhắn của member "
+                    "ở server đều nhận reply nhắc ngủ có tag; không có cooldown."
                 ),
             ),
             HelpSection(
@@ -874,6 +911,8 @@ HELP_TOPICS = (
                 note=(
                     "• Ghi lại ai mention member đang AFK và tự xóa dynamic AFK khi họ trở lại.\n"
                     "• Kiểm tra lịch nhắc việc mỗi phút rồi gửi DM.\n"
+                    "• Theo lịch ngủ UTC+7, tag member khi tới giờ và reply có tag cho "
+                    "mọi tin họ gửi trước giờ dậy.\n"
                     "• Triggered reply khớp contains/exact, không phân biệt hoa thường "
                     "và không ping."
                 ),
