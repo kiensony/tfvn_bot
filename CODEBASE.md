@@ -54,6 +54,7 @@ tfvn_bot/
 │   ├── fake_loading_sentences.txt  Random progress text for fun commands
 │   ├── femboy_role.txt             Role names used by the femboy card command
 │   ├── nsfw_channel.json           Verification-managed NSFW channel definitions
+│   ├── role_exam.json              Role-exam questions, pass percentage, and reward role ID
 │   ├── vietnamese_king_data.json   Generated Vua Tiếng Việt puzzle dataset
 │   └── word_connect_valid_list.txt Valid Vietnamese word-chain entries
 │
@@ -72,6 +73,8 @@ tfvn_bot/
 │   ├── test_help_menu.py           Help catalog completeness, limits, gates, and UI tests
 │   ├── test_hash_verification.py    Signed proof, forgery, tamper, producer, and privacy tests
 │   ├── test_meter_number_bars.py   unittest coverage for signed meter formatting
+│   ├── test_role_exam.py           Role-exam invitation, UI, safety, and role-grant tests
+│   ├── test_role_exam_helpers.py   Role-exam JSON validation, shuffling, and scoring tests
 │   └── word_stardardlize.py        Manual normalization utility; not auto-discovered as a test
 │
 └── cogs/
@@ -180,6 +183,9 @@ tfvn_bot/
     │   ├── __init__.py             NSFW extension package marker
     │   ├── r34.py                       Age-gated Rule34 API search
     │   └── gelbooru.py                  Age-gated Gelbooru API search
+    ├── onboarding/
+    │   ├── _role_exam_helpers.py       Pure role-exam configuration, validation, and scoring
+    │   └── role_exam.py                Staff invitation, private exam UI, and safe role grant
     ├── operation/
     │   ├── bot_status.py                Random Discord activity and timing rotation
     │   ├── _graceful_shutdown.py        Command admission, drain tracking, and signal helpers

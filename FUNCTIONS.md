@@ -38,6 +38,7 @@ Examples below use that default. Replace with your configured prefix if differen
 | `hello` | Everyone | Greets the invoking user |
 | `invite` | Everyone | Replies with the bot invite link (`INVITE_LINK` env) |
 | `verify` | Everyone | Points the user to the verification channel (`VERIFY_CHANNEL` env) |
+| `role_exam @user` | Manage Roles | Invite the target to a private 20-question exam loaded from `data/role_exam.json`. Meeting the configured percentage grants its configured non-privileged role; failure or timeout requires staff to start a new attempt |
 | `self_unverified` | Everyone (guild) | Confirm Yes/No to drop your own verified/NSFW-access role. Cancel or timeout requires running the command again. After confirmation, staff must grant the role again |
 | `ping` | Everyone | Heartbeat / liveness reply |
 | `beta_preview` | Beta | Confirms the member has a configured Beta role |
@@ -47,7 +48,7 @@ Examples below use that default. Replace with your configured prefix if differen
 | `setup` / `diagnose` | Manage Guild (subcommands) | Setup diagnostics group |
 | `setup check` | Manage Guild | Checks database, permissions, IDs, and cog health |
 
-**Module:** `cogs.general`, `cogs.operation.*`
+**Module:** `cogs.general`, `cogs.onboarding.role_exam`, `cogs.operation.*`
 
 `bot_status` shows readiness, environment, uptime, Discord latency, guild/member/channel totals, MongoDB health, retained log count, and recent command outcomes. Audit browsing and CSV/prune responses are private to the administrator. Audit and export ranges are 7, 30, or 90 days, or all retained records; exports above 100,000 rows must use a narrower range. Pruning can remove records older than 30, 90, or 180 days, or clear the guild's retained history after an additional confirmation. Recognized guild prefix commands and dashboard export/prune actions are stored in the guild-scoped `operation_logs` collection; direct messages and unknown commands are not logged.
 
@@ -562,7 +563,7 @@ These modules support features but are not discovered as extensions (leading `_`
 
 ```
 help, mod, nsfw
-hello, invite, verify, self_unverified, ping, beta_preview, server_stats, bot_status, leave
+hello, invite, verify, role_exam, self_unverified, ping, beta_preview, server_stats, bot_status, leave
 setup, setup check
 triggerreply, triggerreply add, triggerreply update, triggerreply list, triggerreply remove
 afk, afk dynamic, afk time, afk clear, afk check

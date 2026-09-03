@@ -219,6 +219,14 @@ commands rather than `setting set_variable`:
 | Moderation cases | `!tf case log_channel #mod-log` |
 | Shop | Add a role or badge item; no separate setup command is required |
 
+The role exam uses the repository file `data/role_exam.json` instead of MongoDB.
+It ships with `role_id` set to JSON `null`; after replacing all 20 placeholder
+questions and answers, set it to the reward role's decimal ID as a JSON string
+(for example, `"123456789012345678"`). Set `required_percent` to an integer from
+1 through 100. The reward role must not grant privileged permissions and must be
+below both the invoking staff member and the bot in the Discord role hierarchy.
+Restart the bot or reload the role-exam cog after every file change.
+
 ### Optional booru API configuration
 
 The `r34` and `gbr` cogs read their credentials from `.env`:
@@ -242,7 +250,7 @@ menu focused on their respective topics.
 
 | Area | Representative commands |
 | --- | --- |
-| General | `help [topic]`, `hello`, `invite`, `verify`, `self_unverified`, `ping`, `server_stats` |
+| General | `help [topic]`, `hello`, `invite`, `verify`, `role_exam @user`, `self_unverified`, `ping`, `server_stats` |
 | Community | `afk`, `jobremind add`, `birthday` (month/day picker), `birthday set`, `vote`, `giveaway` |
 | Economy and games | `daily`, `user_balance`, `user_transactions`, `shop`, `blackjack`, `poker`, `crocodile challenge`, `slot`, `flip_coin`, `sicbo_start`, `noitu`, `vtv` |
 | Tiên Lộ | `tutien`, `tutien thucong`, `tutien dotpha`, `tutien bicanh`, `tutien thiluyen`, `tutien doido` |

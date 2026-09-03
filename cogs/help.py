@@ -92,6 +92,15 @@ HELP_TOPICS = (
                     _entry("invite", "Lấy liên kết mời bot."),
                     _entry("verify", "Đi tới kênh xác minh đã cấu hình."),
                     _entry(
+                        "role_exam",
+                        (
+                            "Min mót có quyền Manage Roles mời `@user` làm bài riêng "
+                            "20 câu từ JSON; đủ phần trăm cấu hình sẽ nhận role an toàn. "
+                            "Trượt hoặc hết hạn cần min mót mở lại."
+                        ),
+                        "role_exam @user",
+                    ),
+                    _entry(
                         "self_unverified",
                         (
                             "Tự gỡ role xác minh sau Yes/No; hết hạn phải gọi lại; "
