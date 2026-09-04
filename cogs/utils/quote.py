@@ -10,6 +10,15 @@ import re
 import discord
 from discord.ext import commands
 
+from cogs._hash_verification import (
+    QUOTE_KIND,
+    VERIFICATION_COLLECTION,
+    VerificationConfigurationError,
+    VerificationStoreError,
+    issue_verification_async,
+    verification_keyring_from_bot,
+    verification_reference_from_token,
+)
 from cogs.utils._quote_card import normalize_quote_text, render_quote_card
 
 
@@ -22,6 +31,7 @@ _MESSAGE_LINK = re.compile(
 _MESSAGE_ID = re.compile(r"\d{15,22}")
 _EMBED_QUOTE_PREFIX = ">>> "
 _EMBED_DESCRIPTION_LIMIT = 4_096
+_MESSAGE_CONTENT_LIMIT = 2_000
 
 
 def parse_quote_request(
@@ -59,6 +69,16 @@ class QuoteCog(commands.Cog):
 
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
+        database = getattr(bot, "db", None)
+        self.verifications = (
+            database[VERIFICATION_COLLECTION]
+            if database is not None
+            else None
+        )
+        try:
+            self.verification_keyring = verification_keyring_from_bot(bot)
+        except VerificationConfigurationError:
+            self.verification_keyring = None
 
     @staticmethod
     def _explicit_message_id(
@@ -179,6 +199,8 @@ class QuoteCog(commands.Cog):
         ctx: commands.Context,
         message: discord.Message,
         quote_text: str,
+        *,
+        verification_proof: str | None = None,
     ) -> None:
         author = message.author
         avatar_url = self._server_avatar(author).url
@@ -195,17 +217,80 @@ class QuoteCog(commands.Cog):
             url=message.jump_url,
         )
         embed.set_footer(text=f"#{getattr(message.channel, 'name', 'channel')}")
+        if verification_proof is not None:
+            embed.add_field(
+                name="🔐 Mã proof TFVN",
+                value=f"`{ctx.prefix}hash_verify {verification_proof}`",
+                inline=False,
+            )
         try:
             await ctx.send(embed=embed, allowed_mentions=NO_MENTIONS)
         except discord.HTTPException:
             safe_name = discord.utils.escape_markdown(
                 getattr(author, "display_name", author.name)
             )
-            plain_quote = quote_text[:1750]
+            proof_line = ""
+            if verification_proof is not None:
+                proof_line = (
+                    f"\n🔐 `{ctx.prefix}hash_verify {verification_proof}`"
+                )
+            header = f"**{safe_name}:** "
+            suffix = f"\n{message.jump_url}{proof_line}"
+            available = max(
+                0,
+                _MESSAGE_CONTENT_LIMIT - len(header) - len(suffix),
+            )
+            if len(quote_text) > available:
+                plain_quote = (
+                    quote_text[: max(0, available - 1)].rstrip() + "…"
+                    if available
+                    else ""
+                )
+            else:
+                plain_quote = quote_text
             await ctx.send(
-                f"**{safe_name}:** {plain_quote}\n{message.jump_url}",
+                f"{header}{plain_quote}{suffix}",
                 allowed_mentions=NO_MENTIONS,
             )
+
+    async def _issue_quote_proof(
+        self,
+        ctx: commands.Context,
+        message: discord.Message,
+        content: str,
+    ) -> str:
+        if self.verifications is None:
+            raise VerificationStoreError(
+                "The bot database is unavailable."
+            )
+        if self.verification_keyring is None:
+            raise VerificationConfigurationError(
+                "Content-verification signing keys are unavailable."
+            )
+        author = message.author
+        return await issue_verification_async(
+            self.verifications,
+            self.verification_keyring,
+            kind=QUOTE_KIND,
+            payload={
+                "guild_id": ctx.guild.id,
+                "channel_id": message.channel.id,
+                "channel_name": getattr(message.channel, "name", "channel"),
+                "message_id": message.id,
+                "message_url": message.jump_url,
+                "author_id": author.id,
+                "author_name": getattr(author, "display_name", author.name),
+                "content": content.strip(),
+                "source_created_at": message.created_at.isoformat(),
+                "issued_by_id": ctx.author.id,
+                "issued_by_name": getattr(
+                    ctx.author,
+                    "display_name",
+                    ctx.author.name,
+                ),
+            },
+            issued_at=discord.utils.utcnow(),
+        )
 
     @commands.command(
         name="quote",
@@ -234,15 +319,46 @@ class QuoteCog(commands.Cog):
             await ctx.send(str(exc), allowed_mentions=NO_MENTIONS)
             return
 
-        if not image_mode:
-            await self._send_text_quote(ctx, message, embed_quote_text)
-            return
+        quote_text: str | None = None
+        if image_mode:
+            try:
+                quote_text = normalize_quote_text(raw_content)
+            except ValueError as exc:
+                await ctx.send(str(exc), allowed_mentions=NO_MENTIONS)
+                return
 
         try:
-            quote_text = normalize_quote_text(raw_content)
-        except ValueError as exc:
-            await ctx.send(str(exc), allowed_mentions=NO_MENTIONS)
+            verification_token = await self._issue_quote_proof(
+                ctx,
+                message,
+                raw_content,
+            )
+            verification_proof = verification_reference_from_token(
+                verification_token,
+                self.verification_keyring,
+            )
+        except (
+            ValueError,
+            VerificationConfigurationError,
+            VerificationStoreError,
+        ):
+            logger.exception("Failed to issue quote verification proof")
+            await ctx.send(
+                "Không thể tạo proof xác thực cho quote lúc này. Hãy thử lại sau.",
+                allowed_mentions=NO_MENTIONS,
+            )
             return
+
+        if not image_mode:
+            await self._send_text_quote(
+                ctx,
+                message,
+                embed_quote_text,
+                verification_proof=verification_proof,
+            )
+            return
+
+        assert quote_text is not None
         author = message.author
         display_name = getattr(author, "display_name", author.name)
         username = getattr(author, "name", display_name)
@@ -268,11 +384,15 @@ class QuoteCog(commands.Cog):
                     ctx,
                     message,
                     embed_quote_text,
+                    verification_proof=verification_proof,
                 )
                 return
 
         filename = f"quote-{message.id}.png"
-        source_link = f"🔗 [Xem tin nhắn gốc]({message.jump_url})"
+        source_link = (
+            f"🔗 [Xem tin nhắn gốc]({message.jump_url})\n"
+            f"🔐 `{ctx.prefix}hash_verify {verification_proof}`"
+        )
         try:
             await ctx.send(
                 source_link,
@@ -281,7 +401,12 @@ class QuoteCog(commands.Cog):
             )
         except discord.HTTPException:
             logger.exception("Failed to upload quote card; using embed fallback")
-            await self._send_text_quote(ctx, message, embed_quote_text)
+            await self._send_text_quote(
+                ctx,
+                message,
+                embed_quote_text,
+                verification_proof=verification_proof,
+            )
 
     @quote.error
     async def quote_error(

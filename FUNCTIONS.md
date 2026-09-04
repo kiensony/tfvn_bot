@@ -14,6 +14,7 @@ Examples below use that default. Replace with your configured prefix if differen
 | Booster | Server booster (has premium subscription status) |
 | Moderator | Requires the listed Discord permission(s) |
 | Administrator | Requires Administrator (and any listed extra permission) |
+| Bot owner | Discord application owner recognized by the bot |
 | NSFW channel | Must be used in a Discord NSFW-marked channel |
 | Beta | Requires a role listed in Mongo `BETA_ROLE_IDS` |
 | Channel-bound | Only works in a configured game/feature channel |
@@ -37,17 +38,23 @@ Examples below use that default. Replace with your configured prefix if differen
 | `hello` | Everyone | Greets the invoking user |
 | `invite` | Everyone | Replies with the bot invite link (`INVITE_LINK` env) |
 | `verify` | Everyone | Points the user to the verification channel (`VERIFY_CHANNEL` env) |
+| `role_exam @user` | Manage Roles | Invite the target to a private 20-question exam loaded from `data/role_exam.json`. Meeting the configured percentage grants its configured non-privileged role; failure or timeout requires staff to start a new attempt |
+| `self_unverified` | Everyone (guild) | Confirm Yes/No to drop your own verified/NSFW-access role. Cancel or timeout requires running the command again. After confirmation, staff must grant the role again |
 | `ping` | Everyone | Heartbeat / liveness reply |
 | `beta_preview` | Beta | Confirms the member has a configured Beta role |
 | `server_stats` | Administrator | In-memory uptime, command, and error counts since process start; 10s per-guild cooldown |
-| `bot_status` | Administrator | Opens the bot/server health dashboard with refresh, guild command audit, CSV export, and guarded log-pruning controls |
+| `bot_status` | Administrator | Opens the bot/server health dashboard with refresh, guild command audit, CSV export, and guarded log-pruning controls; the joined-server manager and lifecycle history are private Bot owner controls |
 | `leave` | Administrator | Makes the bot leave the current guild |
 | `setup` / `diagnose` | Manage Guild (subcommands) | Setup diagnostics group |
 | `setup check` | Manage Guild | Checks database, permissions, IDs, and cog health |
 
-**Module:** `cogs.general`, `cogs.operation.*`
+**Module:** `cogs.general`, `cogs.onboarding.role_exam`, `cogs.operation.*`
 
 `bot_status` shows readiness, environment, uptime, Discord latency, guild/member/channel totals, MongoDB health, retained log count, and recent command outcomes. Audit browsing and CSV/prune responses are private to the administrator. Audit and export ranges are 7, 30, or 90 days, or all retained records; exports above 100,000 rows must use a narrower range. Pruning can remove records older than 30, 90, or 180 days, or clear the guild's retained history after an additional confirmation. Recognized guild prefix commands and dashboard export/prune actions are stored in the guild-scoped `operation_logs` collection; direct messages and unknown commands are not logged.
+
+When the Administrator is also the Bot owner, the dashboard adds two private controls. The joined-server manager lists every guild currently connected to the bot and can leave a selected guild only after confirmation; it cannot leave the guild where `bot_status` was invoked. The standalone `!tf leave` command remains unchanged and still leaves its current guild immediately. The lifecycle panel shows the 10 newest `initial_ready`, `reidentified`, or `resumed` events for the current environment. These append-only global events are retained indefinitely in `bot_lifecycle_events`; they are separate from `operation_logs` and are never included in guild audit browsing, CSV exports, or pruning.
+
+On SIGINT or SIGTERM, the process enters graceful drain mode. Commands admitted before the signal finish normally; later prefix commands receive a shutdown notice and do not execute. Discord closes after the active command set is empty. A second signal forces immediate closure.
 
 ---
 
@@ -290,9 +297,9 @@ Most meters accept an optional `@member` (default: author). Scores are determini
 | `skillissue` | — | Skill-issue meter |
 | `touchgrass` | — | Touch-grass meter |
 | `yapper` | — | Yap meter |
-| `femboycard` | — | Personal femboy card from configured role names (`data/femboy_role.txt`) |
-| `birthday` | — | Birthday command guide |
-| `birthday set <day> <month>` | — | Register birthday (announced by scheduled task) |
+| `femboycard` | — | Personal femboy card from configured role names (`data/femboy_role.txt`), issued with a signed TFVN proof that binds the member, role, guild, issuer, time, and saved snapshot; 10s per-user cooldown |
+| `birthday` | — | Open the interactive month and day picker |
+| `birthday set <day> <month>` | — | Register a birthday directly (announced by scheduled task) |
 
 **Module:** `cogs.funny_things.*`
 
@@ -318,6 +325,8 @@ Most meters accept an optional `@member` (default: author). Scores are determini
 | `stare @user` | — | Everyone | Stare |
 | `lick @user` | — | Everyone | Lick |
 | `smack @user` | — | Everyone | Affectionate punch (đấm yêu) |
+| `sniff @user` | — | Everyone | Sniff |
+| `kidnap @user` | — | Everyone | Playful kidnap / carry |
 | `avatar [@user]` | `av`, `global_avatar`, `globalav` | Everyone | Show Discord global avatar (default: author) |
 | `server_avatar [@user]` | `sav`, `guild_avatar`, `serverav` | Everyone (guild) | Show server avatar, or global avatar if unset |
 | `propose @user` | — | Everyone (guild) | Propose marriage; partner presses Yes/No (5m); expired proposals update UI) |
@@ -325,14 +334,14 @@ Most meters accept an optional `@member` (default: author). Scores are determini
 | `marriage help` | — | Everyone (guild) | Rules: XP, ranks, cooldowns |
 | `marriage top` | `lb`, `leaderboard`, `rank` | Everyone (guild) | Top 10 couples by XP |
 | `divorce` | — | Everyone (guild) | End active marriage after confirm buttons |
-| `rank [r] [action]` | `ranking` | Everyone | All-time bot-wide interaction leaderboards (`r` = receivers); action can be kiss, hug, pat, slap, punch, hit, poke, cuddle, snuggle, boop, handhold, bonk, bite, stare, lick, or smack |
+| `rank [r] [action]` | `ranking` | Everyone | All-time bot-wide interaction leaderboards (`r` = receivers); action can be kiss, hug, pat, slap, punch, hit, poke, cuddle, snuggle, boop, handhold, bonk, bite, stare, lick, smack, sniff, or kidnap |
 | `cat` | — | Everyone | Random cat image (external API) |
 | `dog` | — | Everyone | Random dog image (external API) |
 | `36` | — | Everyone | Static meme GIF reply |
 
 **Module:** `cogs.interaction.user_interaction`, `cat`, `dog`, `meme_interaction`
 
-All 16 SFW interactions require a non-bot target and have a 3-second per-command, per-user cooldown. Self-target is allowed only for `pat`, `slap`, `punch`, `hit`, `poke`, `bonk`, and `smack`.
+All 18 SFW interactions require a non-bot target and have a 3-second per-command, per-user cooldown. Self-target is allowed only for `pat`, `slap`, `punch`, `hit`, `poke`, `bonk`, and `smack`.
 
 ---
 
@@ -380,6 +389,7 @@ All 16 SFW interactions require a non-bot target and have a 3-second per-command
 | --- | --- | --- |
 | `verified @user` | Manage Roles | Grant configured verified/NSFW-access role |
 | `unverified @user` | Manage Roles | Remove verified role |
+| `self_unverified` | Everyone (guild) | Member self-service: confirm Yes/No to remove their own verified role. There is no self-service restore; they must ask staff (`verified`) again |
 
 **Module:** `cogs.nsfw.*`, `cogs.interaction.nsfw_*`, `cogs.mod.verified`
 
@@ -412,6 +422,40 @@ All 16 SFW interactions require a non-bot target and have a 3-second per-command
 
 ---
 
+## Bedtime reminders
+
+Guild administrators maintain one recurring daily sleep schedule per member. All
+times use fixed Vietnam time (UTC+7); `H:MM` and `HH:MM` are accepted and shown as
+`HH:MM`. The configured wake time is the next occurrence after bedtime.
+
+| Command | Access | Description |
+| --- | --- | --- |
+| `bedtime` | Administrator (guild) | Open an interactive panel to add, remove, and page through schedules |
+| `bedtime add @member <bedtime_HH:MM> <wake_HH:MM> #channel` | Administrator (guild) | Add or update the member's schedule and announcement channel |
+| `bedtime remove <@member\|user_id>` | Administrator (guild) | Remove the member's schedule immediately; a saved ID works after they leave |
+| `bedtime list` | Administrator (guild) | List the guild's schedules in pages without mentioning their members |
+
+The panel is owner-locked and re-checks Administrator on every click. Add uses a
+member select, a text/announcement channel select, and a modal for `H:MM` /
+`HH:MM` times; remove uses a select of saved schedules, including members who
+already left. Text subcommands remain as a shortcut.
+
+**Background:** at bedtime the bot mentions the member once in the configured
+channel. From bedtime (inclusive) until wake time (exclusive), every non-bot
+message that member sends anywhere in the guild—including commands and
+attachment-only messages—receives a mentioning reply in the same channel, with
+no cooldown. The minute scheduler catches up after a restart only while the
+current sleep window remains active.
+
+Schedules are guild-scoped and persisted in `bedtime_reminders`; the message
+listener uses an in-memory cache and does not query MongoDB for each message.
+
+**Module:** `cogs.bedtime_remind.bedtime_remind`,
+`cogs.bedtime_remind._bedtime_helpers`,
+`cogs.bedtime_remind._bedtime_ui`
+
+---
+
 ## Community utilities
 
 ### Giveaways
@@ -436,7 +480,8 @@ Duration range: 10 seconds–30 days; max 20 winners.
 
 | Command | Aliases | Access | Description |
 | --- | --- | --- | --- |
-| `quote [image] [message_link\|message_id]` | `q`, `quotes` | Everyone (guild) | Quote a replied/current-channel message as a text embed by default. Add `image` before the optional link/ID to generate a PNG card with bundled offline emoji/symbol fallback fonts. Both modes use the author's server avatar when available, link to the original message, and have a 5s per-user cooldown |
+| `quote [image] [message_link\|message_id]` | `q`, `quotes` | Everyone (guild) | Quote a replied/current-channel message as a text embed by default. Add `image` before the optional link/ID to generate a PNG card with bundled offline emoji/symbol fallback fonts. Both modes use the author's server avatar when available, link to the original message, include a signed TFVN proof bound to the source snapshot, and have a 5s per-user cooldown |
+| `hash_verify <proof_code>` | — | Everyone (guild) | Resolve a short `tfp1_…` code to its hidden signed token, require the requested/record/signed IDs to match, and verify the saved Femboy Card or quote snapshot against the signed digest. Full legacy `tfv1.…` tokens also work. Results are limited to the signed guild; private quote text is shown only in the exact source channel/thread with history access. Limited to 3 checks per 10 seconds per user |
 | `big_speaker <size> <message>` | `loa`, `speaker` | Everyone (guild) | Re-speak a message in large Discord markdown. **`size` is 1–6**; TC cost by size: **1 / 2 / 5 / 10 / 20 / 50**. Sizes 5–6 add separators; 6 is bold H1. Mentions: user only; strips `@everyone`, `@here`, role pings. 30s cooldown |
 | `random_member <@member\|@role>` | — | Everyone | Pick a random member (from role members if a role is given) |
 | `save_image <collection> [key value ...]` | — | Manage Messages | Persist attached images + optional metadata pairs to Mongo (`images`) |
@@ -554,7 +599,7 @@ These modules support features but are not discovered as extensions (leading `_`
 
 ```
 help, mod, nsfw
-hello, invite, verify, ping, beta_preview, server_stats, bot_status, leave
+hello, invite, verify, role_exam, self_unverified, ping, beta_preview, server_stats, bot_status, leave
 setup, setup check
 triggerreply, triggerreply add, triggerreply update, triggerreply list, triggerreply remove
 afk, afk dynamic, afk time, afk clear, afk check
@@ -575,14 +620,15 @@ vtv, vtv status, vtv next, vtv hint
 gay, les, ship, penisize, titansize, aura, redflag, based, brainrot, clown, cope, cringe, delulu,
 gyatt, ick, mainchar, npc, ohio, rizz, simp, skillissue, touchgrass, yapper,
 femboycard, birthday, birthday set
-kiss, hug, pat, slap, punch, hit, poke, cuddle, snuggle, boop, handhold, bonk, bite, stare, lick, smack,
+kiss, hug, pat, slap, punch, hit, poke, cuddle, snuggle, boop, handhold, bonk, bite, stare, lick, smack, sniff, kidnap,
 avatar, server_avatar, propose, marriage, marriage help, marriage top, divorce, rank, cat, dog, 36
 r34, gbr, nsfwrule, bj, rj, hj, fj, aj, tj, spank, frot, fuck, cream, 3some, orgy, ranknsfw, mrank
 locknsfw, unlocknsfw, verified, unverified
 custom_role, update_custom_role, custom_room
 jobremind, jobremind add
+bedtime, bedtime add, bedtime remove, bedtime list
 giveaway, giveaway list, giveaway entries, giveaway end, giveaway reroll
-vote, quote, big_speaker, random_member, save_image
+vote, quote, hash_verify, big_speaker, random_member, save_image
 kick, ban, unban, softban, unsoftban, mute, unmute, timeout, untimeout, warn, check_warn
 nickchange, roleroll, roleunroll, rolecopy
 purge, purge_user, clean_before
@@ -592,7 +638,7 @@ area51_fire
 setting, setting set_variable, setting get_variable
 ```
 
-**Automatic features:** random bot activity rotation at random 5–15 minute intervals; welcome and differentiated leave/kick/ban announcements, AFK monitoring, banned-word discipline, booster unboost janitor, birthday announcements, job-reminder loop, giveaway/vote end scheduling, Area 51 honeypot, Lunar New Year greeting, word-game message handling. All departure variants use `BYE_CHANNEL`; View Audit Log permission is required to reliably distinguish kicks from voluntary leaves.
+**Automatic features:** random bot activity rotation at random 5–15 minute intervals; welcome and differentiated leave/kick/ban announcements, AFK monitoring, banned-word discipline, booster unboost janitor, birthday announcements, job-reminder and bedtime-reminder loops, bedtime chat replies, giveaway/vote end scheduling, Area 51 honeypot, Lunar New Year greeting, word-game message handling. All departure variants use `BYE_CHANNEL`; View Audit Log permission is required to reliably distinguish kicks from voluntary leaves.
 
 Bot status data uses `type` + `think` for `CUSTOM` entries. All other activity types use `type` + `text` so their action-card text remains prominent.
 

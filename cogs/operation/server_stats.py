@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 
 from cogs._beta_function import BetaFunctionError
+from cogs.operation._graceful_shutdown import ShutdownInProgress
 
 
 class ServerStatsCog(commands.Cog):
@@ -23,7 +24,7 @@ class ServerStatsCog(commands.Cog):
         error: commands.CommandError,
     ) -> None:
         """Count unexpected command failures, excluding access denials."""
-        if isinstance(error, BetaFunctionError):
+        if isinstance(error, (BetaFunctionError, ShutdownInProgress)):
             return
         self.exception_count += 1
 
