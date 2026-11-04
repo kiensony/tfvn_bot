@@ -572,6 +572,8 @@ docker compose up --build -d
 docker compose logs -f bot
 ```
 
+Python runs unbuffered in the container, so cog-load and ready lines appear in `docker compose logs` as they happen.
+
 Stop it with:
 
 ```powershell

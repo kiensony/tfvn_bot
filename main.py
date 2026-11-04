@@ -93,7 +93,7 @@ def configure_logging() -> None:
 @bot.event
 async def on_ready() -> None:
     bot.lifecycle_recorder.capture_ready(len(bot.guilds))
-    print(f"✅ Bot is ready! Environment: {environment}")
+    print(f"✅ Bot is ready! Environment: {environment}", flush=True)
 
 
 @bot.event
@@ -192,7 +192,8 @@ async def load_cogs() -> None:
         else:
             print(
                 f"❌ {profile_path} not found. No cogs loaded in "
-                f"{environment} mode."
+                f"{environment} mode.",
+                flush=True,
             )
             return
     else:
@@ -205,7 +206,7 @@ async def load_cogs() -> None:
     ]
     bot.selected_extensions = set(cogs_to_load)
     for module in disabled:
-        print(f"⏭️ Disabled cog: {module}")
+        print(f"⏭️ Disabled cog: {module}", flush=True)
 
     settings_cog = "cogs.settings.variable_setting"
 
@@ -218,12 +219,12 @@ async def load_cogs() -> None:
         try:
             await bot.load_extension(module)
             bot.extension_load_failures.pop(module, None)
-            print(f"✅ Loaded cog: {module}")
+            print(f"✅ Loaded cog: {module}", flush=True)
         except Exception as exc:
             original = exc.original if isinstance(exc, commands.ExtensionFailed) else exc
             error_type = type(original).__name__
             bot.extension_load_failures[module] = error_type
-            print(f"❌ Failed to load cog {module}: {error_type}")
+            print(f"❌ Failed to load cog {module}: {error_type}", flush=True)
 
 
 async def main() -> None:
