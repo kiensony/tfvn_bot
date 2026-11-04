@@ -33,7 +33,7 @@ from cogs.mod._mrbeast_scam_helpers import (
     WindowHit,
     collect_text_corpus,
     count_image_attachments,
-    image_bytes_fingerprint,
+    image_set_fingerprint,
     is_image_attachment,
     is_photo_dump_candidate,
     parent_channel_id,
@@ -292,9 +292,15 @@ class MrBeastScamCog(commands.Cog):
             return False
         if message.webhook_id is None and getattr(message.author, "bot", False):
             return False
-        if message.webhook_id is None and _is_staff_member(message.author):
+        if message.webhook_id is None and self._ignores_staff(message.author):
             return False
         return True
+
+    def _ignores_staff(self, author: object) -> bool:
+        """Production skips moderators. Development scans them so the filter can be tried."""
+        if not _is_staff_member(author):
+            return False
+        return getattr(self.bot, "environment", "production") != "development"
 
     def _score_message(self, message: discord.Message) -> TextScore:
         names = _author_names(message.author)
@@ -353,11 +359,20 @@ class MrBeastScamCog(commands.Cog):
                 message,
                 source=SOURCE_PHOTO_DUMP,
                 image_count=image_count,
-                fingerprint=await self._photo_fingerprint(message),
+                fingerprint=image_set_fingerprint(message.attachments),
                 now=now,
             )
             self._window = upsert_window(self._window, hit, now)
             action = photo_dump_action(self._window, hit)
+            logger.info(
+                "Photo dump guild=%s user=%s images=%s count=%s channels=%s action=%s",
+                message.guild.id if message.guild else None,
+                message.author.id,
+                image_count,
+                photo_dump_count(self._window, hit),
+                len(photo_dump_channel_ids(self._window, hit)),
+                action,
+            )
             if action == ACTION_TIMEOUT:
                 await self._timeout_now(message, hit, text_score)
             elif action == ACTION_CHALLENGE:
@@ -411,34 +426,6 @@ class MrBeastScamCog(commands.Cog):
         if bot_member.id != guild.owner_id and member.top_role >= bot_member.top_role:
             return False
         return True
-
-    async def _photo_fingerprint(self, message: discord.Message) -> str:
-        """Hash the image bytes so the same upload matches in another channel."""
-        payloads: list[bytes] = []
-        for attachment in message.attachments:
-            if not is_image_attachment(attachment):
-                continue
-            size = getattr(attachment, "size", 0) or 0
-            if isinstance(size, int) and size > MAX_ATTACHMENT_BYTES:
-                continue
-            read = getattr(attachment, "read", None)
-            if not callable(read):
-                continue
-            try:
-                payload = await read()
-            except (discord.HTTPException, OSError):
-                logger.warning(
-                    "Failed reading scam image guild=%s message=%s",
-                    getattr(message.guild, "id", None),
-                    message.id,
-                )
-                continue
-            if (
-                isinstance(payload, (bytes, bytearray))
-                and 0 < len(payload) <= MAX_ATTACHMENT_BYTES
-            ):
-                payloads.append(bytes(payload))
-        return image_bytes_fingerprint(tuple(payloads))
 
     def _can_delete(self, message: discord.Message) -> bool:
         guild = message.guild
@@ -1259,7 +1246,7 @@ class MrBeastScamCog(commands.Cog):
                 message,
                 source=SOURCE_PHOTO_DUMP,
                 image_count=image_count,
-                fingerprint=await self._photo_fingerprint(message),
+                fingerprint=image_set_fingerprint(message.attachments),
                 now=now,
             )
             preview = upsert_window(list(self._window), hit, now)

@@ -24,7 +24,7 @@ from cogs.mod._mrbeast_scam_helpers import (
     photo_dump_action,
     photo_dump_count,
     compact_brand_text,
-    image_bytes_fingerprint,
+    image_set_fingerprint,
     is_photo_dump_candidate,
     is_phishing_host,
     lure_hosts_from,
@@ -176,17 +176,26 @@ class TestMrBeastScamHelpers(unittest.TestCase):
         self.assertTrue(impersonation.hit)
         self.assertIn("impersonation", impersonation.signals)
 
-    def test_image_fingerprint_matches_same_bytes_in_any_order(self) -> None:
-        self.assertEqual(
-            image_bytes_fingerprint((b"a", b"b")),
-            image_bytes_fingerprint((b"b", b"a")),
+    def test_image_fingerprint_matches_same_size_and_dimensions(self) -> None:
+        first = SimpleNamespace(
+            filename="a.png", content_type="image/png", size=100, width=10, height=20
         )
+        second = SimpleNamespace(
+            filename="b.png", content_type="image/png", size=50, width=8, height=8
+        )
+        swapped = image_set_fingerprint((second, first))
+        self.assertEqual(image_set_fingerprint((first, second)), swapped)
         self.assertNotEqual(
-            image_bytes_fingerprint((b"a",)),
-            image_bytes_fingerprint((b"a", b"b")),
+            swapped,
+            image_set_fingerprint((first,)),
         )
-        self.assertEqual(image_bytes_fingerprint(()), "")
-        self.assertEqual(image_bytes_fingerprint((b"",)), "")
+        self.assertEqual(image_set_fingerprint(()), "")
+        self.assertEqual(
+            image_set_fingerprint(
+                (SimpleNamespace(filename="x.png", content_type="image/png", size=0),)
+            ),
+            "",
+        )
 
     def test_phishing_host_markers(self) -> None:
         self.assertTrue(is_phishing_host("grab-nitro.xyz"))
@@ -494,6 +503,13 @@ class TestMrBeastScamCog(unittest.IsolatedAsyncioTestCase):
         staff.delete.assert_not_awaited()
         self.author.timeout.assert_not_awaited()
 
+    async def test_development_scans_staff_photo_dumps(self) -> None:
+        self.bot.environment = "development"
+        self.author.guild_permissions = make_permissions(manage_messages=True)
+        messages = await self.dump_times(5, confirm=True)
+        messages[4].channel.send.assert_awaited()
+        self.author.timeout.assert_not_awaited()
+
     async def dump_times(self, count: int, *, confirm: bool = False):
         async def wait(view: MrBeastWarningView) -> None:
             view.confirmed = confirm
@@ -530,7 +546,7 @@ class TestMrBeastScamCog(unittest.IsolatedAsyncioTestCase):
                 channel_id=10 + index,
                 message_id=index + 1,
                 images=4,
-                payload=f"set-{index}".encode(),
+                payload=b"x" * (index + 1),
             )
             await self.cog.on_message(message)
             message.delete.assert_not_awaited()

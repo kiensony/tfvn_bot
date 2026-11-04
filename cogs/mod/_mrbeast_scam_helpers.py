@@ -7,7 +7,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
-import hashlib
 import ipaddress
 import re
 import unicodedata
@@ -205,17 +204,37 @@ def count_image_attachments(attachments: Any) -> tuple[int, int]:
     return image_count, other_count
 
 
-def image_bytes_fingerprint(payloads: tuple[bytes, ...]) -> str:
-    """Identity of one dump. The same bytes match across channels; order does not."""
-    digests = [
-        hashlib.sha256(payload).hexdigest()
-        for payload in payloads
-        if payload
-    ]
-    if not digests:
+def image_set_fingerprint(attachments: Any) -> str:
+    """Identity of one dump from file size and pixel size. Order does not matter.
+
+    The same photo matches in another channel without downloading it, including
+    files that are too large to hash.
+    """
+    parts: list[str] = []
+    for attachment in attachments or ():
+        if not is_image_attachment(attachment):
+            continue
+        size = getattr(attachment, "size", None)
+        if isinstance(size, bool) or not isinstance(size, int) or size <= 0:
+            continue
+        width = getattr(attachment, "width", None)
+        height = getattr(attachment, "height", None)
+        if (
+            isinstance(width, int)
+            and not isinstance(width, bool)
+            and width > 0
+            and isinstance(height, int)
+            and not isinstance(height, bool)
+            and height > 0
+        ):
+            dimensions = f"{width}x{height}"
+        else:
+            dimensions = "x"
+        parts.append(f"{size}:{dimensions}")
+    if not parts:
         return ""
-    digests.sort()
-    return "img:" + "|".join(digests)
+    parts.sort()
+    return "img:" + "|".join(parts)
 
 
 def normalize_message_text(value: str) -> str:
