@@ -297,8 +297,8 @@ HELP_TOPICS = (
                 ),
                 note=(
                     "Ngày theo UTC+7. Mention, trả lời, hoặc 5 phút voice chung. "
-                    "Bỏ một ngày thì chuỗi đứt. Mốc 3, 7, 30, 100 ngày ping cả hai "
-                    "trong kênh đó."
+                    "Bỏ một ngày thì chuỗi đứt. Mỗi mốc 3, 7, 30, 100 ngày "
+                    "chỉ ping một lần cho mỗi cặp, trong kênh đó."
                 ),
             ),
             HelpSection(

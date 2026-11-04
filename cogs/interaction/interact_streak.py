@@ -210,14 +210,18 @@ class InteractStreakCog(commands.Cog):
             return None
 
         self._mark_credited_today(guild_id, user_a, user_b, today)
-        return StreakCreditResult(updated, advanced=True)
+        return StreakCreditResult(
+            updated,
+            advanced=True,
+            announce=result.announce,
+        )
 
     async def _announce_milestone_if_needed(
         self,
         channel: object | None,
         result: StreakCreditResult | None,
     ) -> None:
-        if result is None or not result.advanced:
+        if result is None or not result.advanced or not result.announce:
             return
         document = result.document
         current = int(document.get("current_streak") or 0)

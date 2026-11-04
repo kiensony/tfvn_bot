@@ -427,7 +427,7 @@ Most meters accept an optional `@member` (default: author). Scores are determini
 
 **Module:** `cogs.interaction.user_interaction`, `cat`, `dog`, `meme_interaction`, `interact_streak`, `marriage`
 
-Pair streaks are guild-scoped: the first qualifying mention, reply, or 5-minute shared voice/stage overlap each Vietnam calendar day (UTC+7) continues the chain. Missing a day resets the current count to 1 on the next interaction; the longest count is kept. Hitting **3, 7, 30, or 100** days pings both members in that channel (the text channel for mention/reply, or the voice channel when it can receive messages). Bots, webhooks, DMs, self-targets, and the guild AFK channel do not count.
+Pair streaks are guild-scoped: the first qualifying mention, reply, or 5-minute shared voice/stage overlap each Vietnam calendar day (UTC+7) continues the chain. Missing a day resets the current count to 1 on the next interaction; the longest count is kept. Hitting **3, 7, 30, or 100** days pings both members in that channel (the text channel for mention/reply, or the voice channel when it can receive messages). Each of those milestones is noticed once per pair: rebuilding the same count after a broken chain does not ping again. A higher milestone they have never reached still pings the first time. Bots, webhooks, DMs, self-targets, and the guild AFK channel do not count.
 
 All 25 SFW interactions require a non-bot target and have a 3-second per-command, per-user cooldown. Self-target is allowed only for `pat`, `slap`, `punch`, `hit`, `poke`, `bonk`, `smack`, `tickle`, and `blush`.
 

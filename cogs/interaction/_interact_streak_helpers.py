@@ -36,6 +36,7 @@ class StreakPartner:
 class StreakCreditResult:
     document: dict[str, Any]
     advanced: bool
+    announce: bool = False
 
 
 def normalize_pair(user_id_a: int, user_id_b: int) -> tuple[int, int]:
@@ -115,6 +116,40 @@ def source_label(source: str | None) -> str:
 
 def is_streak_milestone(current_streak: int) -> bool:
     return current_streak in MILESTONE_DAYS
+
+
+def _stored_count(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        return 0
+    return value if value > 0 else 0
+
+
+def recorded_milestones(document: Mapping[str, Any] | None) -> list[int]:
+    """Milestones this pair was already noticed for.
+
+    Documents written before `announced_milestones` existed count every
+    milestone at or below the stored streak as already noticed.
+    """
+    if document is None:
+        return []
+    if "announced_milestones" in document:
+        raw = document.get("announced_milestones")
+        if not isinstance(raw, list):
+            return []
+        return sorted(
+            {
+                item
+                for item in raw
+                if isinstance(item, int)
+                and not isinstance(item, bool)
+                and item in MILESTONE_DAYS
+            }
+        )
+    reached = max(
+        _stored_count(document.get("longest_streak")),
+        _stored_count(document.get("current_streak")),
+    )
+    return sorted(day for day in MILESTONE_DAYS if day <= reached)
 
 
 def format_milestone_message(user_a: int, user_b: int, current_streak: int) -> str:
@@ -201,12 +236,17 @@ def apply_streak_credit(
     now_utc = to_mongo_utc(now)
 
     if document is not None and document.get("last_active_date") == today:
-        return StreakCreditResult(dict(document), advanced=False)
+        return StreakCreditResult(dict(document), advanced=False, announce=False)
 
     if document is not None and document.get("last_active_date") == yesterday:
         current = int(document.get("current_streak") or 0) + 1
     else:
         current = 1
+
+    noticed = recorded_milestones(document)
+    announce = current in MILESTONE_DAYS and current not in noticed
+    if announce:
+        noticed = sorted([*noticed, current])
 
     longest = current
     created_at = now_utc
@@ -225,9 +265,10 @@ def apply_streak_credit(
         "longest_streak": longest,
         "last_active_date": today,
         "last_source": source,
+        "announced_milestones": noticed,
         "created_at": created_at,
         "updated_at": now_utc,
     }
     if stored_id is not None:
         updated["_id"] = stored_id
-    return StreakCreditResult(updated, advanced=True)
+    return StreakCreditResult(updated, advanced=True, announce=announce)

@@ -17,6 +17,7 @@ from cogs.interaction._interact_streak_helpers import (
     SOURCE_REPLY,
     SOURCE_VOICE,
     STREAK_LIST_LIMIT,
+    StreakCreditResult,
     apply_streak_credit,
     displayed_current_streak,
     format_milestone_message,
@@ -309,9 +310,10 @@ def streak_document(
     last_active_date: str = TODAY,
     last_source: str = SOURCE_MENTION,
     guild_id: int = GUILD_ID,
+    announced_milestones: list[int] | None = None,
 ) -> dict[str, Any]:
     low, high = sorted((user_a, user_b))
-    return {
+    document: dict[str, Any] = {
         "guild_id": guild_id,
         "user_a": low,
         "user_b": high,
@@ -323,6 +325,25 @@ def streak_document(
         "created_at": NOW.replace(tzinfo=None),
         "updated_at": NOW.replace(tzinfo=None),
     }
+    if announced_milestones is not None:
+        document["announced_milestones"] = announced_milestones
+    return document
+
+
+def credit_on(
+    document: dict[str, Any] | None,
+    today: str,
+) -> StreakCreditResult:
+    return apply_streak_credit(
+        document,
+        guild_id=GUILD_ID,
+        user_id_a=AUTHOR_ID,
+        user_id_b=PARTNER_ID,
+        today=today,
+        yesterday=previous_iso_date(today),
+        source=SOURCE_MENTION,
+        now=NOW,
+    )
 
 
 class TestStreakHelpers(unittest.TestCase):
@@ -365,6 +386,8 @@ class TestStreakHelpers(unittest.TestCase):
         self.assertEqual(result.document["longest_streak"], 1)
         self.assertEqual(result.document["last_active_date"], TODAY)
         self.assertEqual(result.document["last_source"], SOURCE_MENTION)
+        self.assertEqual(result.document["announced_milestones"], [])
+        self.assertFalse(result.announce)
 
     def test_same_day_is_noop_and_keeps_source(self) -> None:
         existing = streak_document(last_source=SOURCE_REPLY, current_streak=4)
@@ -422,6 +445,94 @@ class TestStreakHelpers(unittest.TestCase):
         self.assertTrue(result.advanced)
         self.assertEqual(result.document["current_streak"], 1)
         self.assertEqual(result.document["longest_streak"], 12)
+        self.assertEqual(result.document["announced_milestones"], [3, 7])
+        self.assertFalse(result.announce)
+
+    def test_rebuilt_milestone_is_not_noticed_again(self) -> None:
+        document = None
+        notices: list[int] = []
+        for day in ("2026-09-13", "2026-09-14", "2026-09-15"):
+            result = credit_on(document, day)
+            document = result.document
+            if result.announce:
+                notices.append(result.document["current_streak"])
+        self.assertEqual(notices, [3])
+        self.assertEqual(document["announced_milestones"], [3])
+
+        notices.clear()
+        for day in ("2026-09-17", "2026-09-18", "2026-09-19"):
+            result = credit_on(document, day)
+            document = result.document
+            self.assertFalse(result.announce)
+        self.assertEqual(document["current_streak"], 3)
+        self.assertEqual(document["longest_streak"], 3)
+        self.assertEqual(document["announced_milestones"], [3])
+
+        for day in ("2026-09-20", "2026-09-21", "2026-09-22", "2026-09-23"):
+            result = credit_on(document, day)
+            document = result.document
+            if result.announce:
+                notices.append(result.document["current_streak"])
+        self.assertEqual(notices, [7])
+        self.assertEqual(document["current_streak"], 7)
+        self.assertEqual(document["announced_milestones"], [3, 7])
+
+        result = credit_on(document, "2026-09-25")
+        document = result.document
+        self.assertEqual(document["current_streak"], 1)
+        self.assertFalse(result.announce)
+        for day in (
+            "2026-09-26",
+            "2026-09-27",
+            "2026-09-28",
+            "2026-09-29",
+            "2026-09-30",
+            "2026-10-01",
+        ):
+            result = credit_on(document, day)
+            document = result.document
+            self.assertFalse(result.announce)
+        self.assertEqual(document["current_streak"], 7)
+        self.assertEqual(document["announced_milestones"], [3, 7])
+
+    def test_legacy_row_does_not_renotice_milestones_already_reached(self) -> None:
+        repeat_three = credit_on(
+            streak_document(
+                current_streak=2,
+                longest_streak=7,
+                last_active_date=YESTERDAY,
+            ),
+            TODAY,
+        )
+        self.assertEqual(repeat_three.document["current_streak"], 3)
+        self.assertFalse(repeat_three.announce)
+        self.assertEqual(repeat_three.document["announced_milestones"], [3, 7])
+
+        repeat_seven = credit_on(
+            streak_document(
+                current_streak=6,
+                longest_streak=7,
+                last_active_date=YESTERDAY,
+            ),
+            TODAY,
+        )
+        self.assertEqual(repeat_seven.document["current_streak"], 7)
+        self.assertFalse(repeat_seven.announce)
+        self.assertEqual(repeat_seven.document["announced_milestones"], [3, 7])
+
+        first_thirty = credit_on(
+            streak_document(
+                current_streak=29,
+                longest_streak=29,
+                last_active_date=YESTERDAY,
+            ),
+            TODAY,
+        )
+        self.assertTrue(first_thirty.announce)
+        self.assertEqual(
+            first_thirty.document["announced_milestones"],
+            [3, 7, 30],
+        )
 
     def test_unknown_source_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
@@ -714,6 +825,71 @@ class TestInteractStreakCog(unittest.IsolatedAsyncioTestCase):
         )
         self.assertIs(kwargs["allowed_mentions"], MILESTONE_MENTIONS)
         self.assertTrue(MILESTONE_MENTIONS.users)
+        self.assertEqual(
+            fixture.collection.documents[0]["announced_milestones"],
+            [3],
+        )
+
+    async def test_on_message_does_not_ping_a_repeated_milestone(self) -> None:
+        fixture = StreakFixture(
+            [
+                streak_document(
+                    current_streak=2,
+                    longest_streak=3,
+                    last_active_date=YESTERDAY,
+                    announced_milestones=[3],
+                )
+            ]
+        )
+        channel = SimpleNamespace(id=CHANNEL_ID, send=AsyncMock())
+        message = SimpleNamespace(
+            guild=fixture.guild,
+            author=make_user(AUTHOR_ID),
+            webhook_id=None,
+            mentions=[make_user(PARTNER_ID)],
+            reference=None,
+            channel=channel,
+        )
+        with patch("discord.utils.utcnow", return_value=NOW):
+            await fixture.cog.on_message(message)
+        self.assertEqual(fixture.collection.documents[0]["current_streak"], 3)
+        self.assertEqual(
+            fixture.collection.documents[0]["announced_milestones"],
+            [3],
+        )
+        channel.send.assert_not_awaited()
+
+    async def test_on_message_pings_a_new_higher_milestone(self) -> None:
+        fixture = StreakFixture(
+            [
+                streak_document(
+                    current_streak=6,
+                    longest_streak=6,
+                    last_active_date=YESTERDAY,
+                    announced_milestones=[3],
+                )
+            ]
+        )
+        channel = SimpleNamespace(id=CHANNEL_ID, send=AsyncMock())
+        message = SimpleNamespace(
+            guild=fixture.guild,
+            author=make_user(AUTHOR_ID),
+            webhook_id=None,
+            mentions=[make_user(PARTNER_ID)],
+            reference=None,
+            channel=channel,
+        )
+        with patch("discord.utils.utcnow", return_value=NOW):
+            await fixture.cog.on_message(message)
+        channel.send.assert_awaited_once()
+        self.assertEqual(
+            channel.send.await_args.args[0],
+            format_milestone_message(AUTHOR_ID, PARTNER_ID, 7),
+        )
+        self.assertEqual(
+            fixture.collection.documents[0]["announced_milestones"],
+            [3, 7],
+        )
 
     async def test_on_message_does_not_ping_off_milestone(self) -> None:
         fixture = StreakFixture(
