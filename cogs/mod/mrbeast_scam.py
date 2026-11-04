@@ -33,10 +33,12 @@ from cogs.mod._mrbeast_scam_helpers import (
     WindowHit,
     collect_text_corpus,
     count_image_attachments,
+    image_bytes_fingerprint,
     is_image_attachment,
     is_photo_dump_candidate,
     parent_channel_id,
     photo_dump_action,
+    photo_dump_channel_ids,
     photo_dump_count,
     related_photo_hits,
     score_text,
@@ -163,7 +165,8 @@ class MrBeastWarningView(discord.ui.View):
         await interaction.response.edit_message(
             content=(
                 f"{interaction.user.mention} đã xác nhận trong 30 giây. "
-                "Chưa timeout. Dump ảnh lần 5 trong 2 phút sẽ timeout ngay."
+                "Chưa timeout. Dump ảnh lần "
+                f"{IMMEDIATE_TIMEOUT_DUMP_COUNT} trong 2 phút sẽ timeout ngay."
             ),
             view=self,
             allowed_mentions=discord.AllowedMentions.none(),
@@ -350,7 +353,7 @@ class MrBeastScamCog(commands.Cog):
                 message,
                 source=SOURCE_PHOTO_DUMP,
                 image_count=image_count,
-                fingerprint="",
+                fingerprint=await self._photo_fingerprint(message),
                 now=now,
             )
             self._window = upsert_window(self._window, hit, now)
@@ -408,6 +411,34 @@ class MrBeastScamCog(commands.Cog):
         if bot_member.id != guild.owner_id and member.top_role >= bot_member.top_role:
             return False
         return True
+
+    async def _photo_fingerprint(self, message: discord.Message) -> str:
+        """Hash the image bytes so the same upload matches in another channel."""
+        payloads: list[bytes] = []
+        for attachment in message.attachments:
+            if not is_image_attachment(attachment):
+                continue
+            size = getattr(attachment, "size", 0) or 0
+            if isinstance(size, int) and size > MAX_ATTACHMENT_BYTES:
+                continue
+            read = getattr(attachment, "read", None)
+            if not callable(read):
+                continue
+            try:
+                payload = await read()
+            except (discord.HTTPException, OSError):
+                logger.warning(
+                    "Failed reading scam image guild=%s message=%s",
+                    getattr(message.guild, "id", None),
+                    message.id,
+                )
+                continue
+            if (
+                isinstance(payload, (bytes, bytearray))
+                and 0 < len(payload) <= MAX_ATTACHMENT_BYTES
+            ):
+                payloads.append(bytes(payload))
+        return image_bytes_fingerprint(tuple(payloads))
 
     def _can_delete(self, message: discord.Message) -> bool:
         guild = message.guild
@@ -612,8 +643,9 @@ class MrBeastScamCog(commands.Cog):
             try:
                 prompt = await sender(
                     (
-                        f"{message.author.mention} Cảnh báo dump ảnh "
-                        f"**lần {count}/{IMMEDIATE_TIMEOUT_DUMP_COUNT}** trong 2 phút.\n"
+                        f"{message.author.mention} Cảnh báo dump cùng ảnh "
+                        f"**lần {count}/{IMMEDIATE_TIMEOUT_DUMP_COUNT}** "
+                        "ở kênh khác trong 2 phút.\n"
                         f"Bấm **Xác nhận** trong **{CHALLENGE_SECONDS} giây** "
                         "nếu đây không phải spam giveaway. "
                         "Không bấm sẽ bị timeout 24 giờ. "
@@ -1184,7 +1216,7 @@ class MrBeastScamCog(commands.Cog):
     @commands.command(
         name="scam_check",
         aliases=("mrbeast",),
-        help="Xem tin được reply có giống dump ảnh giveaway giả không.",
+        help="Xem tin được reply có phải dump cùng ảnh giveaway sang kênh khác không.",
     )
     @commands.guild_only()
     @commands.has_guild_permissions(manage_messages=True)
@@ -1220,17 +1252,20 @@ class MrBeastScamCog(commands.Cog):
         text_score = self._score_message(message)
         now = discord.utils.utcnow()
         count = 0
+        channel_count = 0
         action = "watch"
         if dump:
             hit = self._window_hit(
                 message,
                 source=SOURCE_PHOTO_DUMP,
                 image_count=image_count,
-                fingerprint="",
+                fingerprint=await self._photo_fingerprint(message),
                 now=now,
             )
-            count = photo_dump_count(self._window, hit)
-            action = photo_dump_action(self._window, hit)
+            preview = upsert_window(list(self._window), hit, now)
+            count = photo_dump_count(preview, hit)
+            channel_count = len(photo_dump_channel_ids(preview, hit))
+            action = photo_dump_action(preview, hit)
         embed = discord.Embed(
             title="MrBeast scam check",
             color=discord.Color.orange() if dump or text_score.hit else discord.Color.green(),
@@ -1246,7 +1281,7 @@ class MrBeastScamCog(commands.Cog):
         embed.add_field(
             name="Cửa sổ 2 phút",
             value=(
-                f"{count} dump của tác giả này · {action}"
+                f"{count} dump cùng ảnh · {channel_count} kênh · {action}"
                 if dump
                 else "Không áp dụng (không phải dump ảnh)"
             ),
@@ -1262,6 +1297,7 @@ class MrBeastScamCog(commands.Cog):
         )
         embed.set_footer(
             text=(
+                "Chỉ cùng một bộ ảnh ở kênh khác. "
                 f"Lần {WARNING_DUMP_COUNT}: cảnh báo 30s. "
                 f"Lần {IMMEDIATE_TIMEOUT_DUMP_COUNT}: timeout ngay."
                 if dump

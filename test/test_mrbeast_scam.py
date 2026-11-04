@@ -24,6 +24,7 @@ from cogs.mod._mrbeast_scam_helpers import (
     photo_dump_action,
     photo_dump_count,
     compact_brand_text,
+    image_bytes_fingerprint,
     is_photo_dump_candidate,
     is_phishing_host,
     lure_hosts_from,
@@ -51,7 +52,7 @@ def hit(
     message_id=1,
     source=SOURCE_PHOTO_DUMP,
     image_count=4,
-    fingerprint="",
+    fingerprint="img:same",
     created_at=None,
 ) -> WindowHit:
     return WindowHit(
@@ -175,6 +176,18 @@ class TestMrBeastScamHelpers(unittest.TestCase):
         self.assertTrue(impersonation.hit)
         self.assertIn("impersonation", impersonation.signals)
 
+    def test_image_fingerprint_matches_same_bytes_in_any_order(self) -> None:
+        self.assertEqual(
+            image_bytes_fingerprint((b"a", b"b")),
+            image_bytes_fingerprint((b"b", b"a")),
+        )
+        self.assertNotEqual(
+            image_bytes_fingerprint((b"a",)),
+            image_bytes_fingerprint((b"a", b"b")),
+        )
+        self.assertEqual(image_bytes_fingerprint(()), "")
+        self.assertEqual(image_bytes_fingerprint((b"",)), "")
+
     def test_phishing_host_markers(self) -> None:
         self.assertTrue(is_phishing_host("grab-nitro.xyz"))
         self.assertTrue(is_phishing_host("bit.ly"))
@@ -199,10 +212,10 @@ class TestMrBeastScamHelpers(unittest.TestCase):
         self.assertEqual(photo_dump_count(rows, second), 2)
         self.assertEqual(photo_dump_channel_ids(rows, second), {100})
 
-    def test_third_dump_is_challenge_fifth_is_immediate_timeout(self) -> None:
+    def test_fifth_dump_is_challenge_seventh_is_immediate_timeout(self) -> None:
         rows: list[WindowHit] = []
         actions = []
-        for index in range(1, 6):
+        for index in range(1, 8):
             current = hit(parent_channel_id=100 + index, message_id=index)
             rows = upsert_window(rows, current, utc())
             actions.append(photo_dump_action(rows, current))
@@ -211,11 +224,60 @@ class TestMrBeastScamHelpers(unittest.TestCase):
             [
                 ACTION_WATCH,
                 ACTION_WATCH,
+                ACTION_WATCH,
+                ACTION_WATCH,
                 ACTION_CHALLENGE,
                 ACTION_CHALLENGE,
                 ACTION_TIMEOUT,
             ],
         )
+
+    def test_same_images_in_one_channel_stay_on_watch(self) -> None:
+        rows: list[WindowHit] = []
+        for index in range(1, 8):
+            current = hit(parent_channel_id=100, message_id=index)
+            rows = upsert_window(rows, current, utc())
+            self.assertEqual(photo_dump_action(rows, current), ACTION_WATCH)
+        self.assertEqual(photo_dump_count(rows, rows[-1]), 7)
+        self.assertEqual(photo_dump_channel_ids(rows, rows[-1]), {100})
+
+    def test_different_images_do_not_accumulate_across_channels(self) -> None:
+        rows: list[WindowHit] = []
+        for index in range(1, 6):
+            current = hit(
+                parent_channel_id=100 + index,
+                message_id=index,
+                fingerprint=f"img:{index}",
+            )
+            rows = upsert_window(rows, current, utc())
+            self.assertEqual(photo_dump_action(rows, current), ACTION_WATCH)
+            self.assertEqual(photo_dump_count(rows, current), 1)
+
+    def test_unreadable_images_do_not_group(self) -> None:
+        first = hit(parent_channel_id=100, message_id=1, fingerprint="")
+        second = hit(parent_channel_id=200, message_id=2, fingerprint="")
+        rows = upsert_window([first], second, utc())
+        self.assertEqual(photo_dump_count(rows, second), 0)
+        self.assertEqual(photo_dump_action(rows, second), ACTION_WATCH)
+        self.assertEqual(photo_dump_channel_ids(rows, second), set())
+
+    def test_three_cross_channel_dumps_stay_on_watch(self) -> None:
+        rows: list[WindowHit] = []
+        for index, channel_id in enumerate((100, 200, 300), start=1):
+            current = hit(parent_channel_id=channel_id, message_id=index)
+            rows = upsert_window(rows, current, utc())
+        self.assertEqual(photo_dump_count(rows, rows[-1]), 3)
+        self.assertEqual(photo_dump_channel_ids(rows, rows[-1]), {100, 200, 300})
+        self.assertEqual(photo_dump_action(rows, rows[-1]), ACTION_WATCH)
+
+    def test_fifth_same_image_dump_can_return_to_an_earlier_channel(self) -> None:
+        rows: list[WindowHit] = []
+        for index, channel_id in enumerate((100, 200, 300, 300, 100), start=1):
+            current = hit(parent_channel_id=channel_id, message_id=index)
+            rows = upsert_window(rows, current, utc())
+        self.assertEqual(photo_dump_count(rows, rows[-1]), 5)
+        self.assertEqual(photo_dump_channel_ids(rows, rows[-1]), {100, 200, 300})
+        self.assertEqual(photo_dump_action(rows, rows[-1]), ACTION_CHALLENGE)
 
     def test_window_does_not_count_different_authors(self) -> None:
         first = hit(author_id=10, parent_channel_id=100, message_id=1)
@@ -386,9 +448,13 @@ class TestMrBeastScamCog(unittest.IsolatedAsyncioTestCase):
         content: str = "",
         author=None,
         webhook_id=None,
+        payload: bytes = b"img",
     ) -> SimpleNamespace:
         channel = self.channels.get(channel_id) or self.make_channel(channel_id)
-        attachments = [ImageAttachment(f"p{i}.png") for i in range(images)]
+        attachments = [
+            ImageAttachment(f"p{i}.png", payload=payload + bytes([i]))
+            for i in range(images)
+        ]
         message = SimpleNamespace(
             id=message_id,
             guild=self.guild,
@@ -449,6 +515,28 @@ class TestMrBeastScamCog(unittest.IsolatedAsyncioTestCase):
         self.alert.send.assert_not_awaited()
         self.assertEqual(len(self.cog._window), 1)
 
+    async def test_same_images_in_one_channel_do_not_timeout(self) -> None:
+        channel = self.make_channel(10)
+        for index in range(7):
+            message = self.make_message(channel_id=10, message_id=index + 1, images=4)
+            await self.cog.on_message(message)
+        channel.send.assert_not_awaited()
+        self.author.timeout.assert_not_awaited()
+        self.alert.send.assert_not_awaited()
+
+    async def test_different_images_across_channels_do_not_timeout(self) -> None:
+        for index in range(7):
+            message = self.make_message(
+                channel_id=10 + index,
+                message_id=index + 1,
+                images=4,
+                payload=f"set-{index}".encode(),
+            )
+            await self.cog.on_message(message)
+            message.delete.assert_not_awaited()
+        self.author.timeout.assert_not_awaited()
+        self.alert.send.assert_not_awaited()
+
     async def test_two_dumps_are_still_watch_only(self) -> None:
         messages = await self.dump_times(2)
         for message in messages:
@@ -456,19 +544,27 @@ class TestMrBeastScamCog(unittest.IsolatedAsyncioTestCase):
         self.author.timeout.assert_not_awaited()
         self.alert.send.assert_not_awaited()
 
-    async def test_third_dump_warning_click_avoids_timeout(self) -> None:
-        messages = await self.dump_times(3, confirm=True)
-        messages[2].channel.send.assert_awaited()
-        view = messages[2].channel.send.await_args.kwargs["view"]
-        self.assertIsInstance(view, MrBeastWarningView)
-        self.assertEqual(view.timeout, 30)
-        messages[2].delete.assert_not_awaited()
+    async def test_three_cross_channel_dumps_stay_quiet(self) -> None:
+        messages = await self.dump_times(3)
+        for message in messages:
+            message.delete.assert_not_awaited()
+            message.channel.send.assert_not_awaited()
         self.author.timeout.assert_not_awaited()
         self.alert.send.assert_not_awaited()
 
-    async def test_third_dump_missed_click_timeouts(self) -> None:
-        messages = await self.dump_times(3, confirm=False)
-        messages[2].delete.assert_awaited()
+    async def test_fifth_dump_warning_click_avoids_timeout(self) -> None:
+        messages = await self.dump_times(5, confirm=True)
+        messages[4].channel.send.assert_awaited()
+        view = messages[4].channel.send.await_args.kwargs["view"]
+        self.assertIsInstance(view, MrBeastWarningView)
+        self.assertEqual(view.timeout, 30)
+        messages[4].delete.assert_not_awaited()
+        self.author.timeout.assert_not_awaited()
+        self.alert.send.assert_not_awaited()
+
+    async def test_fifth_dump_missed_click_timeouts(self) -> None:
+        messages = await self.dump_times(5, confirm=False)
+        messages[4].delete.assert_awaited()
         self.author.timeout.assert_awaited()
         until = self.author.timeout.await_args.args[0]
         remaining = until - datetime.now(timezone.utc)
@@ -479,15 +575,15 @@ class TestMrBeastScamCog(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(kwargs["files"])
         self.assertIsInstance(kwargs["view"], MrBeastScamDecisionView)
 
-    async def test_fifth_dump_timeouts_immediately(self) -> None:
-        messages = await self.dump_times(5, confirm=True)
-        messages[4].delete.assert_awaited()
+    async def test_seventh_dump_timeouts_immediately(self) -> None:
+        messages = await self.dump_times(7, confirm=True)
+        messages[6].delete.assert_awaited()
         self.author.timeout.assert_awaited()
         self.alert.send.assert_awaited()
 
     async def test_missing_alert_channel_still_timeouts(self) -> None:
         self.bot.global_vars = {}
-        await self.dump_times(5, confirm=True)
+        await self.dump_times(7, confirm=True)
         self.author.timeout.assert_awaited()
         self.alert.send.assert_not_awaited()
         self.assertEqual(
@@ -523,7 +619,7 @@ class TestMrBeastScamCog(unittest.IsolatedAsyncioTestCase):
             view.confirmed = False
 
         with patch.object(MrBeastWarningView, "wait", wait):
-            for index in range(3):
+            for index in range(5):
                 message = self.make_message(
                     channel_id=10 + index,
                     message_id=index + 1,
@@ -533,7 +629,7 @@ class TestMrBeastScamCog(unittest.IsolatedAsyncioTestCase):
                 )
                 messages.append(message)
                 await self.cog.on_message(message)
-        messages[2].delete.assert_awaited()
+        messages[4].delete.assert_awaited()
         self.author.timeout.assert_not_awaited()
         self.alert.send.assert_awaited()
 
