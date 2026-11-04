@@ -247,8 +247,8 @@ tfvn_bot/
     │   ├── warn.py                      Warning commands
     │   ├── verified.py                  Verified role grant/revoke and member self-unverify confirmation
     │   ├── area_51_guard.py             Honeypot channel, cancel view, bans, and reminders
-    │   ├── _mrbeast_scam_helpers.py     Photo-dump candidate, caption scorer, 3rd/5th dump ladder
-    │   └── mrbeast_scam.py              Cross-channel image-dump timeout and staff decision panel
+    │   ├── _mrbeast_scam_helpers.py     Photo-dump candidate, same-image fingerprint, 5th/7th cross-channel ladder
+    │   └── mrbeast_scam.py              Same-image cross-channel timeout and staff decision panel
     ├── nsfw/
     │   ├── __init__.py             NSFW extension package marker
     │   ├── r34.py                       Age-gated Rule34 API search
@@ -381,7 +381,7 @@ MongoDB collections are created lazily. Major groups are:
   sleep minutes, announcement channel, next UTC deadline, local-date deduplication,
   and audit timestamps; unique guild/member and due-time indexes enforce one schedule
   per member and support the minute scheduler
-- AFK and moderation: `afk_reminders`, `afk_pings`, `discipline_logs`, `old_roles`, `warnings`, `moderation_cases`, `mrbeast_scam_logs`, `mrbeast_scam_incidents`. Photo-dump raids count the same author's 1–4 image dumps in a two-minute window: the 3rd dump sends a 30-second confirm button (missed click → 24h timeout), the 5th dump timeouts immediately and opens a persistent staff panel; Ban / Gỡ timeout / Giữ timeout CAS `pending` incidents. Alert channel is `MRBEAST_SCAM_ALERT_CHANNEL` with fallback to `moderation_config.log_channel_id`
+- AFK and moderation: `afk_reminders`, `afk_pings`, `discipline_logs`, `old_roles`, `warnings`, `moderation_cases`, `mrbeast_scam_logs`, `mrbeast_scam_incidents`. Photo-dump raids count the same author's repeated 1–4 image set only when the same file size and pixel size appear in another channel inside a two-minute window: the 5th matching dump sends a 30-second confirm button (missed click → 24h timeout), the 7th timeouts immediately and opens a persistent staff panel; same-channel repeats and different images stay on watch. Ban / Gỡ timeout / Giữ timeout CAS `pending` incidents. Alert channel is `MRBEAST_SCAM_ALERT_CHANNEL` with fallback to `moderation_config.log_channel_id`
 - Operations audit: `operation_logs` stores guild-scoped recognized prefix-command outcomes and dashboard export/prune actions; records have no automatic TTL and are removed only through the Administrator dashboard
 - Bot lifecycle: `bot_lifecycle_events` stores global, append-only `initial_ready`,
   `reidentified`, and `resumed` events indefinitely. The Bot owner dashboard reads

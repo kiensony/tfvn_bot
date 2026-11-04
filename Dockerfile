@@ -31,6 +31,7 @@ COPY . .
 # Set environment variables (override with docker run -e if needed)
 # Note: In production, use Docker secrets or env vars for sensitive data like tokens
 ENV ENVIRONMENT=production
+ENV PYTHONUNBUFFERED=1
 
 # Expose no ports (Discord bots connect outbound)
 

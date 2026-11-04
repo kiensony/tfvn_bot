@@ -1065,7 +1065,7 @@ HELP_TOPICS = (
                 name="An toàn & bảo trì",
                 note=(
                     "• Bộ lọc từ cấm ghi log, cảnh cáo và xóa tin vi phạm.\n"
-                    "• Dump ảnh lần 3 trong 2 phút: cảnh báo bấm trong 30s, hết giờ timeout 24h; lần 5 timeout ngay, bảng Ban/Gỡ/Giữ cho min mót.\n"
+                    "• Cùng một bộ ảnh ở kênh khác, lần 5 trong 2 phút: cảnh báo bấm trong 30s, hết giờ timeout 24h; lần 7 timeout ngay, bảng Ban/Gỡ/Giữ cho min mót.\n"
                     "• Area 51 theo dõi honeypot, cho phép hủy ban, tự dọn và gửi nhắc định kỳ.\n"
                     "• Booster janitor dọn custom role/room sau khi member ngừng boost."
                 ),
@@ -1436,7 +1436,7 @@ HELP_TOPICS = (
                     ),
                     _entry(
                         "scam_check",
-                        "Reply tin dump ảnh; không xử lý — Manage Messages.",
+                        "Reply tin cùng ảnh ở kênh khác; không xử lý — Manage Messages.",
                         aliases=("mrbeast",),
                     ),
                 ),

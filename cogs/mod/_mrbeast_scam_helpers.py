@@ -18,8 +18,8 @@ MAX_DUMP_IMAGES = 4
 MAX_DUMP_CAPTION_CHARS = 80
 TIMEOUT_HOURS = 24
 CHALLENGE_SECONDS = 30
-WARNING_DUMP_COUNT = 3
-IMMEDIATE_TIMEOUT_DUMP_COUNT = 5
+WARNING_DUMP_COUNT = 5
+IMMEDIATE_TIMEOUT_DUMP_COUNT = 7
 ACTION_WATCH = "watch"
 ACTION_CHALLENGE = "challenge"
 ACTION_TIMEOUT = "timeout"
@@ -202,6 +202,39 @@ def count_image_attachments(attachments: Any) -> tuple[int, int]:
         else:
             other_count += 1
     return image_count, other_count
+
+
+def image_set_fingerprint(attachments: Any) -> str:
+    """Identity of one dump from file size and pixel size. Order does not matter.
+
+    The same photo matches in another channel without downloading it, including
+    files that are too large to hash.
+    """
+    parts: list[str] = []
+    for attachment in attachments or ():
+        if not is_image_attachment(attachment):
+            continue
+        size = getattr(attachment, "size", None)
+        if isinstance(size, bool) or not isinstance(size, int) or size <= 0:
+            continue
+        width = getattr(attachment, "width", None)
+        height = getattr(attachment, "height", None)
+        if (
+            isinstance(width, int)
+            and not isinstance(width, bool)
+            and width > 0
+            and isinstance(height, int)
+            and not isinstance(height, bool)
+            and height > 0
+        ):
+            dimensions = f"{width}x{height}"
+        else:
+            dimensions = "x"
+        parts.append(f"{size}:{dimensions}")
+    if not parts:
+        return ""
+    parts.sort()
+    return "img:" + "|".join(parts)
 
 
 def normalize_message_text(value: str) -> str:
@@ -394,33 +427,44 @@ def upsert_window(rows: list[WindowHit], hit: WindowHit, now: datetime) -> list[
     return prune_window(updated, now)
 
 
+def _matching_photo_dump(row: WindowHit, hit: WindowHit) -> bool:
+    """Same author and the same image bytes. Empty fingerprints never group."""
+    return (
+        row.guild_id == hit.guild_id
+        and row.author_id == hit.author_id
+        and row.source == SOURCE_PHOTO_DUMP
+        and hit.source == SOURCE_PHOTO_DUMP
+        and bool(hit.fingerprint)
+        and row.fingerprint == hit.fingerprint
+    )
+
+
 def photo_dump_channel_ids(rows: list[WindowHit], hit: WindowHit) -> set[int]:
+    """Parent channels where this author posted this same image set."""
+    if hit.source != SOURCE_PHOTO_DUMP or not hit.fingerprint:
+        return set()
     channels = {hit.parent_channel_id}
     for row in rows:
-        if (
-            row.guild_id == hit.guild_id
-            and row.author_id == hit.author_id
-            and row.source == SOURCE_PHOTO_DUMP
-        ):
+        if _matching_photo_dump(row, hit):
             channels.add(row.parent_channel_id)
     return channels
 
 
 def photo_dump_count(rows: list[WindowHit], hit: WindowHit) -> int:
-    """How many photo dumps this author has in the current window, including hit."""
-    if hit.source != SOURCE_PHOTO_DUMP:
+    """How many times this author posted this image set in the window, including hit."""
+    if hit.source != SOURCE_PHOTO_DUMP or not hit.fingerprint:
         return 0
-    return sum(
-        1
-        for row in rows
-        if row.guild_id == hit.guild_id
-        and row.author_id == hit.author_id
-        and row.source == SOURCE_PHOTO_DUMP
-    )
+    return sum(1 for row in rows if _matching_photo_dump(row, hit))
 
 
 def photo_dump_action(rows: list[WindowHit], hit: WindowHit) -> str:
-    """Watch until the 3rd dump; warn on 3–4; timeout immediately on the 5th."""
+    """Warn on the 5th same-image dump and timeout on the 7th.
+
+    The dumps must already span another parent channel. Repeats that stay in
+    one channel, and dumps of different images, stay on watch.
+    """
+    if len(photo_dump_channel_ids(rows, hit)) < 2:
+        return ACTION_WATCH
     count = photo_dump_count(rows, hit)
     if count >= IMMEDIATE_TIMEOUT_DUMP_COUNT:
         return ACTION_TIMEOUT
@@ -430,7 +474,7 @@ def photo_dump_action(rows: list[WindowHit], hit: WindowHit) -> str:
 
 
 def should_escalate_photo_dump(rows: list[WindowHit], hit: WindowHit) -> bool:
-    """True when a dump should warn or timeout (3rd dump or later)."""
+    """True when the same images were dumped in another channel often enough to warn or timeout."""
     return photo_dump_action(rows, hit) != ACTION_WATCH
 
 
@@ -450,13 +494,10 @@ def should_escalate_text(rows: list[WindowHit], hit: WindowHit) -> bool:
 
 
 def related_photo_hits(rows: list[WindowHit], hit: WindowHit) -> tuple[WindowHit, ...]:
-    related = [
-        row
-        for row in rows
-        if row.guild_id == hit.guild_id
-        and row.author_id == hit.author_id
-        and row.source == SOURCE_PHOTO_DUMP
-    ]
+    """Same-image dumps to delete with this hit. Other pictures stay up."""
+    if hit.source != SOURCE_PHOTO_DUMP or not hit.fingerprint:
+        return (hit,)
+    related = [row for row in rows if _matching_photo_dump(row, hit)]
     if hit not in related:
         related.append(hit)
     return tuple(related)
