@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import unittest
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, patch
@@ -19,17 +19,24 @@ from cogs.interaction._interact_streak_helpers import (
     STREAK_LIST_LIMIT,
     StreakCreditResult,
     apply_streak_credit,
+    credited_streak_query,
+    credited_streak_sort_key,
+    board_active_dates,
     displayed_current_streak,
     format_milestone_message,
+    format_streak_board,
+    next_active_dates,
     is_credit_eligible_voice_channel,
+    is_credited_streak,
     is_live_streak,
     is_streak_milestone,
     live_dates,
     live_streak_query,
     normalize_pair,
+    next_pending_replies,
     other_user_id,
-    partners_from_message,
     previous_iso_date,
+    reply_partner_id,
     source_label,
     vietnam_date,
     voice_overlap_partner_ids,
@@ -182,6 +189,56 @@ class FakeCollection:
         selected.update(payload)
         return dict(selected)
 
+    def insert_one(self, document: dict[str, Any]) -> SimpleNamespace:
+        if self.write_error is not None:
+            raise self.write_error
+        inserted = dict(document)
+        if "_id" not in inserted:
+            inserted["_id"] = self._next_id
+            self._next_id += 1
+        self._assert_unique(inserted, exclude=None)
+        self.documents.append(inserted)
+        return SimpleNamespace(inserted_id=inserted["_id"])
+
+    def update_one(
+        self,
+        query: dict[str, Any],
+        update: dict[str, Any],
+        *,
+        upsert: bool = False,
+    ) -> SimpleNamespace:
+        if self.write_error is not None:
+            raise self.write_error
+        selected = next(
+            (
+                document
+                for document in self.documents
+                if self._matches(document, query)
+            ),
+            None,
+        )
+        payload = dict(update.get("$set") or {})
+        if selected is None:
+            if not upsert:
+                return SimpleNamespace(matched_count=0, modified_count=0)
+            inserted = {
+                key: value
+                for key, value in query.items()
+                if not isinstance(value, dict)
+            }
+            inserted.update(payload)
+            if "_id" not in inserted:
+                inserted["_id"] = self._next_id
+                self._next_id += 1
+            self._assert_unique(inserted, exclude=None)
+            self.documents.append(inserted)
+            return SimpleNamespace(matched_count=0, modified_count=0)
+        proposed = dict(selected)
+        proposed.update(payload)
+        self._assert_unique(proposed, exclude=selected)
+        selected.update(payload)
+        return SimpleNamespace(matched_count=1, modified_count=1)
+
     def _assert_unique(
         self,
         candidate: dict[str, Any],
@@ -328,6 +385,37 @@ def streak_document(
     if announced_milestones is not None:
         document["announced_milestones"] = announced_milestones
     return document
+
+
+def seed_partner_reply(
+    document: dict[str, Any],
+    replier_id: int = PARTNER_ID,
+    day: str = TODAY,
+) -> dict[str, Any]:
+    document["pending_reply_date"] = day
+    document["pending_reply_ids"] = [replier_id]
+    return document
+
+
+def reply_message(
+    guild: object,
+    author: object,
+    partner: object,
+    channel: object | None = None,
+    *,
+    resolved: bool = True,
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        guild=guild,
+        author=author,
+        webhook_id=None,
+        mentions=[partner],
+        reference=SimpleNamespace(
+            message_id=900,
+            resolved=SimpleNamespace(author=partner) if resolved else None,
+        ),
+        channel=channel,
+    )
 
 
 def credit_on(
@@ -534,6 +622,36 @@ class TestStreakHelpers(unittest.TestCase):
             [3, 7, 30],
         )
 
+        first_year = credit_on(
+            streak_document(
+                current_streak=364,
+                longest_streak=364,
+                last_active_date=YESTERDAY,
+            ),
+            TODAY,
+        )
+        self.assertEqual(first_year.document["current_streak"], 365)
+        self.assertTrue(first_year.announce)
+        self.assertEqual(
+            first_year.document["announced_milestones"],
+            [3, 7, 30, 100, 365],
+        )
+
+        repeat_year = credit_on(
+            streak_document(
+                current_streak=364,
+                longest_streak=365,
+                last_active_date=YESTERDAY,
+            ),
+            TODAY,
+        )
+        self.assertEqual(repeat_year.document["current_streak"], 365)
+        self.assertFalse(repeat_year.announce)
+        self.assertEqual(
+            repeat_year.document["announced_milestones"],
+            [3, 7, 30, 100, 365],
+        )
+
     def test_unknown_source_is_rejected(self) -> None:
         with self.assertRaises(ValueError):
             apply_streak_credit(
@@ -546,6 +664,91 @@ class TestStreakHelpers(unittest.TestCase):
                 source="hug",
                 now=NOW,
             )
+
+    def test_credited_query_keeps_broken_and_skips_pending(self) -> None:
+        live = streak_document(current_streak=4, longest_streak=8)
+        broken = streak_document(
+            user_b=OTHER_ID,
+            current_streak=20,
+            longest_streak=20,
+            last_active_date="2026-09-01",
+        )
+        pending = {
+            "guild_id": GUILD_ID,
+            "user_a": AUTHOR_ID,
+            "user_b": 77,
+            "partner_ids": [77, AUTHOR_ID],
+            "pending_reply_date": TODAY,
+            "pending_reply_ids": [AUTHOR_ID],
+        }
+        self.assertTrue(is_credited_streak(live))
+        self.assertTrue(is_credited_streak(broken))
+        self.assertFalse(is_credited_streak(pending))
+        self.assertFalse(is_credited_streak({"current_streak": True}))
+        query = credited_streak_query(GUILD_ID, AUTHOR_ID)
+        self.assertEqual(query["guild_id"], GUILD_ID)
+        self.assertEqual(query["partner_ids"], AUTHOR_ID)
+        self.assertEqual(query["current_streak"]["$gt"], 0)
+        ordered = sorted(
+            [broken, live],
+            key=lambda document: credited_streak_sort_key(document, TODAY),
+            reverse=True,
+        )
+        self.assertIs(ordered[0], live)
+
+    def test_weekday_board_fills_credited_days_and_keeps_history(self) -> None:
+        today = date(2026, 9, 16)
+        board = format_streak_board(
+            ["2026-09-15", "2026-09-16", "not-a-date"],
+            today=today,
+            weeks=2,
+        )
+        self.assertEqual(
+            board,
+            "\n".join(
+                [
+                    "CN ░ ░",
+                    "T2 ░ ░",
+                    "T3 ░ █",
+                    "T4 ░ █",
+                    "T5 ░ ░",
+                    "T6 ░ ░",
+                    "T7 ░ ░",
+                ]
+            ),
+        )
+        self.assertNotIn("2026-09-01", board)
+
+        seeded = next_active_dates(
+            streak_document(
+                current_streak=2,
+                longest_streak=2,
+                last_active_date=YESTERDAY,
+            ),
+            today=TODAY,
+        )
+        self.assertEqual(seeded, ["2026-09-14", "2026-09-15", "2026-09-16"])
+
+        kept = next_active_dates(
+            streak_document(
+                current_streak=2,
+                longest_streak=2,
+                last_active_date=YESTERDAY,
+                announced_milestones=[],
+            )
+            | {"active_dates": ["2026-08-01", "nope", True]},
+            today=TODAY,
+        )
+        self.assertEqual(kept, ["2026-08-01", TODAY])
+
+        legacy = streak_document(
+            current_streak=3,
+            last_active_date=TODAY,
+        )
+        self.assertEqual(
+            board_active_dates(legacy),
+            ["2026-09-14", "2026-09-15", "2026-09-16"],
+        )
 
     def test_displayed_current_is_zero_when_broken(self) -> None:
         live = streak_document(current_streak=7, last_active_date=YESTERDAY)
@@ -570,47 +773,49 @@ class TestStreakHelpers(unittest.TestCase):
         self.assertEqual(source_label(SOURCE_VOICE), "voice")
         self.assertEqual(source_label("nope"), "không rõ")
 
-    def test_partners_from_mention_reply_and_skips(self) -> None:
-        author = make_user(AUTHOR_ID)
+    def test_reply_partner_requires_another_human(self) -> None:
         partner = make_user(PARTNER_ID)
-        other = make_user(OTHER_ID)
-        bot_user = make_user(99, bot=True)
+        self.assertEqual(reply_partner_id(AUTHOR_ID, partner), PARTNER_ID)
+        self.assertIsNone(reply_partner_id(AUTHOR_ID, None))
+        self.assertIsNone(reply_partner_id(AUTHOR_ID, make_user(AUTHOR_ID)))
+        self.assertIsNone(reply_partner_id(AUTHOR_ID, make_user(99, bot=True)))
 
-        mentioned = partners_from_message(
-            author_id=author.id,
-            mentions=(partner, bot_user, author),
-            reply_author=None,
+    def test_pending_replies_need_both_people_on_the_same_day(self) -> None:
+        one_side, complete = next_pending_replies(
+            None,
+            today=TODAY,
+            replier_id=AUTHOR_ID,
+            user_a=AUTHOR_ID,
+            user_b=PARTNER_ID,
         )
-        self.assertEqual(
-            [(item.user_id, item.source) for item in mentioned],
-            [(PARTNER_ID, SOURCE_MENTION)],
-        )
+        self.assertEqual(one_side, [AUTHOR_ID])
+        self.assertFalse(complete)
 
-        replied = partners_from_message(
-            author_id=author.id,
-            mentions=(),
-            reply_author=partner,
+        both, complete = next_pending_replies(
+            {
+                "pending_reply_date": TODAY,
+                "pending_reply_ids": [AUTHOR_ID],
+            },
+            today=TODAY,
+            replier_id=PARTNER_ID,
+            user_a=AUTHOR_ID,
+            user_b=PARTNER_ID,
         )
-        self.assertEqual(
-            [(item.user_id, item.source) for item in replied],
-            [(PARTNER_ID, SOURCE_REPLY)],
-        )
+        self.assertEqual(both, [AUTHOR_ID, PARTNER_ID])
+        self.assertTrue(complete)
 
-        both = partners_from_message(
-            author_id=author.id,
-            mentions=(partner, other),
-            reply_author=partner,
+        reset, complete = next_pending_replies(
+            {
+                "pending_reply_date": YESTERDAY,
+                "pending_reply_ids": [AUTHOR_ID, PARTNER_ID],
+            },
+            today=TODAY,
+            replier_id=PARTNER_ID,
+            user_a=AUTHOR_ID,
+            user_b=PARTNER_ID,
         )
-        by_id = {item.user_id: item.source for item in both}
-        self.assertEqual(by_id[PARTNER_ID], SOURCE_REPLY)
-        self.assertEqual(by_id[OTHER_ID], SOURCE_MENTION)
-
-        skip_bot_reply = partners_from_message(
-            author_id=author.id,
-            mentions=(),
-            reply_author=bot_user,
-        )
-        self.assertEqual(skip_bot_reply, ())
+        self.assertEqual(reset, [PARTNER_ID])
+        self.assertFalse(complete)
 
     def test_voice_eligibility_and_occupants(self) -> None:
         self.assertFalse(is_credit_eligible_voice_channel(None, AFK_CHANNEL_ID))
@@ -633,10 +838,10 @@ class TestStreakHelpers(unittest.TestCase):
         self.assertEqual(voice_overlap_partner_ids(AUTHOR_ID, occupants[:1]), ())
 
     def test_milestone_days_ping_copy(self) -> None:
-        self.assertEqual(MILESTONE_DAYS, frozenset({3, 7, 30, 100}))
-        for days in (3, 7, 30, 100):
+        self.assertEqual(MILESTONE_DAYS, frozenset({3, 7, 30, 100, 365}))
+        for days in (3, 7, 30, 100, 365):
             self.assertTrue(is_streak_milestone(days))
-        for days in (1, 2, 4, 6, 8, 29, 31, 99, 101):
+        for days in (1, 2, 4, 6, 8, 29, 31, 99, 101, 364, 366):
             self.assertFalse(is_streak_milestone(days))
         text = format_milestone_message(AUTHOR_ID, PARTNER_ID, 7)
         self.assertIn(f"<@{AUTHOR_ID}>", text)
@@ -772,48 +977,103 @@ class TestInteractStreakCog(unittest.IsolatedAsyncioTestCase):
         await fixture.cog.on_message(webhook)
         self.assertEqual(fixture.collection.documents, [])
 
-    async def test_on_message_credits_mention_and_reply_partners(self) -> None:
+    async def test_on_message_ignores_mentions_until_both_reply(self) -> None:
         fixture = StreakFixture()
         author = make_user(AUTHOR_ID)
         partner = make_user(PARTNER_ID)
-        other = make_user(OTHER_ID)
-        message = SimpleNamespace(
+        mention = SimpleNamespace(
             guild=fixture.guild,
             author=author,
             webhook_id=None,
-            mentions=[partner, other],
-            reference=SimpleNamespace(
-                resolved=SimpleNamespace(author=partner)
-            ),
+            mentions=[partner, make_user(OTHER_ID)],
+            reference=None,
+            channel=SimpleNamespace(send=AsyncMock()),
+        )
+        with patch("discord.utils.utcnow", return_value=NOW):
+            await fixture.cog.on_message(mention)
+        self.assertEqual(fixture.collection.documents, [])
+
+        with patch("discord.utils.utcnow", return_value=NOW):
+            await fixture.cog.on_message(
+                reply_message(fixture.guild, author, partner)
+            )
+        stored = fixture.collection.documents[0]
+        self.assertNotIn("current_streak", stored)
+        self.assertEqual(stored["pending_reply_ids"], [AUTHOR_ID])
+
+        with patch("discord.utils.utcnow", return_value=NOW):
+            await fixture.cog.on_message(
+                reply_message(fixture.guild, partner, author)
+            )
+        self.assertEqual(stored["current_streak"], 1)
+        self.assertEqual(stored["last_source"], SOURCE_REPLY)
+        self.assertEqual(stored["last_active_date"], TODAY)
+
+        with patch("discord.utils.utcnow", return_value=NOW):
+            await fixture.cog.on_message(
+                reply_message(fixture.guild, author, partner)
+            )
+        self.assertEqual(stored["current_streak"], 1)
+
+    async def test_replies_on_different_days_do_not_combine(self) -> None:
+        fixture = StreakFixture()
+        tomorrow = datetime(2026, 9, 17, 12, 0, tzinfo=timezone.utc)
+        with patch("discord.utils.utcnow", return_value=NOW):
+            first = fixture.cog.note_text_reply(
+                GUILD_ID, AUTHOR_ID, PARTNER_ID, now=NOW
+            )
+        self.assertIsNone(first)
+        with patch("discord.utils.utcnow", return_value=tomorrow):
+            second = fixture.cog.note_text_reply(
+                GUILD_ID, PARTNER_ID, AUTHOR_ID, now=tomorrow
+            )
+        self.assertIsNone(second)
+        stored = fixture.collection.documents[0]
+        self.assertNotIn("current_streak", stored)
+        self.assertEqual(stored["pending_reply_date"], "2026-09-17")
+        self.assertEqual(stored["pending_reply_ids"], [PARTNER_ID])
+
+    async def test_on_message_fetches_an_unresolved_reply(self) -> None:
+        fixture = StreakFixture()
+        partner = make_user(PARTNER_ID)
+        channel = SimpleNamespace(
+            fetch_message=AsyncMock(
+                return_value=SimpleNamespace(author=partner)
+            )
+        )
+        message = reply_message(
+            fixture.guild,
+            make_user(AUTHOR_ID),
+            partner,
+            channel,
+            resolved=False,
         )
         with patch("discord.utils.utcnow", return_value=NOW):
             await fixture.cog.on_message(message)
-        pairs = {
-            (document["user_a"], document["user_b"]): document["last_source"]
-            for document in fixture.collection.documents
-        }
-        self.assertEqual(pairs[(AUTHOR_ID, PARTNER_ID)], SOURCE_REPLY)
-        self.assertEqual(pairs[(AUTHOR_ID, OTHER_ID)], SOURCE_MENTION)
+        channel.fetch_message.assert_awaited_once_with(900)
+        self.assertEqual(
+            fixture.collection.documents[0]["pending_reply_ids"],
+            [AUTHOR_ID],
+        )
 
     async def test_on_message_pings_both_on_milestone(self) -> None:
         fixture = StreakFixture(
             [
-                streak_document(
-                    current_streak=2,
-                    longest_streak=2,
-                    last_active_date=YESTERDAY,
+                seed_partner_reply(
+                    streak_document(
+                        current_streak=2,
+                        longest_streak=2,
+                        last_active_date=YESTERDAY,
+                    )
                 )
             ]
         )
         channel = SimpleNamespace(id=CHANNEL_ID, send=AsyncMock())
-        partner = make_user(PARTNER_ID)
-        message = SimpleNamespace(
-            guild=fixture.guild,
-            author=make_user(AUTHOR_ID),
-            webhook_id=None,
-            mentions=[partner],
-            reference=None,
-            channel=channel,
+        message = reply_message(
+            fixture.guild,
+            make_user(AUTHOR_ID),
+            make_user(PARTNER_ID),
+            channel,
         )
         with patch("discord.utils.utcnow", return_value=NOW):
             await fixture.cog.on_message(message)
@@ -833,22 +1093,22 @@ class TestInteractStreakCog(unittest.IsolatedAsyncioTestCase):
     async def test_on_message_does_not_ping_a_repeated_milestone(self) -> None:
         fixture = StreakFixture(
             [
-                streak_document(
-                    current_streak=2,
-                    longest_streak=3,
-                    last_active_date=YESTERDAY,
-                    announced_milestones=[3],
+                seed_partner_reply(
+                    streak_document(
+                        current_streak=2,
+                        longest_streak=3,
+                        last_active_date=YESTERDAY,
+                        announced_milestones=[3],
+                    )
                 )
             ]
         )
         channel = SimpleNamespace(id=CHANNEL_ID, send=AsyncMock())
-        message = SimpleNamespace(
-            guild=fixture.guild,
-            author=make_user(AUTHOR_ID),
-            webhook_id=None,
-            mentions=[make_user(PARTNER_ID)],
-            reference=None,
-            channel=channel,
+        message = reply_message(
+            fixture.guild,
+            make_user(AUTHOR_ID),
+            make_user(PARTNER_ID),
+            channel,
         )
         with patch("discord.utils.utcnow", return_value=NOW):
             await fixture.cog.on_message(message)
@@ -862,22 +1122,22 @@ class TestInteractStreakCog(unittest.IsolatedAsyncioTestCase):
     async def test_on_message_pings_a_new_higher_milestone(self) -> None:
         fixture = StreakFixture(
             [
-                streak_document(
-                    current_streak=6,
-                    longest_streak=6,
-                    last_active_date=YESTERDAY,
-                    announced_milestones=[3],
+                seed_partner_reply(
+                    streak_document(
+                        current_streak=6,
+                        longest_streak=6,
+                        last_active_date=YESTERDAY,
+                        announced_milestones=[3],
+                    )
                 )
             ]
         )
         channel = SimpleNamespace(id=CHANNEL_ID, send=AsyncMock())
-        message = SimpleNamespace(
-            guild=fixture.guild,
-            author=make_user(AUTHOR_ID),
-            webhook_id=None,
-            mentions=[make_user(PARTNER_ID)],
-            reference=None,
-            channel=channel,
+        message = reply_message(
+            fixture.guild,
+            make_user(AUTHOR_ID),
+            make_user(PARTNER_ID),
+            channel,
         )
         with patch("discord.utils.utcnow", return_value=NOW):
             await fixture.cog.on_message(message)
@@ -894,21 +1154,21 @@ class TestInteractStreakCog(unittest.IsolatedAsyncioTestCase):
     async def test_on_message_does_not_ping_off_milestone(self) -> None:
         fixture = StreakFixture(
             [
-                streak_document(
-                    current_streak=3,
-                    longest_streak=3,
-                    last_active_date=YESTERDAY,
+                seed_partner_reply(
+                    streak_document(
+                        current_streak=3,
+                        longest_streak=3,
+                        last_active_date=YESTERDAY,
+                    )
                 )
             ]
         )
         channel = SimpleNamespace(id=CHANNEL_ID, send=AsyncMock())
-        message = SimpleNamespace(
-            guild=fixture.guild,
-            author=make_user(AUTHOR_ID),
-            webhook_id=None,
-            mentions=[make_user(PARTNER_ID)],
-            reference=None,
-            channel=channel,
+        message = reply_message(
+            fixture.guild,
+            make_user(AUTHOR_ID),
+            make_user(PARTNER_ID),
+            channel,
         )
         with patch("discord.utils.utcnow", return_value=NOW):
             await fixture.cog.on_message(message)
@@ -918,10 +1178,12 @@ class TestInteractStreakCog(unittest.IsolatedAsyncioTestCase):
     async def test_milestone_send_failure_is_swallowed(self) -> None:
         fixture = StreakFixture(
             [
-                streak_document(
-                    current_streak=6,
-                    longest_streak=6,
-                    last_active_date=YESTERDAY,
+                seed_partner_reply(
+                    streak_document(
+                        current_streak=6,
+                        longest_streak=6,
+                        last_active_date=YESTERDAY,
+                    )
                 )
             ]
         )
@@ -930,13 +1192,11 @@ class TestInteractStreakCog(unittest.IsolatedAsyncioTestCase):
             id=CHANNEL_ID,
             send=AsyncMock(side_effect=discord.Forbidden(response, "forbidden")),
         )
-        message = SimpleNamespace(
-            guild=fixture.guild,
-            author=make_user(AUTHOR_ID),
-            webhook_id=None,
-            mentions=[make_user(PARTNER_ID)],
-            reference=None,
-            channel=channel,
+        message = reply_message(
+            fixture.guild,
+            make_user(AUTHOR_ID),
+            make_user(PARTNER_ID),
+            channel,
         )
         with patch("discord.utils.utcnow", return_value=NOW):
             await fixture.cog.on_message(message)
@@ -1081,16 +1341,24 @@ class TestInteractStreakCog(unittest.IsolatedAsyncioTestCase):
         await asyncio.sleep(0)
         self.assertEqual(fixture.cog._pending_voice, {})
 
-    async def test_streak_lists_live_partners(self) -> None:
+    async def test_streak_lists_every_credited_partner(self) -> None:
         fixture = StreakFixture(
             [
                 streak_document(current_streak=4, longest_streak=8),
                 streak_document(
                     user_b=OTHER_ID,
-                    current_streak=2,
-                    longest_streak=2,
+                    current_streak=20,
+                    longest_streak=20,
                     last_active_date="2026-09-01",
                 ),
+                {
+                    "guild_id": GUILD_ID,
+                    "user_a": AUTHOR_ID,
+                    "user_b": 77,
+                    "partner_ids": [77, AUTHOR_ID],
+                    "pending_reply_date": TODAY,
+                    "pending_reply_ids": [AUTHOR_ID],
+                },
             ]
         )
         ctx = fixture.make_context()
@@ -1099,9 +1367,18 @@ class TestInteractStreakCog(unittest.IsolatedAsyncioTestCase):
         ctx.send.assert_awaited_once()
         kwargs = ctx.send.await_args.kwargs
         embed = kwargs["embed"]
-        self.assertIn(f"<@{PARTNER_ID}>", embed.description)
-        self.assertNotIn(f"<@{OTHER_ID}>", embed.description)
-        self.assertIn("**4** ngày", embed.description)
+        description = embed.description
+        self.assertLess(
+            description.index(f"<@{PARTNER_ID}>"),
+            description.index(f"<@{OTHER_ID}>"),
+        )
+        self.assertIn("**4** ngày", description)
+        self.assertIn("đã đứt", description)
+        self.assertIn("**20**", description)
+        self.assertNotIn("<@77>", description)
+        self.assertFalse(kwargs["allowed_mentions"].users)
+        self.assertIn("2 chuỗi đã tính", embed.footer.text)
+        self.assertIn("1 đang sống", embed.footer.text)
         self.assertIs(kwargs["allowed_mentions"], NO_MENTIONS)
 
     async def test_streak_empty_copy(self) -> None:
@@ -1109,7 +1386,7 @@ class TestInteractStreakCog(unittest.IsolatedAsyncioTestCase):
         ctx = fixture.make_context()
         await fixture.cog.streak.callback(fixture.cog, ctx, None)
         message = ctx.send.await_args.args[0]
-        self.assertIn("chưa có chuỗi đang sống", message.lower())
+        self.assertIn("chưa có chuỗi đã tính", message.lower())
 
     async def test_streak_pair_and_self_and_bot(self) -> None:
         fixture = StreakFixture([streak_document(current_streak=6)])
@@ -1119,6 +1396,17 @@ class TestInteractStreakCog(unittest.IsolatedAsyncioTestCase):
             await fixture.cog.streak.callback(fixture.cog, ctx, partner)
         embed = ctx.send.await_args.kwargs["embed"]
         self.assertEqual(embed.title, "🔥 Chuỗi tương tác")
+        self.assertEqual(
+            embed.description,
+            f"<@{AUTHOR_ID}> × <@{PARTNER_ID}>",
+        )
+        board = embed.fields[3].value
+        self.assertIn("```", board)
+        self.assertIn("CN ", board)
+        self.assertIn("T7 ", board)
+        self.assertIn("█", board)
+        self.assertLess(board.index("CN "), board.index("T2 "))
+        self.assertFalse(ctx.send.await_args.kwargs["allowed_mentions"].users)
         self.assertIn("**6** ngày", embed.fields[0].value)
 
         ctx.send.reset_mock()
@@ -1176,8 +1464,12 @@ class TestInteractStreakCog(unittest.IsolatedAsyncioTestCase):
             await fixture.cog.streak_top.callback(fixture.cog, ctx)
         embed = ctx.send.await_args.kwargs["embed"]
         description = embed.description
-        self.assertLess(description.index(f"<@{OTHER_ID}>"), description.index(f"<@{PARTNER_ID}>"))
+        self.assertLess(
+            description.index(f"<@{OTHER_ID}>"),
+            description.index(f"<@{PARTNER_ID}>"),
+        )
         self.assertNotIn("<@40>", description)
+        self.assertFalse(ctx.send.await_args.kwargs["allowed_mentions"].users)
         self.assertEqual(STREAK_LIST_LIMIT, 10)
 
     async def test_streak_top_empty(self) -> None:

@@ -287,7 +287,7 @@ HELP_TOPICS = (
                 entries=(
                     _entry(
                         "streak",
-                        "Xem chuỗi đang sống của bạn, hoặc với một member.",
+                        "Xem mọi chuỗi đã tính của bạn, hoặc chuỗi với một member.",
                         "streak [@user]",
                     ),
                     _entry(
@@ -296,8 +296,10 @@ HELP_TOPICS = (
                     ),
                 ),
                 note=(
-                    "Ngày theo UTC+7. Mention, trả lời, hoặc 5 phút voice chung. "
-                    "Bỏ một ngày thì chuỗi đứt. Mỗi mốc 3, 7, 30, 100 ngày "
+                    "Ngày theo UTC+7. Hai người trả lời nhau trong ngày, hoặc "
+                    "cùng vào một kênh voice/stage (kênh AFK không tính). "
+                    "Bỏ một ngày thì chuỗi đứt. `streak @user` có lịch 16 tuần, "
+                    "thứ chạy dọc. Mỗi mốc 3, 7, 30, 100, 365 ngày "
                     "chỉ ping một lần cho mỗi cặp, trong kênh đó."
                 ),
             ),

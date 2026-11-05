@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from typing import Any
@@ -21,15 +21,16 @@ SOURCE_LABELS = {
     SOURCE_VOICE: "voice",
 }
 
-VOICE_OVERLAP_SECONDS = 300
+# Credit as soon as both humans are in the same voice or stage channel.
+VOICE_OVERLAP_SECONDS = 0
 STREAK_LIST_LIMIT = 10
-MILESTONE_DAYS = frozenset({3, 7, 30, 100})
-
-
-@dataclass(frozen=True, slots=True)
-class StreakPartner:
-    user_id: int
-    source: str
+CREDITED_STREAK_LIST_LIMIT = 25
+STREAK_BOARD_WEEKS = 16
+STREAK_BOARD_HISTORY_DAYS = 366
+WEEKDAY_LABELS = ("CN", "T2", "T3", "T4", "T5", "T6", "T7")
+STREAK_DAY_MARK = "█"
+STREAK_EMPTY_MARK = "░"
+MILESTONE_DAYS = frozenset({3, 7, 30, 100, 365})
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,6 +91,153 @@ def live_streak_query(guild_id: int, today: str) -> dict[str, Any]:
         "last_active_date": {"$in": list(live_dates(today))},
         "current_streak": {"$gt": 0},
     }
+
+
+def credited_streak_query(guild_id: int, user_id: int) -> dict[str, Any]:
+    """Pairs this member has already completed at least one day with."""
+    return {
+        "guild_id": guild_id,
+        "partner_ids": user_id,
+        "last_active_date": {"$exists": True, "$ne": None},
+        "current_streak": {"$gt": 0},
+    }
+
+
+def is_credited_streak(document: Mapping[str, Any]) -> bool:
+    """A completed day was stored. A one-sided reply is not a streak yet."""
+    last_active = document.get("last_active_date")
+    if not isinstance(last_active, str) or not last_active:
+        return False
+    current = document.get("current_streak")
+    if isinstance(current, bool) or not isinstance(current, int):
+        return False
+    return current > 0
+
+
+def credited_streak_sort_key(
+    document: Mapping[str, Any], today: str
+) -> tuple[int, int, int, str]:
+    """Live chains first, then current count, record, and latest credit."""
+    current = displayed_current_streak(document, today)
+    longest = _stored_count(document.get("longest_streak"))
+    last_active = document.get("last_active_date")
+    last_text = last_active if isinstance(last_active, str) else ""
+    return (1 if current > 0 else 0, current, longest, last_text)
+
+
+def _valid_iso_date(value: object) -> str | None:
+    if not isinstance(value, str):
+        return None
+    try:
+        return date.fromisoformat(value).isoformat()
+    except ValueError:
+        return None
+
+
+def chain_dates(last_active_date: object, current_streak: object) -> list[str]:
+    """Inclusive Vietnam days of one stored chain, ending on its last credit."""
+    end_text = _valid_iso_date(last_active_date)
+    count = _stored_count(current_streak)
+    if end_text is None or count <= 0:
+        return []
+    end = date.fromisoformat(end_text)
+    start = end - timedelta(days=count - 1)
+    return [
+        (start + timedelta(days=offset)).isoformat()
+        for offset in range(count)
+    ]
+
+
+def next_active_dates(
+    document: Mapping[str, Any] | None,
+    *,
+    today: str,
+) -> list[str]:
+    """Credited days to store, including today and at most one year back.
+
+    A row that has never stored `active_dates` is seeded from its current chain.
+    """
+    dates: set[str] = set()
+    if document is not None and "active_dates" in document:
+        raw = document.get("active_dates")
+        if isinstance(raw, list):
+            for item in raw:
+                parsed = _valid_iso_date(item)
+                if parsed is not None:
+                    dates.add(parsed)
+    elif document is not None:
+        dates.update(
+            chain_dates(
+                document.get("last_active_date"),
+                document.get("current_streak"),
+            )
+        )
+    today_text = _valid_iso_date(today)
+    if today_text is not None:
+        dates.add(today_text)
+        cutoff = (
+            date.fromisoformat(today_text) - timedelta(days=STREAK_BOARD_HISTORY_DAYS)
+        ).isoformat()
+        latest = today_text
+    else:
+        cutoff = ""
+        latest = "9999-12-31"
+    return sorted(item for item in dates if cutoff <= item <= latest)
+
+
+def board_active_dates(document: Mapping[str, Any] | None) -> list[str]:
+    """Dates to draw. Stored history wins; otherwise draw the current chain."""
+    if document is None:
+        return []
+    if "active_dates" in document:
+        raw = document.get("active_dates")
+        if not isinstance(raw, list):
+            return []
+        return sorted(
+            {
+                parsed
+                for item in raw
+                if (parsed := _valid_iso_date(item)) is not None
+            }
+        )
+    return chain_dates(
+        document.get("last_active_date"),
+        document.get("current_streak"),
+    )
+
+
+def format_streak_board(
+    active_dates: Iterable[str],
+    *,
+    today: date,
+    weeks: int = STREAK_BOARD_WEEKS,
+) -> str:
+    """Weekday rows, one column per week, with one space between weeks.
+
+    Sunday is the first row. Columns run from the oldest week to the current
+    week. A filled block is a credited day. Days after `today` stay empty.
+    """
+    if weeks < 1:
+        raise ValueError("streak board needs at least one week")
+    active = {
+        parsed
+        for item in active_dates
+        if (parsed := _valid_iso_date(item)) is not None
+    }
+    days_since_sunday = (today.weekday() + 1) % 7
+    this_sunday = today - timedelta(days=days_since_sunday)
+    start = this_sunday - timedelta(weeks=weeks - 1)
+    rows: list[str] = []
+    for row, label in enumerate(WEEKDAY_LABELS):
+        cells: list[str] = []
+        for week in range(weeks):
+            day = start + timedelta(days=week * 7 + row)
+            if day <= today and day.isoformat() in active:
+                cells.append(STREAK_DAY_MARK)
+            else:
+                cells.append(STREAK_EMPTY_MARK)
+        rows.append(f"{label} {' '.join(cells)}")
+    return "\n".join(rows)
 
 
 def displayed_current_streak(document: Mapping[str, Any], today: str) -> int:
@@ -186,36 +334,43 @@ def voice_overlap_partner_ids(
     return tuple(partners)
 
 
-def partners_from_message(
-    *,
-    author_id: int,
-    mentions: Sequence[object],
-    reply_author: object | None,
-) -> tuple[StreakPartner, ...]:
-    """Human partners from user mentions and a resolved reply author.
+def reply_partner_id(author_id: int, reply_author: object | None) -> int | None:
+    """Human the author replied to, when that reply can count for a pair."""
+    if reply_author is None:
+        return None
+    user_id = getattr(reply_author, "id", None)
+    if isinstance(user_id, bool) or not isinstance(user_id, int):
+        return None
+    if user_id == author_id or bool(getattr(reply_author, "bot", False)):
+        return None
+    return user_id
 
-    Reply wins when the same user is both mentioned and replied to.
+
+def next_pending_replies(
+    document: Mapping[str, Any] | None,
+    *,
+    today: str,
+    replier_id: int,
+    user_a: int,
+    user_b: int,
+) -> tuple[list[int], bool]:
+    """Return today's replier ids and whether both pair members have replied.
+
+    Replies from another Vietnam day are dropped. One side is not enough.
     """
-    by_id: dict[int, str] = {}
-    for mentioned in mentions:
-        user_id = getattr(mentioned, "id", None)
-        if not isinstance(user_id, int):
-            continue
-        if user_id == author_id or bool(getattr(mentioned, "bot", False)):
-            continue
-        by_id[user_id] = SOURCE_MENTION
-    if reply_author is not None:
-        user_id = getattr(reply_author, "id", None)
-        if (
-            isinstance(user_id, int)
-            and user_id != author_id
-            and not bool(getattr(reply_author, "bot", False))
-        ):
-            by_id[user_id] = SOURCE_REPLY
-    return tuple(
-        StreakPartner(user_id=user_id, source=source)
-        for user_id, source in by_id.items()
-    )
+    pair = {user_a, user_b}
+    ids: set[int] = set()
+    if document is not None and document.get("pending_reply_date") == today:
+        raw = document.get("pending_reply_ids")
+        if isinstance(raw, list):
+            ids = {
+                item
+                for item in raw
+                if isinstance(item, int) and not isinstance(item, bool) and item in pair
+            }
+    if replier_id in pair:
+        ids.add(replier_id)
+    return sorted(ids), pair <= ids
 
 
 def apply_streak_credit(
@@ -266,6 +421,7 @@ def apply_streak_credit(
         "last_active_date": today,
         "last_source": source,
         "announced_milestones": noticed,
+        "active_dates": next_active_dates(document, today=today),
         "created_at": created_at,
         "updated_at": now_utc,
     }

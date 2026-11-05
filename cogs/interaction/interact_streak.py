@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime
+from datetime import date, datetime
 
 import discord  # pyright: ignore[reportMissingImports]
 from discord.ext import commands  # pyright: ignore[reportMissingImports]
@@ -10,22 +10,30 @@ from pymongo import ASCENDING, DESCENDING, ReturnDocument
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
 from cogs.interaction._interact_streak_helpers import (
+    CREDITED_STREAK_LIST_LIMIT,
+    SOURCE_REPLY,
     SOURCE_VOICE,
     STREAK_LIST_LIMIT,
     VOICE_OVERLAP_SECONDS,
     VALID_SOURCES,
     StreakCreditResult,
     apply_streak_credit,
+    board_active_dates,
+    credited_streak_query,
+    credited_streak_sort_key,
     displayed_current_streak,
     format_milestone_message,
+    format_streak_board,
+    is_credited_streak,
     is_credit_eligible_voice_channel,
     is_streak_milestone,
     iso_date,
     live_streak_query,
+    next_pending_replies,
     normalize_pair,
     other_user_id,
-    partners_from_message,
     previous_iso_date,
+    reply_partner_id,
     source_label,
     vietnam_date,
     voice_overlap_partner_ids,
@@ -49,7 +57,7 @@ VoiceTaskKey = tuple[int, int, int, int]
 
 
 class InteractStreakCog(commands.Cog):
-    """Guild-scoped pair streaks from mentions, replies, and shared voice time."""
+    """Guild-scoped pair streaks from mutual replies and shared voice channels."""
 
     def __init__(
         self,
@@ -215,6 +223,114 @@ class InteractStreakCog(commands.Cog):
             advanced=True,
             announce=result.announce,
         )
+
+    def note_text_reply(
+        self,
+        guild_id: int,
+        author_id: int,
+        partner_id: int,
+        *,
+        now: datetime | None = None,
+    ) -> StreakCreditResult | None:
+        """Remember one reply. Credit the day only after both people reply."""
+        try:
+            user_a, user_b = normalize_pair(author_id, partner_id)
+        except ValueError:
+            return None
+
+        stamp = now if now is not None else discord.utils.utcnow()
+        today = self._vietnam_today(stamp)
+        if self._pair_already_credited_today(guild_id, user_a, user_b, today):
+            return None
+
+        pair_filter = {
+            "guild_id": guild_id,
+            "user_a": user_a,
+            "user_b": user_b,
+        }
+        for _attempt in range(3):
+            try:
+                existing = self.collection.find_one(pair_filter)
+            except PyMongoError:
+                logger.exception("Failed to load streak reply")
+                return None
+            if existing is not None and existing.get("last_active_date") == today:
+                self._mark_credited_today(guild_id, user_a, user_b, today)
+                return None
+
+            pending_ids, complete = next_pending_replies(
+                existing,
+                today=today,
+                replier_id=author_id,
+                user_a=user_a,
+                user_b=user_b,
+            )
+            payload = {
+                "guild_id": guild_id,
+                "user_a": user_a,
+                "user_b": user_b,
+                "partner_ids": [user_a, user_b],
+                "pending_reply_date": today,
+                "pending_reply_ids": pending_ids,
+            }
+            try:
+                if existing is None:
+                    self.collection.insert_one(payload)
+                else:
+                    cas_filter = dict(pair_filter)
+                    cas_filter["pending_reply_date"] = existing.get(
+                        "pending_reply_date"
+                    )
+                    cas_filter["pending_reply_ids"] = existing.get(
+                        "pending_reply_ids"
+                    )
+                    result = self.collection.update_one(
+                        cas_filter,
+                        {"$set": payload},
+                    )
+                    if result.matched_count != 1:
+                        continue
+            except DuplicateKeyError:
+                continue
+            except PyMongoError:
+                logger.exception("Failed to record streak reply")
+                return None
+
+            if not complete:
+                return None
+            return self.credit_pair(
+                guild_id,
+                user_a,
+                user_b,
+                SOURCE_REPLY,
+                now=stamp,
+            )
+
+        logger.warning(
+            "Gave up recording streak reply after a race guild=%s pair=%s-%s",
+            guild_id,
+            user_a,
+            user_b,
+        )
+        return None
+
+    async def _reply_author(self, message: discord.Message) -> object | None:
+        reference = message.reference
+        if reference is None:
+            return None
+        resolved = getattr(reference, "resolved", None)
+        if resolved is not None:
+            return getattr(resolved, "author", None)
+        message_id = getattr(reference, "message_id", None)
+        channel = getattr(message, "channel", None)
+        fetch = getattr(channel, "fetch_message", None)
+        if message_id is None or not callable(fetch):
+            return None
+        try:
+            referenced = await fetch(message_id)
+        except (discord.NotFound, discord.Forbidden, discord.HTTPException):
+            return None
+        return getattr(referenced, "author", None)
 
     async def _announce_milestone_if_needed(
         self,
@@ -406,33 +522,23 @@ class InteractStreakCog(commands.Cog):
         ):
             return
 
-        reply_author = None
-        reference = message.reference
-        if reference is not None:
-            resolved = getattr(reference, "resolved", None)
-            reply_author = getattr(resolved, "author", None)
-
-        partners = partners_from_message(
-            author_id=message.author.id,
-            mentions=message.mentions,
-            reply_author=reply_author,
+        partner_id = reply_partner_id(
+            message.author.id,
+            await self._reply_author(message),
         )
-        if not partners:
+        if partner_id is None:
             return
 
-        now = discord.utils.utcnow()
-        for partner in partners:
-            result = self.credit_pair(
-                message.guild.id,
-                message.author.id,
-                partner.user_id,
-                partner.source,
-                now=now,
-            )
-            await self._announce_milestone_if_needed(
-                getattr(message, "channel", None),
-                result,
-            )
+        result = self.note_text_reply(
+            message.guild.id,
+            message.author.id,
+            partner_id,
+            now=discord.utils.utcnow(),
+        )
+        await self._announce_milestone_if_needed(
+            getattr(message, "channel", None),
+            result,
+        )
 
     @commands.Cog.listener()
     async def on_voice_state_update(
@@ -459,7 +565,10 @@ class InteractStreakCog(commands.Cog):
     @commands.group(
         name="streak",
         invoke_without_command=True,
-        help="Xem chuỗi tương tác với member khác. Subcommands: top.",
+        help=(
+            "Xem mọi chuỗi đã tính của bạn. "
+            "`streak @user` xem với một member. Subcommands: top."
+        ),
     )
     @commands.guild_only()
     @commands.cooldown(
@@ -511,7 +620,7 @@ class InteractStreakCog(commands.Cog):
         if not top:
             await ctx.send(
                 "Chưa có chuỗi đang sống trong server. "
-                "Hãy mention, trả lời, hoặc ngồi voice chung.",
+                "Hãy trả lời nhau trong ngày, hoặc cùng vào một kênh voice.",
                 allowed_mentions=NO_MENTIONS,
             )
             return
@@ -539,20 +648,13 @@ class InteractStreakCog(commands.Cog):
     async def _send_my_streaks(self, ctx: commands.Context) -> None:
         assert ctx.guild is not None
         today = self._vietnam_today()
-        query = live_streak_query(ctx.guild.id, today)
-        query["partner_ids"] = ctx.author.id
+        query = credited_streak_query(ctx.guild.id, ctx.author.id)
         try:
-            total = self.collection.count_documents(query)
-            documents = list(
-                self.collection.find(query)
-                .sort(
-                    [
-                        ("current_streak", DESCENDING),
-                        ("longest_streak", DESCENDING),
-                    ]
-                )
-                .limit(STREAK_LIST_LIMIT)
-            )
+            documents = [
+                document
+                for document in self.collection.find(query)
+                if is_credited_streak(document)
+            ]
         except PyMongoError:
             logger.exception("Failed to load member interaction streaks")
             await ctx.send(
@@ -563,34 +665,51 @@ class InteractStreakCog(commands.Cog):
 
         if not documents:
             await ctx.send(
-                "Bạn chưa có chuỗi đang sống. Hãy mention, trả lời tin nhắn, "
-                "hoặc ngồi voice chung với ai đó.",
+                "Bạn chưa có chuỗi đã tính. Hãy trả lời nhau trong ngày, "
+                "hoặc cùng vào một kênh voice.",
                 allowed_mentions=NO_MENTIONS,
             )
             return
 
+        documents.sort(
+            key=lambda document: credited_streak_sort_key(document, today),
+            reverse=True,
+        )
+        total = len(documents)
+        live_total = sum(
+            1
+            for document in documents
+            if displayed_current_streak(document, today) > 0
+        )
+        shown = documents[:CREDITED_STREAK_LIST_LIMIT]
         lines: list[str] = []
-        for document in documents:
+        for document in shown:
             partner_id = other_user_id(document, ctx.author.id)
             current = displayed_current_streak(document, today)
-            longest = int(document.get("longest_streak") or current)
-            lines.append(
-                f"🔥 <@{partner_id}> — **{current}** ngày "
-                f"(kỷ lục **{longest}**)"
-            )
+            longest = int(document.get("longest_streak") or current or 0)
+            if current > 0:
+                lines.append(
+                    f"🔥 <@{partner_id}> — **{current}** ngày "
+                    f"(kỷ lục **{longest}**)"
+                )
+            else:
+                lines.append(
+                    f"💔 <@{partner_id}> — đã đứt "
+                    f"(kỷ lục **{longest}** ngày)"
+                )
 
         embed = discord.Embed(
-            title="🔥 Chuỗi tương tác của bạn",
+            title="🔥 Chuỗi đã tính của bạn",
             description="\n".join(lines),
             color=STREAK_EMBED_COLOR,
         )
         extra = ""
-        if total > len(documents):
-            extra = f" · hiển thị {len(documents)}/{total}"
+        if total > len(shown):
+            extra = f" · hiển thị {len(shown)}/{total}"
         embed.set_footer(
             text=(
-                f"{total} chuỗi đang sống{extra} · UTC+7 · "
-                "Mention, trả lời, hoặc 5 phút voice chung"
+                f"{total} chuỗi đã tính · {live_total} đang sống{extra} · "
+                "UTC+7 · streak @user để xem một người"
             )
         )
         await ctx.send(embed=embed, allowed_mentions=NO_MENTIONS)
@@ -637,10 +756,10 @@ class InteractStreakCog(commands.Cog):
             )
             return
 
-        if document is None:
+        if document is None or not document.get("last_active_date"):
             await ctx.send(
-                "Chưa có chuỗi với người này — hãy mention, trả lời, "
-                "hoặc ngồi voice chung.",
+                "Chưa có chuỗi với người này — hãy trả lời nhau trong ngày, "
+                "hoặc cùng vào một kênh voice.",
                 allowed_mentions=NO_MENTIONS,
             )
             return
@@ -668,13 +787,22 @@ class InteractStreakCog(commands.Cog):
             value=f"{last_date} · {last_source}",
             inline=False,
         )
+        embed.add_field(
+            name="Lịch",
+            value=(
+                "```\n"
+                f"{format_streak_board(board_active_dates(document), today=date.fromisoformat(today))}"
+                "\n```"
+            ),
+            inline=False,
+        )
         if broken:
             embed.set_footer(
-                text="Tương tác lại hôm nay để bắt đầu chuỗi mới · UTC+7"
+                text="Trả lời nhau hôm nay, hoặc cùng vào voice, để bắt đầu lại · UTC+7"
             )
         else:
             embed.set_footer(
-                text="Mention, trả lời, hoặc 5 phút voice chung · UTC+7"
+                text="Trả lời nhau trong ngày, hoặc cùng vào một kênh voice · UTC+7"
             )
         await ctx.send(embed=embed, allowed_mentions=NO_MENTIONS)
 

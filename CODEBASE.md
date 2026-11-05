@@ -195,7 +195,7 @@ tfvn_bot/
     │   ├── user_interaction.py        Social actions, avatar display, and rankings
     │   ├── marriage.py                Propose/divorce/status, couple XP ranks
     │   ├── _marriage_helpers.py       Pure level/rank/XP helpers for marriage
-    │   ├── interact_streak.py         Pair streaks from mentions, replies, and shared voice
+    │   ├── interact_streak.py         Pair streaks from mutual replies and shared voice
     │   ├── _interact_streak_helpers.py Pure Vietnam-date, pair, and credit rules for streaks
     │   ├── triggered_reply.py          Persistent phrase-triggered replies
     │   ├── _trigger_reply_helpers.py   Rule parsing and matching helpers
@@ -351,7 +351,7 @@ MongoDB collections are created lazily. Major groups are:
   remains independently guild-scoped
 - Economy: `user_accounts` (including versioned `cultivation` state), `daily_rewards_logs`, `transaction_logs`, `shop_items`, `shop_inventory`, `shop_custom_roles`, `shop_custom_rooms`, `shop_migrations`
 - Cultivation audit: append-only `cultivation_events`; TC exchanges also write `transaction_logs`
-- Social state: `interactions`, `nsfw_settings`, `images`, `marriages`, `marriage_proposals`, `triggered_replies`, `interaction_streaks`. Pair streaks are unique per guild `(user_a, user_b)` with Vietnam calendar dates (UTC+7); a chain stays live if `last_active_date` is today or yesterday. Current counts of 3, 7, 30, or 100 ping both members in the channel that credited the day, once per milestone per pair (`announced_milestones`; older rows treat every milestone at or below the stored streak as already noticed)
+- Social state: `interactions`, `nsfw_settings`, `images`, `marriages`, `marriage_proposals`, `triggered_replies`, `interaction_streaks`. Pair streaks are unique per guild `(user_a, user_b)` with Vietnam calendar dates (UTC+7); a chain stays live if `last_active_date` is today or yesterday. A day counts when both members reply to each other that date (`pending_reply_date` and `pending_reply_ids` until both have replied) or both join the same non-AFK voice or stage channel. Credited days are kept on `active_dates` for the `streak @user` weekday board. Current counts of 3, 7, 30, 100, or 365 ping both members in the channel that credited the day, once per milestone per pair (`announced_milestones`; older rows treat every milestone at or below the stored streak as already noticed). `streak` lists every credited pair for the caller, including broken chains; `streak @user` shows one pair
 - Soft OTP issuances: `softotp_issuances` stores guild/member/challenge bindings for `tfotp1.<key-id>.<unix>.<code>` tokens. Lookup `_id` is a SHA-256 of guild, challenge, key ID, issue time, and code; the user ID stays out of the token. Verify authenticates only the active HMAC key and does not scan the guild. Unique `(guild_id, user_id, challenge)` prevents duplicate live codes per member
 - Content provenance: `hash_verifications` stores immutable, guild-scoped
   femboy-card and quote snapshots. New records use their signed 128-bit token ID
