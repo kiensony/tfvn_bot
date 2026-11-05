@@ -1,12 +1,24 @@
 import unittest
+from datetime import datetime, timezone
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import discord
 from discord.ext import commands
+from pymongo import ASCENDING, DESCENDING
+from pymongo.errors import DuplicateKeyError, PyMongoError
 
+from cogs.mod._case_helpers import MAX_AUDIT_REASON_LENGTH
 from cogs.mod._member_state import ACTIVE_ROLE_MUTATION_TARGETS
+from cogs.mod._verification_log import (
+    VERIFICATION_INDEX_NAME,
+    VERIFICATION_LOG_COLLECTION,
+    build_verification_document,
+    build_verified_audit_reason,
+    record_verification,
+)
 from cogs.mod.verified import (
+    JOURNAL_SAVE_FAILED,
     SELF_UNVERIFIED_CANCEL_CUSTOM_ID,
     SELF_UNVERIFIED_CONFIRM_CUSTOM_ID,
     SELF_UNVERIFIED_COOLDOWN_SECONDS,
@@ -476,6 +488,284 @@ class TestSelfUnverifiedCommand(unittest.IsolatedAsyncioTestCase):
         ctx.reply.assert_awaited_once()
         self.assertIn("12.3", ctx.reply.await_args.args[0])
         self.assertFalse(ctx.reply.await_args.kwargs["mention_author"])
+
+
+UTC = timezone.utc
+
+
+class CommandLabel:
+    def __str__(self) -> str:
+        return "verified"
+
+
+class MemoryVerificationCollection:
+    def __init__(self) -> None:
+        self.documents: dict[str, dict] = {}
+        self.calls: list[tuple[dict, dict, bool]] = []
+        self.error: Exception | None = None
+
+    def update_one(self, query: dict, update: dict, upsert: bool = False) -> None:
+        self.calls.append((query, update, upsert))
+        if self.error is not None:
+            raise self.error
+        event_id = query["_id"]
+        if event_id in self.documents or not upsert:
+            return
+        stored = {"_id": event_id}
+        stored.update(update.get("$setOnInsert", {}))
+        self.documents[event_id] = stored
+
+
+def http_exception(status: int) -> discord.HTTPException:
+    response = SimpleNamespace(status=status, reason="test failure", headers={})
+    if status == 403:
+        return discord.Forbidden(response, "forbidden")
+    return discord.HTTPException(response, "temporary failure")
+
+
+def make_grant_context(
+    *,
+    has_verify_role: bool = False,
+    bot_can_assign: bool = True,
+    moderator_can_assign: bool = True,
+):
+    guild, member, role, cog = make_fixture(
+        has_verify_role=has_verify_role,
+        bot_can_assign=bot_can_assign,
+    )
+    mod_top = FakeRole(guild, 850, 80 if moderator_can_assign else 5, name="Mod")
+    guild.roles.append(mod_top)
+    moderator = FakeMember(
+        guild,
+        7,
+        mod_top,
+        name="min-mot",
+        roles=[mod_top],
+        manage_roles=True,
+    )
+    guild.members[moderator.id] = moderator
+    created_at = datetime(2026, 11, 6, 3, 0, tzinfo=UTC)
+    ctx = SimpleNamespace(
+        guild=guild,
+        author=moderator,
+        command=CommandLabel(),
+        channel=SimpleNamespace(id=501),
+        message=SimpleNamespace(id=9001, created_at=created_at),
+        reply=AsyncMock(),
+    )
+    collection = MemoryVerificationCollection()
+    cog.bot.db = {VERIFICATION_LOG_COLLECTION: collection}
+    return guild, member, moderator, role, cog, ctx, collection, created_at
+
+
+async def invoke_verified(cog: VerifiedCog, ctx, member: FakeMember) -> None:
+    with patch("cogs.mod.verified.discord.Member", FakeMember):
+        await VerifiedCog.verified.callback(cog, ctx, member)
+
+
+class TestVerificationLog(unittest.TestCase):
+    def document(self, **overrides):
+        payload = {
+            "guild_id": 10,
+            "message_id": 9001,
+            "channel_id": 501,
+            "moderator_id": 7,
+            "moderator_name": "min-mot",
+            "target_id": 42,
+            "target_name": "member",
+            "role_id": VERIFY_ROLE_ID,
+            "role_name": "Fallen Femboy",
+            "created_at": datetime(2026, 11, 6, 3, 0),
+        }
+        payload.update(overrides)
+        return build_verification_document(**payload)
+
+    def test_audit_reason_names_the_moderator_and_stays_within_discord_limit(self) -> None:
+        reason = build_verified_audit_reason("verified", "min-mot", 7)
+
+        self.assertEqual(reason, "Support verified via verified by min-mot (7)")
+        self.assertNotIn("Self verify", reason)
+
+        long_reason = build_verified_audit_reason("verified", "m" * 600, 7)
+        self.assertLessEqual(len(long_reason), MAX_AUDIT_REASON_LENGTH)
+        self.assertTrue(long_reason.endswith(" (7)"))
+
+    def test_repeat_insert_keeps_the_first_approval(self) -> None:
+        collection = MemoryVerificationCollection()
+        document = self.document()
+
+        record_verification(collection, document)
+        changed = dict(document)
+        changed["moderator_name"] = "someone-else"
+        record_verification(collection, changed)
+
+        self.assertEqual(list(collection.documents), ["verified:10:9001"])
+        stored = collection.documents["verified:10:9001"]
+        self.assertEqual(stored["moderator_name"], "min-mot")
+        self.assertEqual(stored["action"], "granted")
+        self.assertEqual(stored["created_at"].tzinfo, UTC)
+        self.assertTrue(all(call[2] for call in collection.calls))
+        self.assertNotIn("$set", collection.calls[0][1])
+
+    def test_duplicate_key_is_treated_as_already_recorded(self) -> None:
+        class DuplicateCollection:
+            def update_one(self, query, update, upsert=False):
+                raise DuplicateKeyError("duplicate")
+
+        record_verification(DuplicateCollection(), self.document())
+
+    def test_index_matches_newest_first_guild_pages(self) -> None:
+        guild, _member, _role, cog = make_fixture()
+        collection = MagicMock()
+        cog.bot.db = {VERIFICATION_LOG_COLLECTION: collection}
+
+        self.assertTrue(cog._ensure_indexes())
+
+        collection.create_index.assert_called_once_with(
+            [
+                ("guild_id", ASCENDING),
+                ("created_at", DESCENDING),
+                ("_id", DESCENDING),
+            ],
+            name=VERIFICATION_INDEX_NAME,
+        )
+        self.assertEqual(guild.id, 10)
+
+    def test_index_failure_is_reported(self) -> None:
+        _guild, _member, _role, cog = make_fixture()
+        collection = MagicMock()
+        collection.create_index.side_effect = PyMongoError("unavailable")
+        cog.bot.db = {VERIFICATION_LOG_COLLECTION: collection}
+
+        with patch("cogs.mod.verified.logger.exception") as log_failure:
+            self.assertFalse(cog._ensure_indexes())
+
+        log_failure.assert_called_once()
+
+
+class TestVerifiedGrantJournal(unittest.IsolatedAsyncioTestCase):
+    def stored(self, collection: MemoryVerificationCollection) -> dict:
+        self.assertEqual(list(collection.documents), ["verified:10:9001"])
+        return collection.documents["verified:10:9001"]
+
+    async def test_new_grant_records_the_approving_moderator(self) -> None:
+        guild, member, _moderator, role, cog, ctx, collection, created_at = make_grant_context()
+
+        await invoke_verified(cog, ctx, member)
+
+        member.add_roles.assert_awaited_once()
+        reason = member.add_roles.await_args.kwargs["reason"]
+        self.assertIn("min-mot", reason)
+        self.assertIn("(7)", reason)
+        self.assertNotIn("Self verify", reason)
+        self.assertNotIn(str(member.id), reason)
+        stored = self.stored(collection)
+        self.assertEqual(stored["guild_id"], guild.id)
+        self.assertEqual(stored["moderator_id"], 7)
+        self.assertEqual(stored["moderator_name"], "min-mot")
+        self.assertEqual(stored["target_id"], member.id)
+        self.assertEqual(stored["target_name"], "member")
+        self.assertEqual(stored["role_id"], role.id)
+        self.assertEqual(stored["role_name"], role.name)
+        self.assertEqual(stored["channel_id"], 501)
+        self.assertEqual(stored["message_id"], 9001)
+        self.assertEqual(stored["created_at"], created_at)
+        embed = ctx.reply.await_args.kwargs["embed"]
+        self.assertNotIn(JOURNAL_SAVE_FAILED, embed_text(embed))
+        member.remove_roles.assert_not_awaited()
+
+    async def test_same_command_message_does_not_create_a_second_row(self) -> None:
+        _guild, member, _moderator, _role, cog, ctx, collection, _created_at = make_grant_context()
+
+        await invoke_verified(cog, ctx, member)
+        await invoke_verified(cog, ctx, member)
+
+        self.assertEqual(len(collection.documents), 1)
+        self.assertEqual(collection.documents["verified:10:9001"]["moderator_id"], 7)
+        self.assertNotIn(
+            JOURNAL_SAVE_FAILED,
+            embed_text(ctx.reply.await_args.kwargs["embed"]),
+        )
+
+    async def test_existing_role_does_not_record_an_approval(self) -> None:
+        _guild, member, _moderator, _role, cog, ctx, collection, _created_at = make_grant_context(
+            has_verify_role=True,
+        )
+
+        await invoke_verified(cog, ctx, member)
+
+        member.add_roles.assert_not_awaited()
+        self.assertEqual(collection.calls, [])
+        self.assertNotIn(
+            JOURNAL_SAVE_FAILED,
+            embed_text(ctx.reply.await_args.kwargs["embed"]),
+        )
+
+    async def test_moderator_without_hierarchy_does_not_record(self) -> None:
+        _guild, member, _moderator, _role, cog, ctx, collection, _created_at = make_grant_context(
+            moderator_can_assign=False,
+        )
+
+        await invoke_verified(cog, ctx, member)
+
+        member.add_roles.assert_not_awaited()
+        self.assertEqual(collection.calls, [])
+
+    async def test_bot_hierarchy_failure_does_not_record(self) -> None:
+        _guild, member, _moderator, _role, cog, ctx, collection, _created_at = make_grant_context(
+            bot_can_assign=False,
+        )
+
+        await invoke_verified(cog, ctx, member)
+
+        member.add_roles.assert_not_awaited()
+        self.assertEqual(collection.calls, [])
+
+    async def test_discord_rejection_does_not_record(self) -> None:
+        _guild, member, _moderator, _role, cog, ctx, collection, _created_at = make_grant_context()
+        member.add_roles.side_effect = http_exception(403)
+
+        await invoke_verified(cog, ctx, member)
+
+        self.assertEqual(collection.calls, [])
+        member.remove_roles.assert_not_awaited()
+
+    async def test_discord_http_failure_does_not_record(self) -> None:
+        _guild, member, _moderator, _role, cog, ctx, collection, _created_at = make_grant_context()
+        member.add_roles.side_effect = http_exception(500)
+
+        with patch("cogs.mod.verified.logger.exception"):
+            await invoke_verified(cog, ctx, member)
+
+        self.assertEqual(collection.calls, [])
+        member.remove_roles.assert_not_awaited()
+
+    async def test_mongo_failure_keeps_the_role_and_warns(self) -> None:
+        _guild, member, _moderator, _role, cog, ctx, collection, _created_at = make_grant_context()
+        collection.error = PyMongoError("unavailable")
+
+        with patch("cogs.mod.verified.logger.exception") as log_failure:
+            await invoke_verified(cog, ctx, member)
+
+        member.add_roles.assert_awaited_once()
+        member.remove_roles.assert_not_awaited()
+        log_failure.assert_called_once()
+        embed = ctx.reply.await_args.kwargs["embed"]
+        self.assertEqual(embed.title, "Sa ngã thành cong")
+        self.assertIn(JOURNAL_SAVE_FAILED, embed_text(embed))
+
+    async def test_unverified_and_self_unverified_do_not_write_the_journal(self) -> None:
+        guild, member, _moderator, _role, cog, ctx, collection, _created_at = make_grant_context(
+            has_verify_role=True,
+        )
+
+        with patch("cogs.mod.verified.discord.Member", FakeMember):
+            await VerifiedCog.unverified.callback(cog, ctx, member)
+        result = await cog._submit_self_unverified(make_interaction(guild, member))
+
+        member.remove_roles.assert_awaited()
+        self.assertTrue(result.completed)
+        self.assertEqual(collection.calls, [])
 
 
 if __name__ == "__main__":

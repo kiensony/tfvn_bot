@@ -42,6 +42,7 @@ from cogs.operation.operation_dashboard import (
     OperationDashboardCog,
     OperationDashboardView,
     PruneLogView,
+    VerificationLogView,
 )
 from cogs.operation.server_stats import ServerStatsCog
 
@@ -1315,14 +1316,22 @@ class TestOperationViews(unittest.IsolatedAsyncioTestCase):
         self.assertIs(kwargs["view"].message, sent_message)
         self.assertEqual(
             [child.label for child in kwargs["view"].children],
-            ["Làm mới", "Audit logs", "Tải CSV", "Dọn log", "Doctor"],
+            [
+                "Làm mới",
+                "Audit logs",
+                "Tải CSV",
+                "Dọn log",
+                "Doctor",
+                "Nhật ký xác minh",
+            ],
         )
+        self.assertEqual(kwargs["view"].children[5].row, 1)
         self.assertEqual(
             OperationDashboardCog.show_operation_dashboard.name, "operation_dashboard"
         )
         self.assertEqual(ServerStatsCog.server_stats.name, "server_stats")
 
-    async def test_owner_opened_dashboard_adds_only_the_two_global_controls(
+    async def test_owner_opened_dashboard_adds_global_controls_beside_the_journal(
         self,
     ) -> None:
         cog = object.__new__(OperationDashboardCog)
@@ -1348,12 +1357,13 @@ class TestOperationViews(unittest.IsolatedAsyncioTestCase):
                 "Tải CSV",
                 "Dọn log",
                 "Doctor",
+                "Nhật ký xác minh",
                 "Server đã tham gia",
                 "Lịch sử kết nối",
             ],
         )
         self.assertEqual([child.row for child in view.children[:5]], [0] * 5)
-        self.assertEqual([child.row for child in view.children[5:]], [1, 1])
+        self.assertEqual([child.row for child in view.children[5:]], [1, 1, 1])
 
     async def test_owner_lookup_failure_still_opens_admin_dashboard(self) -> None:
         cog = object.__new__(OperationDashboardCog)
@@ -1376,7 +1386,14 @@ class TestOperationViews(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(view.owner_id)
         self.assertEqual(
             [child.label for child in view.children],
-            ["Làm mới", "Audit logs", "Tải CSV", "Dọn log", "Doctor"],
+            [
+                "Làm mới",
+                "Audit logs",
+                "Tải CSV",
+                "Dọn log",
+                "Doctor",
+                "Nhật ký xác minh",
+            ],
         )
         log_failure.assert_called_once()
 
@@ -1733,6 +1750,208 @@ class TestServerStatsRegression(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(buckets._cooldown.rate, 1)
         self.assertEqual(buckets._cooldown.per, 10)
         self.assertIs(buckets._type, commands.BucketType.guild)
+
+
+def verification_button(view: OperationDashboardView):
+    return next(child for child in view.children if child.label == "Nhật ký xác minh")
+
+
+class TestVerificationJournal(unittest.IsolatedAsyncioTestCase):
+    async def test_page_query_is_separate_from_operation_logs(self) -> None:
+        logs = MagicMock()
+        journal = MagicMock()
+        cursor = make_cursor([{"_id": "verified:41:1"}])
+        journal.find.return_value = cursor
+        journal.count_documents.return_value = 3
+        cog = make_cog(logs)
+        cog.verification_logs = journal
+
+        documents, total = await cog.fetch_verification_page(
+            guild_id=41,
+            range_key="all",
+            offset=-5,
+            limit=999,
+        )
+
+        self.assertEqual(documents, [{"_id": "verified:41:1"}])
+        self.assertEqual(total, 3)
+        self.assertEqual(journal.find.call_args.args[0], {"guild_id": 41})
+        cursor.sort.assert_called_once_with(
+            [("created_at", DESCENDING), ("_id", DESCENDING)]
+        )
+        cursor.skip.assert_called_once_with(0)
+        cursor.limit.assert_called_once_with(dashboard_module.VERIFICATION_PAGE_SIZE)
+        logs.find.assert_not_called()
+        logs.count_documents.assert_not_called()
+        logs.delete_many.assert_not_called()
+
+    async def test_ranged_page_filters_created_at_without_touching_audit_logs(self) -> None:
+        logs = MagicMock()
+        journal = MagicMock()
+        journal.find.return_value = make_cursor([])
+        journal.count_documents.return_value = 0
+        cog = make_cog(logs)
+        cog.verification_logs = journal
+
+        await cog.fetch_verification_page(
+            guild_id=41,
+            range_key="30d",
+            offset=0,
+            limit=5,
+        )
+
+        query = journal.find.call_args.args[0]
+        self.assertEqual(query["guild_id"], 41)
+        self.assertIn("$gte", query["created_at"])
+        logs.find.assert_not_called()
+
+    async def test_export_and_prune_do_not_read_verification_logs(self) -> None:
+        logs = MagicMock()
+        logs.find.return_value = make_cursor([])
+        logs.delete_many.return_value = SimpleNamespace(deleted_count=0)
+        journal = MagicMock()
+        cog = make_cog(logs)
+        cog.verification_logs = journal
+
+        await cog.fetch_export_documents(guild_id=41, range_key="all")
+        await cog.prune_logs(guild_id=41, cutoff=None)
+
+        self.assertEqual(logs.find.call_args.args[0], {"guild_id": 41})
+        logs.delete_many.assert_called_once_with({"guild_id": 41})
+        journal.find.assert_not_called()
+        journal.delete_many.assert_not_called()
+        journal.count_documents.assert_not_called()
+
+    async def test_button_opens_a_private_panel_for_the_clicking_admin(self) -> None:
+        created_at = datetime(2026, 11, 6, 3, 0, tzinfo=UTC)
+        fetch = AsyncMock(
+            return_value=(
+                [
+                    {
+                        "created_at": created_at,
+                        "moderator_id": 7,
+                        "moderator_name": "min-mot",
+                        "target_id": 42,
+                        "target_name": "member",
+                        "role_name": "Fallen Femboy",
+                    }
+                ],
+                1,
+            )
+        )
+        dashboard = OperationDashboardView(
+            cog=SimpleNamespace(fetch_verification_page=fetch),
+            guild_id=41,
+        )
+        button = verification_button(dashboard)
+        self.assertEqual(button.row, 1)
+        self.assertEqual(str(button.emoji), "✅")
+        interaction = make_interaction(user_id=88)
+        sent = SimpleNamespace(edit=AsyncMock())
+        interaction.followup.send.return_value = sent
+
+        await button.callback(interaction)
+
+        interaction.response.defer.assert_awaited_once_with(
+            ephemeral=True,
+            thinking=True,
+        )
+        kwargs = interaction.followup.send.await_args.kwargs
+        self.assertTrue(kwargs["ephemeral"])
+        self.assertTrue(kwargs["wait"])
+        self.assertEqual(kwargs["allowed_mentions"].to_dict(), {"parse": []})
+        panel = kwargs["view"]
+        self.assertIsInstance(panel, VerificationLogView)
+        self.assertEqual(panel.author_id, 88)
+        self.assertEqual(panel.guild_id, 41)
+        self.assertEqual(panel.range_key, "all")
+        self.assertEqual(panel.timeout, DASHBOARD_TIMEOUT_SECONDS)
+        self.assertIs(panel.message, sent)
+        text = kwargs["embed"].fields[0].value
+        self.assertIn("min-mot", text)
+        self.assertIn("`7`", text)
+        self.assertIn("member", text)
+        self.assertIn("`42`", text)
+        self.assertIn("Fallen Femboy", text)
+        fetch.assert_awaited_once()
+
+    def test_empty_journal_explains_that_no_approvals_were_recorded(self) -> None:
+        view = VerificationLogView(cog=SimpleNamespace(), guild_id=41, author_id=77)
+
+        embed = view.build_embed()
+
+        self.assertEqual(
+            embed.fields[0].value,
+            "Chưa có lượt xác minh nào trong phạm vi này.",
+        )
+        self.assertIn("0 lượt xác minh", embed.description)
+        self.assertIn("Tất cả", embed.description)
+
+    async def test_mongo_read_failure_stays_private(self) -> None:
+        dashboard = OperationDashboardView(
+            cog=SimpleNamespace(
+                fetch_verification_page=AsyncMock(side_effect=PyMongoError("down"))
+            ),
+            guild_id=41,
+        )
+        interaction = make_interaction()
+
+        with patch.object(dashboard_module.logger, "exception"):
+            await verification_button(dashboard).callback(interaction)
+
+        interaction.followup.send.assert_awaited_once()
+        self.assertEqual(
+            interaction.followup.send.await_args.args[0],
+            "Không thể đọc nhật ký xác minh từ MongoDB.",
+        )
+        self.assertTrue(interaction.followup.send.await_args.kwargs["ephemeral"])
+
+    async def test_panel_rechecks_guild_author_and_administrator(self) -> None:
+        view = VerificationLogView(cog=SimpleNamespace(), guild_id=41, author_id=77)
+
+        self.assertFalse(await view.interaction_check(make_interaction(user_id=88)))
+        self.assertFalse(await view.interaction_check(make_interaction(guild_id=99)))
+        self.assertFalse(
+            await view.interaction_check(make_interaction(administrator=False))
+        )
+        self.assertTrue(await view.interaction_check(make_interaction()))
+
+    async def test_page_failure_keeps_the_current_page(self) -> None:
+        created_at = datetime(2026, 11, 6, 3, 0, tzinfo=UTC)
+        fetch = AsyncMock(
+            side_effect=[
+                (
+                    [
+                        {
+                            "created_at": created_at,
+                            "moderator_id": 7,
+                            "moderator_name": "min-mot",
+                            "target_id": 42,
+                            "target_name": "member",
+                            "role_name": "Fallen Femboy",
+                        }
+                    ],
+                    10,
+                ),
+                PyMongoError("down"),
+            ]
+        )
+        view = VerificationLogView(
+            cog=SimpleNamespace(fetch_verification_page=fetch),
+            guild_id=41,
+            author_id=77,
+        )
+        await view.load_page()
+        interaction = make_interaction()
+
+        with patch.object(dashboard_module.logger, "exception"):
+            await view.next_page.callback(interaction)
+
+        self.assertEqual(view.page, 0)
+        self.assertEqual(
+            interaction.followup.send.await_args.args[0],
+            "Không thể đọc nhật ký xác minh từ MongoDB.",
+        )
 
 
 if __name__ == "__main__":

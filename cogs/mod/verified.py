@@ -3,12 +3,20 @@ import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Awaitable, Callable
+from typing import Any, Awaitable, Callable
 
 import discord
 from discord.ext import commands
+from pymongo.errors import PyMongoError
 
 from cogs.mod._member_state import ACTIVE_ROLE_MUTATION_TARGETS
+from cogs.mod._verification_log import (
+    VERIFICATION_LOG_COLLECTION,
+    build_verified_audit_reason,
+    build_verification_document,
+    ensure_verification_indexes,
+    record_verification,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -19,6 +27,8 @@ SELF_UNVERIFIED_TIMEOUT_SECONDS = 60
 SELF_UNVERIFIED_COOLDOWN_SECONDS = 30
 SELF_UNVERIFIED_CONFIRM_CUSTOM_ID = "self-unverified:confirm"
 SELF_UNVERIFIED_CANCEL_CUSTOM_ID = "self-unverified:cancel"
+INDEX_RETRY_SECONDS = 60
+JOURNAL_SAVE_FAILED = "Không lưu được nhật ký xác minh. Role đã được gán."
 
 NO_MENTIONS = discord.AllowedMentions.none()
 
@@ -323,6 +333,31 @@ class VerifiedCog(commands.Cog):
     def __init__(self, bot: commands.Bot) -> None:
         self.bot = bot
         self.logger = logger
+        self._index_task: asyncio.Task[None] | None = None
+
+    async def cog_load(self) -> None:
+        self._index_task = asyncio.create_task(self._ensure_indexes_until_ready())
+
+    def cog_unload(self) -> None:
+        if self._index_task is not None:
+            self._index_task.cancel()
+
+    def _verification_collection(self) -> Any:
+        return self.bot.db[VERIFICATION_LOG_COLLECTION]
+
+    def _ensure_indexes(self) -> bool:
+        try:
+            ensure_verification_indexes(self._verification_collection())
+        except PyMongoError:
+            self.logger.exception("Failed to create verification log indexes")
+            return False
+        return True
+
+    async def _ensure_indexes_until_ready(self) -> None:
+        while True:
+            if await asyncio.to_thread(self._ensure_indexes):
+                return
+            await asyncio.sleep(INDEX_RETRY_SECONDS)
 
     def _verify_role_id_value(self) -> object | None:
         if not hasattr(self.bot, "global_vars"):
@@ -559,7 +594,11 @@ class VerifiedCog(commands.Cog):
             try:
                 await member.add_roles(
                     role,
-                    reason=f"Self verify via {ctx.command} by {member} ({member.id})",
+                    reason=build_verified_audit_reason(
+                        str(ctx.command),
+                        str(ctx.author),
+                        ctx.author.id,
+                    ),
                 )
                 role_added = True
             except discord.Forbidden:
@@ -583,8 +622,45 @@ class VerifiedCog(commands.Cog):
                 )
                 return
 
+        journal_saved = True
+        if role_added:
+            document = build_verification_document(
+                guild_id=ctx.guild.id,
+                message_id=ctx.message.id,
+                channel_id=ctx.channel.id,
+                moderator_id=ctx.author.id,
+                moderator_name=str(ctx.author),
+                target_id=member.id,
+                target_name=str(member),
+                role_id=role.id,
+                role_name=role.name,
+                created_at=ctx.message.created_at,
+            )
+            try:
+                await asyncio.to_thread(
+                    record_verification,
+                    self._verification_collection(),
+                    document,
+                )
+            except PyMongoError:
+                journal_saved = False
+                self.logger.exception(
+                    "Failed to record verification grant guild=%s message=%s target=%s moderator=%s",
+                    ctx.guild.id,
+                    ctx.message.id,
+                    member.id,
+                    ctx.author.id,
+                )
+
+        embed = self._onboarding_embed(member, role, role_added)
+        if role_added and not journal_saved:
+            embed.add_field(
+                name="Nhật ký xác minh",
+                value=JOURNAL_SAVE_FAILED,
+                inline=False,
+            )
         await ctx.reply(
-            embed=self._onboarding_embed(member, role, role_added),
+            embed=embed,
             mention_author=False,
             allowed_mentions=discord.AllowedMentions.none(),
         )

@@ -43,7 +43,7 @@ Examples below use that default. Replace with your configured prefix if differen
 | `ping` | Everyone | Heartbeat / liveness reply |
 | `beta_preview` | Beta | Confirms the member has a configured Beta role |
 | `server_stats` | Administrator | In-memory uptime, command, and error counts since process start; 10s per-guild cooldown |
-| `operation_dashboard` | Administrator | Opens the bot/server health dashboard with refresh, private Doctor diagnostics, guild command audit, CSV export, and guarded log-pruning controls; the joined-server manager and lifecycle history are private Bot owner controls |
+| `operation_dashboard` | Administrator | Opens the bot/server health dashboard with refresh, private Doctor diagnostics, guild command audit, CSV export, guarded log-pruning controls, and Nhật ký xác minh; the joined-server manager and lifecycle history are private Bot owner controls |
 | `bot_status` | Administrator (guild) | Opens the activity setup panel with a type dropdown, text/duration form, random reset, refresh, and close controls |
 | `bot_status set <type> <duration> <text>` | Administrator (guild) | Replaces the bot-wide activity temporarily, pausing random rotation |
 | `bot_status show` | Administrator (guild) | Shows the current activity and override expiration |
@@ -76,6 +76,8 @@ random activity and resumes the usual random 5–15 minute rotation. Overrides
 are held only in memory and also end on bot restart or status-cog reload.
 
 `operation_dashboard` shows readiness, environment, uptime, Discord latency, guild/member/channel totals, MongoDB health, retained log count, and recent command outcomes. Audit browsing and CSV/prune responses are private to the administrator. Audit and export ranges are 7, 30, or 90 days, or all retained records; exports above 100,000 rows must use a narrower range. Pruning can remove records older than 30, 90, or 180 days, or clear the guild's retained history after an additional confirmation. Recognized guild prefix commands and dashboard export/prune actions are stored in the guild-scoped `operation_logs` collection; direct messages and unknown commands are not logged.
+
+**Nhật ký xác minh** is a separate private panel on the same dashboard. It lists newest-first approvals from `verification_logs`, five per page, for 7, 30, or 90 days, or all retained rows. The default range is all retained approvals. The browser shows at most the newest 1,000 rows in the selected range and still displays that range's full count. Each row shows when the grant happened, the moderator, the member, and the role. The panel lasts 180 seconds and rechecks the opening administrator. It is not included in audit browsing, CSV export, or pruning. Approvals recorded before this journal existed cannot be reconstructed.
 
 The **🩺 Doctor** button opens a private, read-only Vietnamese report for the
 clicking administrator, with error/warning totals, scan time, suggested fixes,
@@ -481,7 +483,7 @@ All 25 SFW interactions require a non-bot target and have a 3-second per-command
 
 | Command | Access | Description |
 | --- | --- | --- |
-| `verified @user` | Manage Roles | Grant configured verified/NSFW-access role |
+| `verified @user` | Manage Roles | Grant configured verified/NSFW-access role. A new grant records the approving moderator in `verification_logs`; an existing role, a failed grant, `unverified`, and `self_unverified` do not |
 | `unverified @user` | Manage Roles | Remove verified role |
 | `self_unverified` | Everyone (guild) | Member self-service: confirm Yes/No to remove their own verified role. There is no self-service restore; they must ask staff (`verified`) again |
 

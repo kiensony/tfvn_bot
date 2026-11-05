@@ -108,7 +108,7 @@ tfvn_bot/
 │   ├── test_hash_verification.py    Signed proof, forgery, tamper, producer, and privacy tests
 │   ├── test_softotp.py              Soft OTP challenge codes, commands, UI, and permission tests
 │   ├── test_meter_number_bars.py   unittest coverage for signed meter formatting
-│   ├── test_operation_dashboard.py Health/audit, Doctor access/pagination, and owner UI tests
+│   ├── test_operation_dashboard.py Health/audit, verification journal, Doctor access/pagination, and owner UI tests
 │   ├── test_role_exam.py           Role-exam invitation, UI, safety, and role-grant tests
 │   ├── test_role_exam_helpers.py   Role-exam JSON validation, shuffling, and scoring tests
 │   ├── test_word_game_leaderboard.py Vua Tiếng Việt / Nối Từ win ranking and top commands
@@ -245,7 +245,8 @@ tfvn_bot/
     │   ├── slowmode.py              Slow-mode inspection and guarded overrides
     │   ├── unban.py                     Reply/user-ID unban and reinvite orchestration
     │   ├── warn.py                      Warning commands
-    │   ├── verified.py                  Verified role grant/revoke and member self-unverify confirmation
+    │   ├── _verification_log.py         Append-only verified-role approval journal
+    │   ├── verified.py                  Verified role grant/revoke, approval journal, and member self-unverify confirmation
     │   ├── area_51_guard.py             Honeypot channel, cancel view, bans, and reminders
     │   ├── _mrbeast_scam_helpers.py     Photo-dump candidate, same-image fingerprint, 5th/7th cross-channel ladder
     │   └── mrbeast_scam.py              Same-image cross-channel timeout and staff decision panel
@@ -265,7 +266,7 @@ tfvn_bot/
     │   ├── _operation_helpers.py        Audit ranges, sanitization, and safe CSV generation
     │   ├── _setup_helpers.py           Pure setup-check result and ID helpers
     │   ├── heartbeat.py                 Latency/health command
-    │   ├── operation_dashboard.py       Health/audit UI, private Doctor, and Bot owner guild/lifecycle panels
+    │   ├── operation_dashboard.py       Health/audit UI, verification journal, private Doctor, and Bot owner guild/lifecycle panels
     │   ├── server_stats.py              In-memory uptime and command/error counts
     │   ├── setup_check.py               Manage Guild diagnostic summary using the shared Doctor collector
     │   └── leave.py                     Administrator-controlled guild departure
@@ -383,6 +384,7 @@ MongoDB collections are created lazily. Major groups are:
   per member and support the minute scheduler
 - AFK and moderation: `afk_reminders`, `afk_pings`, `discipline_logs`, `old_roles`, `warnings`, `moderation_cases`, `mrbeast_scam_logs`, `mrbeast_scam_incidents`. Photo-dump raids count the same author's repeated 1–4 image set only when the same file size and pixel size appear in another channel inside a two-minute window: the 5th matching dump sends a 30-second confirm button (missed click → 24h timeout), the 7th timeouts immediately and opens a persistent staff panel; same-channel repeats and different images stay on watch. Ban / Gỡ timeout / Giữ timeout CAS `pending` incidents. Alert channel is `MRBEAST_SCAM_ALERT_CHANNEL` with fallback to `moderation_config.log_channel_id`
 - Operations audit: `operation_logs` stores guild-scoped recognized prefix-command outcomes and dashboard export/prune actions; records have no automatic TTL and are removed only through the Administrator dashboard
+- Verification approvals: `verification_logs` stores one append-only guild-scoped row each time `verified` newly grants the configured role. The row records the moderator, member, role, channel, and command message. `_id` is `verified:{guild_id}:{message_id}`, so a retried write does not duplicate the approval. Rows have no TTL, are not pruned with `operation_logs`, and are excluded from guild audit browsing and CSV export. `unverified` and `self_unverified` do not write rows. Administrators read the journal from `operation_dashboard` through **Nhật ký xác minh**
 - Bot lifecycle: `bot_lifecycle_events` stores global, append-only `initial_ready`,
   `reidentified`, and `resumed` events indefinitely. The Bot owner dashboard reads
   the newest 10 events for the current environment. This collection is separate

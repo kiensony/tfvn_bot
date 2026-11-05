@@ -1206,7 +1206,7 @@ HELP_TOPICS = (
                     ),
                     _entry(
                         "verified",
-                        "Gán role xác minh đã cấu hình — cần Manage Roles.",
+                        "Gán role xác minh và lưu mod — cần Manage Roles.",
                         "verified @user",
                     ),
                     _entry(
@@ -1308,7 +1308,7 @@ HELP_TOPICS = (
                     _entry(
                         "operation_dashboard",
                         (
-                            "Doctor/audit — Admin; chủ bot xem/rời server khác "
+                            "Doctor, audit, nhật ký xác minh — Admin; chủ bot xem/rời server khác "
                             "+ lịch sử kết nối."
                         ),
                     ),

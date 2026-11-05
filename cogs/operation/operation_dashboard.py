@@ -14,6 +14,7 @@ from discord.ext import commands
 from pymongo import ASCENDING, DESCENDING
 from pymongo.errors import DuplicateKeyError, PyMongoError
 
+from cogs.mod._verification_log import VERIFICATION_LOG_COLLECTION
 from cogs.operation._doctor import collect_doctor_checks
 from cogs.operation._operation_helpers import (
     AUDIT_RANGE_LABELS,
@@ -42,7 +43,10 @@ DOCTOR_PAGE_SIZE = 5
 JOINED_SERVER_PAGE_SIZE = 10
 AUDIT_PAGE_SIZE = 5
 AUDIT_BROWSER_MAX_ROWS = 1_000
+VERIFICATION_PAGE_SIZE = 5
+VERIFICATION_BROWSER_MAX_ROWS = 1_000
 DEFAULT_AUDIT_RANGE = "30d"
+DEFAULT_VERIFICATION_RANGE = "all"
 DEFAULT_EXPORT_RANGE = "all"
 DEFAULT_PRUNE_RANGE = "30d"
 DEFAULT_UPLOAD_LIMIT = 8 * 1024 * 1024
@@ -491,6 +495,211 @@ class AuditLogView(GuildAdminView):
             self.stop()
             await interaction.edit_original_response(
                 content="Đã đóng bảng audit.",
+                embed=None,
+                view=self,
+                allowed_mentions=NO_MENTIONS,
+            )
+
+
+class VerificationLogView(GuildAdminView):
+    """Private newest-first browser for staff verified-role approvals."""
+
+    def __init__(
+        self,
+        *,
+        cog: "OperationDashboardCog",
+        guild_id: int,
+        author_id: int,
+    ) -> None:
+        super().__init__(guild_id=guild_id, author_id=author_id)
+        self.cog = cog
+        self.range_key = DEFAULT_VERIFICATION_RANGE
+        self.page = 0
+        self.documents: list[dict[str, Any]] = []
+        self.total = 0
+        self._navigation_lock = asyncio.Lock()
+        self.range_select = TimeRangeSelect(
+            options=AUDIT_TIME_RANGES,
+            selected_key=self.range_key,
+            placeholder="Chọn thời gian nhật ký",
+            callback=self._change_range,
+        )
+        self.add_item(self.range_select)
+
+    async def load_page(self) -> None:
+        offset = self.page * VERIFICATION_PAGE_SIZE
+        self.documents, self.total = await self.cog.fetch_verification_page(
+            guild_id=self.guild_id,
+            range_key=self.range_key,
+            offset=offset,
+            limit=VERIFICATION_PAGE_SIZE,
+        )
+        available = min(self.total, VERIFICATION_BROWSER_MAX_ROWS)
+        last_page = max(0, (available - 1) // VERIFICATION_PAGE_SIZE)
+        if self.page > last_page:
+            self.page = last_page
+            offset = self.page * VERIFICATION_PAGE_SIZE
+            self.documents, self.total = await self.cog.fetch_verification_page(
+                guild_id=self.guild_id,
+                range_key=self.range_key,
+                offset=offset,
+                limit=VERIFICATION_PAGE_SIZE,
+            )
+        self.previous_page.disabled = self.page == 0
+        self.next_page.disabled = (
+            not self.documents
+            or (self.page + 1) * VERIFICATION_PAGE_SIZE >= available
+        )
+
+    def build_embed(self) -> discord.Embed:
+        range_label = AUDIT_RANGE_LABELS[self.range_key]
+        embed = discord.Embed(
+            title="Nhật ký xác minh",
+            description=(
+                f"Phạm vi: **{range_label}** · {self.total:,} lượt xác minh. "
+                f"Hiển thị tối đa {VERIFICATION_BROWSER_MAX_ROWS:,} lượt mới nhất."
+            ),
+            color=discord.Color.blurple(),
+            timestamp=discord.utils.utcnow(),
+        )
+        if not self.documents:
+            embed.add_field(
+                name="Không có dữ liệu",
+                value="Chưa có lượt xác minh nào trong phạm vi này.",
+                inline=False,
+            )
+        for document in self.documents:
+            created_at = document.get("created_at")
+            if isinstance(created_at, datetime):
+                timestamp = f"<t:{int(_as_utc(created_at).timestamp())}:R>"
+            else:
+                timestamp = "không rõ thời gian"
+            moderator_name = _safe_display(document.get("moderator_name"), 80)
+            moderator_id = document.get("moderator_id", "?")
+            target_name = _safe_display(document.get("target_name"), 80) or "Thành viên"
+            target_id = document.get("target_id", "?")
+            role_name = _safe_display(document.get("role_name"), 80) or "không rõ"
+            embed.add_field(
+                name=f"✅ {target_name}"[:256],
+                value="\n".join(
+                    (
+                        f"**Thời gian:** {timestamp}",
+                        f"**Moderator:** {moderator_name} (`{moderator_id}`)",
+                        f"**Thành viên:** {target_name} (`{target_id}`)",
+                        f"**Role:** {role_name}",
+                    )
+                )[:1024],
+                inline=False,
+            )
+        available = min(self.total, VERIFICATION_BROWSER_MAX_ROWS)
+        page_count = max(1, math.ceil(available / VERIFICATION_PAGE_SIZE))
+        embed.set_footer(text=f"Trang {self.page + 1}/{page_count}")
+        return embed
+
+    async def _change_range(
+        self,
+        interaction: discord.Interaction,
+        range_key: str,
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        async with self._navigation_lock:
+            previous_range = self.range_key
+            previous_page = self.page
+            self.range_key = range_key
+            self.page = 0
+            self.range_select.set_selected(range_key)
+            try:
+                await self.load_page()
+            except PyMongoError:
+                self.range_key = previous_range
+                self.page = previous_page
+                self.range_select.set_selected(previous_range)
+                logger.exception(
+                    "Failed to change verification journal range guild=%s",
+                    self.guild_id,
+                )
+                await interaction.followup.send(
+                    "Không thể đọc nhật ký xác minh từ MongoDB.",
+                    ephemeral=True,
+                    allowed_mentions=NO_MENTIONS,
+                )
+                return
+            await interaction.edit_original_response(
+                embed=self.build_embed(),
+                view=self,
+            )
+
+    async def _turn_page(self, interaction: discord.Interaction, *, forward: bool) -> None:
+        await interaction.response.defer(ephemeral=True)
+        async with self._navigation_lock:
+            previous_page = self.page
+            if forward:
+                available = min(self.total, VERIFICATION_BROWSER_MAX_ROWS)
+                if (self.page + 1) * VERIFICATION_PAGE_SIZE < available:
+                    self.page += 1
+            elif self.page > 0:
+                self.page -= 1
+            try:
+                await self.load_page()
+            except PyMongoError:
+                self.page = previous_page
+                logger.exception(
+                    "Failed to page verification journal guild=%s",
+                    self.guild_id,
+                )
+                await interaction.followup.send(
+                    "Không thể đọc nhật ký xác minh từ MongoDB.",
+                    ephemeral=True,
+                    allowed_mentions=NO_MENTIONS,
+                )
+                return
+            await interaction.edit_original_response(
+                embed=self.build_embed(),
+                view=self,
+            )
+
+    @discord.ui.button(
+        label="Trước",
+        emoji="⬅️",
+        style=discord.ButtonStyle.secondary,
+        row=1,
+    )
+    async def previous_page(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button,
+    ) -> None:
+        await self._turn_page(interaction, forward=False)
+
+    @discord.ui.button(
+        label="Sau",
+        emoji="➡️",
+        style=discord.ButtonStyle.secondary,
+        row=1,
+    )
+    async def next_page(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button,
+    ) -> None:
+        await self._turn_page(interaction, forward=True)
+
+    @discord.ui.button(
+        label="Đóng",
+        style=discord.ButtonStyle.secondary,
+        row=1,
+    )
+    async def close(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button,
+    ) -> None:
+        await interaction.response.defer(ephemeral=True)
+        async with self._navigation_lock:
+            _disable_view(self)
+            self.stop()
+            await interaction.edit_original_response(
+                content="Đã đóng nhật ký xác minh.",
                 embed=None,
                 view=self,
                 allowed_mentions=NO_MENTIONS,
@@ -2105,6 +2314,44 @@ class OperationDashboardView(GuildAdminView):
         )
 
     @discord.ui.button(
+        label="Nhật ký xác minh",
+        emoji="✅",
+        style=discord.ButtonStyle.secondary,
+        row=1,
+    )
+    async def verification_log(
+        self,
+        interaction: discord.Interaction,
+        button: discord.ui.Button,
+    ) -> None:
+        await interaction.response.defer(ephemeral=True, thinking=True)
+        view = VerificationLogView(
+            cog=self.cog,
+            guild_id=self.guild_id,
+            author_id=interaction.user.id,
+        )
+        try:
+            await view.load_page()
+        except PyMongoError:
+            logger.exception(
+                "Failed to open verification journal guild=%s",
+                self.guild_id,
+            )
+            await interaction.followup.send(
+                "Không thể đọc nhật ký xác minh từ MongoDB.",
+                ephemeral=True,
+                allowed_mentions=NO_MENTIONS,
+            )
+            return
+        view.message = await interaction.followup.send(
+            embed=view.build_embed(),
+            view=view,
+            ephemeral=True,
+            wait=True,
+            allowed_mentions=NO_MENTIONS,
+        )
+
+    @discord.ui.button(
         label="Server đã tham gia",
         emoji="🌐",
         style=discord.ButtonStyle.secondary,
@@ -2167,6 +2414,7 @@ class OperationDashboardCog(commands.Cog):
         self.bot = bot
         self.db = bot.db
         self.logs = self.db[LOG_COLLECTION]
+        self.verification_logs = self.db[VERIFICATION_LOG_COLLECTION]
         self.loaded_at = discord.utils.utcnow()
         self._index_task: asyncio.Task[None] | None = None
         self._guild_leave_in_flight: set[int] = set()
@@ -2386,6 +2634,33 @@ class OperationDashboardCog(commands.Cog):
             total = self.logs.count_documents(query)
             cursor = (
                 self.logs.find(query)
+                .sort([("created_at", DESCENDING), ("_id", DESCENDING)])
+                .skip(bounded_offset)
+                .limit(bounded_limit)
+            )
+            return list(cursor), int(total)
+
+        return await asyncio.to_thread(query_logs)
+
+    async def fetch_verification_page(
+        self,
+        *,
+        guild_id: int,
+        range_key: str,
+        offset: int,
+        limit: int,
+    ) -> tuple[list[dict[str, Any]], int]:
+        cutoff = get_audit_cutoff(range_key, now=discord.utils.utcnow())
+        bounded_offset = max(0, min(offset, VERIFICATION_BROWSER_MAX_ROWS - 1))
+        bounded_limit = max(1, min(limit, VERIFICATION_PAGE_SIZE))
+
+        def query_logs() -> tuple[list[dict[str, Any]], int]:
+            query: dict[str, Any] = {"guild_id": guild_id}
+            if cutoff is not None:
+                query["created_at"] = {"$gte": cutoff}
+            total = self.verification_logs.count_documents(query)
+            cursor = (
+                self.verification_logs.find(query)
                 .sort([("created_at", DESCENDING), ("_id", DESCENDING)])
                 .skip(bounded_offset)
                 .limit(bounded_limit)

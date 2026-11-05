@@ -506,6 +506,14 @@ guild command outcomes, export retained records as CSV, and prune old records af
 confirmation. These records are guild-scoped in MongoDB's `operation_logs` collection;
 direct messages and unknown commands are not retained.
 
+**Nhật ký xác minh** on that dashboard shows which moderator granted the verified
+role. Each new `verified @user` grant appends one row to `verification_logs`
+with the moderator, member, role, channel, and command message. The same command
+message cannot create a second row. Members who already have the role, failed
+grants, `unverified`, and `self_unverified` are not recorded. The journal is
+append-only, is not pruned with `operation_logs`, and is omitted from audit CSV
+export. Older approvals from before this journal are not backfilled.
+
 Click **🩺 Doctor** for a private Vietnamese report of current configuration and
 permission problems, with suggested fixes. The report shows error/warning totals,
 scan time, and five findings per page; Previous/Next and Refresh controls let the
