@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, Mock
 import discord
 
 from cogs.booster._custom_resource_ui import BoosterActionResult, RoleDesignDraft
-from cogs.booster._role_colors import RoleColorSpec
+from cogs.booster._role_colors import GRADIENT_FALLBACK_WARNING, RoleColorSpec
 from cogs.booster.create_custom_role import BoosterCustomRoleCog
 from cogs.economy._shop_helpers import CUSTOM_ROLE_ITEM_ID, ITEM_TYPE_CUSTOM_ROLE
 from cogs.economy._shop_products import get_shop_product, register_shop_product
@@ -68,6 +68,25 @@ class TestShopCustomRoleProduct(unittest.IsolatedAsyncioTestCase):
             return role
 
         self.guild.create_role.side_effect = create_role
+        self.guild.edit_role_positions = AsyncMock()
+
+    async def test_new_shop_role_takes_the_anchor_position(self) -> None:
+        anchor = FakeRole(55, "anchor", 6)
+        self.guild._roles[anchor.id] = anchor
+        self.guild.fetch_roles.return_value = [anchor]
+        self.bot.global_vars["BOOSTER_CUSTOM_ROLE_ANCHOR_ID"] = str(anchor.id)
+
+        result = await self._create_role()
+
+        self.assertTrue(result.completed)
+        self.assertNotIn("anchor", result.message)
+        role = self.guild._roles[77]
+        role.edit.assert_not_awaited()
+        self.guild.edit_role_positions.assert_awaited_once_with(
+            {role: anchor.position},
+            reason="Place shop custom role under anchor",
+        )
+        self.assertEqual(role.position, anchor.position)
 
     async def _create_role(self) -> BoosterActionResult:
         return await self.cog._create_custom_role(
@@ -412,6 +431,28 @@ class TestShopCustomRoleProduct(unittest.IsolatedAsyncioTestCase):
         assert record is not None
         self.assertEqual(record["role_name"], "Shop Pink")
         self.member.add_roles.assert_awaited_once()
+
+    async def test_gradient_without_perk_creates_the_primary_color(self) -> None:
+        self.guild.features = []
+        result = await self.cog._create_custom_role(
+            guild=self.guild,
+            member=self.member,
+            color_spec=RoleColorSpec(
+                primary=discord.Color(0x112233),
+                secondary=discord.Color(0xAABBCC),
+            ),
+            role_name="Shop Flat",
+        )
+        self.assertTrue(result.completed)
+        self.assertIn(GRADIENT_FALLBACK_WARNING, result.message)
+        create_kwargs = self.guild.create_role.await_args.kwargs
+        self.assertEqual(create_kwargs["colour"].value, 0x112233)
+        self.assertNotIn("secondary_color", create_kwargs)
+        record = self.database["shop_custom_roles"].find_one(
+            {"guild_id": GUILD_ID, "user_id": USER_ID}
+        )
+        assert record is not None
+        self.assertIsNone(record["secondary_color"])
 
     async def test_duplicate_create_is_rejected(self) -> None:
         first = await self.cog._create_custom_role(

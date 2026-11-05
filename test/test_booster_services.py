@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, Mock
 
 import discord
 
-from cogs.booster._role_colors import RoleColorSpec
+from cogs.booster._role_colors import GRADIENT_FALLBACK_WARNING, RoleColorSpec
 from cogs.booster.create_custom_role import BoosterCustomRoleCog
 from cogs.booster.create_custom_room import BoosterCustomRoomCog
 from cogs.booster.update_custom_role import BoosterCustomRoleUpdateCog
@@ -203,6 +203,102 @@ class TestBoosterRoleServices(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(collection.update_one.call_args.kwargs["upsert"])
         ctx.send.assert_awaited_once()
 
+    async def test_new_booster_role_takes_the_anchor_position(self) -> None:
+        collection = MagicMock()
+        collection.find_one.return_value = None
+        bot, guild, _bot_member, booster, _existing_role = make_role_fixture(
+            collection
+        )
+        anchor = FakeRole(guild, 55, "anchor", 4)
+        fresh_anchor = FakeRole(guild, 55, "anchor", 8)
+        guild._roles[anchor.id] = anchor
+        guild.fetch_roles.return_value = [fresh_anchor]
+        guild.edit_role_positions = AsyncMock()
+        bot.global_vars["BOOSTER_CUSTOM_ROLE_ANCHOR_ID"] = str(anchor.id)
+        created_role = FakeRole(guild, 77, "Under Anchor", 1)
+        guild.create_role.return_value = created_role
+        cog = BoosterCustomRoleCog(bot)
+
+        result = await cog._create_custom_role(
+            guild=guild,
+            member=booster,
+            color_spec=RoleColorSpec(discord.Color(0x7A4DFF)),
+            role_name="Under Anchor",
+            icon_attachment=None,
+        )
+
+        self.assertTrue(result.completed)
+        self.assertNotIn("anchor", result.message)
+        self.assertNotIn("thứ bậc", result.message)
+        created_role.edit.assert_not_awaited()
+        guild.edit_role_positions.assert_awaited_once_with(
+            {created_role: fresh_anchor.position},
+            reason="Place booster custom role under anchor",
+        )
+        self.assertEqual(created_role.position, fresh_anchor.position)
+        booster.add_roles.assert_awaited_once_with(
+            created_role,
+            reason="Assign booster custom role",
+        )
+
+    async def test_uncached_anchor_is_fetched_before_placement(self) -> None:
+        collection = MagicMock()
+        collection.find_one.return_value = None
+        bot, guild, _bot_member, booster, _existing_role = make_role_fixture(
+            collection
+        )
+        anchor = FakeRole(guild, 55, "anchor", 8)
+        guild.fetch_roles.return_value = [anchor]
+        guild.edit_role_positions = AsyncMock()
+        bot.global_vars["BOOSTER_CUSTOM_ROLE_ANCHOR_ID"] = " 55 "
+        created_role = FakeRole(guild, 77, "Fetched Anchor", 1)
+        guild.create_role.return_value = created_role
+        cog = BoosterCustomRoleCog(bot)
+
+        result = await cog._create_custom_role(
+            guild=guild,
+            member=booster,
+            color_spec=RoleColorSpec(discord.Color(0x7A4DFF)),
+            role_name="Fetched Anchor",
+            icon_attachment=None,
+        )
+
+        self.assertTrue(result.completed)
+        self.assertNotIn("anchor", result.message)
+        self.assertEqual(guild.fetch_roles.await_count, 2)
+        guild.edit_role_positions.assert_awaited_once_with(
+            {created_role: anchor.position},
+            reason="Place booster custom role under anchor",
+        )
+
+    async def test_anchor_above_the_bot_does_not_move_the_role(self) -> None:
+        collection = MagicMock()
+        collection.find_one.return_value = None
+        bot, guild, _bot_member, booster, _existing_role = make_role_fixture(
+            collection
+        )
+        anchor = FakeRole(guild, 55, "anchor", 150)
+        guild._roles[anchor.id] = anchor
+        guild.edit_role_positions = AsyncMock()
+        bot.global_vars["BOOSTER_CUSTOM_ROLE_ANCHOR_ID"] = anchor.id
+        created_role = FakeRole(guild, 77, "Too High", 1)
+        guild.create_role.return_value = created_role
+        cog = BoosterCustomRoleCog(bot)
+
+        result = await cog._create_custom_role(
+            guild=guild,
+            member=booster,
+            color_spec=RoleColorSpec(discord.Color(0x7A4DFF)),
+            role_name="Too High",
+            icon_attachment=None,
+        )
+
+        self.assertTrue(result.completed)
+        self.assertIn("Không thể đặt role dưới anchor", result.message)
+        guild.fetch_roles.assert_not_awaited()
+        guild.edit_role_positions.assert_not_awaited()
+        created_role.edit.assert_not_awaited()
+
     async def test_recorded_role_is_verified_before_a_second_create(self) -> None:
         collection = MagicMock()
         collection.find_one.side_effect = [
@@ -305,6 +401,134 @@ class TestBoosterRoleServices(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(update["$set"]["role_name"], "New gradient")
         self.assertEqual(update["$set"]["primary_color"], 0x123456)
         self.assertEqual(update["$set"]["secondary_color"], 0xABCDEF)
+
+    async def test_gradient_without_perk_creates_the_primary_color(self) -> None:
+        collection = MagicMock()
+        collection.find_one.return_value = None
+        bot, guild, _bot_member, booster, _existing_role = make_role_fixture(
+            collection
+        )
+        guild.features = []
+        created_role = FakeRole(guild, 77, "Solid", 1)
+        guild.create_role.return_value = created_role
+        cog = BoosterCustomRoleCog(bot)
+
+        result = await cog._create_custom_role(
+            guild=guild,
+            member=booster,
+            color_spec=RoleColorSpec(
+                primary=discord.Color(0x112233),
+                secondary=discord.Color(0xAABBCC),
+            ),
+            role_name="Solid",
+            icon_attachment=None,
+        )
+
+        self.assertTrue(result.completed)
+        self.assertIn(GRADIENT_FALLBACK_WARNING, result.message)
+        create_kwargs = guild.create_role.await_args.kwargs
+        self.assertEqual(create_kwargs["colour"].value, 0x112233)
+        self.assertNotIn("secondary_color", create_kwargs)
+        self.assertNotIn("display_icon", create_kwargs)
+        self.assertEqual(guild.create_role.await_count, 1)
+        _record_filter, update = collection.update_one.call_args.args
+        self.assertEqual(update["$set"]["secondary_color"], None)
+
+    async def test_rejected_gradient_is_retried_as_the_primary_color(self) -> None:
+        collection = MagicMock()
+        collection.find_one.return_value = None
+        bot, guild, _bot_member, booster, _existing_role = make_role_fixture(
+            collection
+        )
+        guild.features = ["ENHANCED_ROLE_COLORS"]
+        created_role = FakeRole(guild, 78, "Retried", 1)
+
+        async def create_role(**kwargs):
+            if "secondary_color" in kwargs:
+                response = SimpleNamespace(status=403, reason="Forbidden")
+                raise discord.Forbidden(response, {"code": 50013})
+            return created_role
+
+        guild.create_role.side_effect = create_role
+        cog = BoosterCustomRoleCog(bot)
+
+        result = await cog._create_custom_role(
+            guild=guild,
+            member=booster,
+            color_spec=RoleColorSpec(
+                primary=discord.Color(0x010203),
+                secondary=discord.Color(0x040506),
+            ),
+            role_name="Retried",
+            icon_attachment=None,
+        )
+
+        self.assertTrue(result.completed)
+        self.assertIn(GRADIENT_FALLBACK_WARNING, result.message)
+        self.assertEqual(guild.create_role.await_count, 2)
+        self.assertNotIn("secondary_color", guild.create_role.await_args.kwargs)
+        _record_filter, update = collection.update_one.call_args.args
+        self.assertEqual(update["$set"]["primary_color"], 0x010203)
+        self.assertIsNone(update["$set"]["secondary_color"])
+
+    async def test_solid_color_forbidden_is_not_retried(self) -> None:
+        collection = MagicMock()
+        collection.find_one.return_value = None
+        bot, guild, _bot_member, booster, _existing_role = make_role_fixture(
+            collection
+        )
+        guild.features = ["ENHANCED_ROLE_COLORS"]
+        response = SimpleNamespace(status=403, reason="Forbidden")
+        guild.create_role.side_effect = discord.Forbidden(response, {"code": 50013})
+        cog = BoosterCustomRoleCog(bot)
+
+        result = await cog._create_custom_role(
+            guild=guild,
+            member=booster,
+            color_spec=RoleColorSpec(discord.Color(0x112233)),
+            role_name="Blocked",
+            icon_attachment=None,
+        )
+
+        self.assertFalse(result.completed)
+        self.assertIn("quyền tạo role", result.message)
+        self.assertEqual(guild.create_role.await_count, 1)
+
+    async def test_update_without_gradient_perk_keeps_the_primary_color(self) -> None:
+        collection = MagicMock()
+        bot, guild, _bot_member, booster, _existing_role = make_role_fixture(
+            collection
+        )
+        guild.features = []
+        owned_role = FakeRole(guild, 88, "Old name", 10)
+        guild._roles[owned_role.id] = owned_role
+        booster.roles.append(owned_role)
+        collection.find_one.return_value = {
+            "guild_id": guild.id,
+            "user_id": booster.id,
+            "role_id": owned_role.id,
+        }
+        cog = BoosterCustomRoleUpdateCog(bot)
+
+        result = await cog._update_custom_role(
+            guild=guild,
+            member=booster,
+            color_spec=RoleColorSpec(
+                primary=discord.Color(0x123456),
+                secondary=discord.Color(0xABCDEF),
+            ),
+            role_name="Flat",
+            icon_attachment=None,
+        )
+
+        self.assertTrue(result.completed)
+        self.assertIn(GRADIENT_FALLBACK_WARNING, result.message)
+        edit_kwargs = owned_role.edit.await_args.kwargs
+        self.assertEqual(edit_kwargs["colour"].value, 0x123456)
+        self.assertNotIn("secondary_color", edit_kwargs)
+        self.assertEqual(owned_role.edit.await_count, 1)
+        _record_filter, update = collection.update_one.call_args.args
+        self.assertIsNone(update["$set"]["secondary_color"])
 
 
 class TestBoosterRoomServices(unittest.IsolatedAsyncioTestCase):

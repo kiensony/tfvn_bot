@@ -135,7 +135,7 @@ tfvn_bot/
     │   └── goodbye.py              Unified leave/kick/ban departure announcement
     ├── booster/
     │   ├── _custom_resource_ui.py Guided booster role/room views, selects, and modals
-    │   ├── _role_colors.py         Solid/gradient role-color parsing helper
+    │   ├── _role_colors.py         Solid/gradient role-color parsing and gradient fallback
     │   ├── _room_helpers.py        Shared category validation and private room overwrites
     │   ├── create_custom_role.py   Booster-owned custom role creation
     │   ├── update_custom_role.py   Booster custom role edits
@@ -161,7 +161,7 @@ tfvn_bot/
     │   ├── shop_custom_role.py     Renewable custom roles, designer, expiry and leave cleanup
     │   └── shop_custom_room.py     Renewable private rooms, editor, expiry and leave cleanup
     ├── roles/
-    │   ├── _personal_roles.py      Shared resource locks and verified Discord role/room lookup
+    │   ├── _personal_roles.py      Shared locks, role lookup, and anchor placement
     │   └── _role_safety.py         Privileged-permission denylist for roles the bot may assign
     ├── discipline/discipline.py    Banned-word listener, logging, warning, and deletion
     ├── funny_things/

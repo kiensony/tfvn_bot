@@ -1,13 +1,17 @@
-"""Shared creation locks and saved-role lookup for personal custom roles."""
+"""Shared creation locks, saved-role lookup, and anchor placement."""
 
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any
 from weakref import WeakValueDictionary
 
 import discord
 from discord.ext import commands
+
+
+logger = logging.getLogger(__name__)
 
 
 def personal_role_lock(
@@ -48,6 +52,131 @@ async def resolve_personal_role(
         return role
     roles = await guild.fetch_roles()
     return next((role for role in roles if role.id == role_id), None)
+
+
+ANCHOR_ROLE_VARIABLE = "BOOSTER_CUSTOM_ROLE_ANCHOR_ID"
+
+
+def anchor_role_id(bot: commands.Bot) -> int | None:
+    """Return the configured anchor role id, or None when it is unset."""
+    variables = getattr(bot, "global_vars", None)
+    if not isinstance(variables, dict):
+        return None
+    value = variables.get(ANCHOR_ROLE_VARIABLE)
+    if value is None or value == "":
+        return None
+    try:
+        role_id = int(str(value).strip())
+    except (TypeError, ValueError):
+        logger.warning("%s is not a role id.", ANCHOR_ROLE_VARIABLE)
+        return None
+    if role_id <= 0:
+        logger.warning("%s is not a role id.", ANCHOR_ROLE_VARIABLE)
+        return None
+    return role_id
+
+
+async def configured_anchor_role(
+    bot: commands.Bot,
+    guild: discord.Guild,
+) -> discord.Role | None:
+    """Resolve the anchor from cache, then from Discord when the cache misses."""
+    role_id = anchor_role_id(bot)
+    if role_id is None:
+        return None
+    role = guild.get_role(role_id)
+    if role is not None:
+        return role
+    try:
+        roles = await guild.fetch_roles()
+    except discord.HTTPException:
+        logger.exception(
+            "Could not read anchor role %s in guild %s.",
+            role_id,
+            guild.id,
+        )
+        return None
+    role = next((item for item in roles if item.id == role_id), None)
+    if role is None:
+        logger.warning(
+            "%s %s was not found in guild %s.",
+            ANCHOR_ROLE_VARIABLE,
+            role_id,
+            guild.id,
+        )
+    return role
+
+
+def _anchor_blocks_placement(
+    anchor: discord.Role,
+    bot_top_role: discord.Role | None,
+) -> bool:
+    return (
+        anchor.is_default()
+        or anchor.managed
+        or anchor.position <= 0
+        or (bot_top_role is not None and anchor >= bot_top_role)
+    )
+
+
+async def place_role_under_anchor(
+    guild: discord.Guild,
+    role: discord.Role,
+    anchor: discord.Role,
+    *,
+    bot_top_role: discord.Role | None,
+    reason: str,
+) -> str | None:
+    """Place a personal role directly under the configured anchor.
+
+    ``Role.edit(position=anchor.position - 1)`` rebuilds the move from the
+    guild cache. The role returned by ``create_role`` is not in that cache,
+    and it shares position 1, so discord.py's range zip omits it and the role
+    stays at the bottom. Equal positions sort by id, with the higher id lower
+    in the list, so a new role given the anchor's position sits directly under
+    it without shifting roles the bot cannot move.
+    """
+    if _anchor_blocks_placement(anchor, bot_top_role):
+        return "Không thể đặt role dưới anchor đã cấu hình."
+
+    anchor_position = anchor.position
+    try:
+        fresh_roles = await guild.fetch_roles()
+    except discord.HTTPException:
+        logger.exception(
+            "Could not read roles before placing role %s in guild %s.",
+            role.id,
+            guild.id,
+        )
+        fresh_roles = []
+
+    if fresh_roles:
+        fresh_anchor = next(
+            (item for item in fresh_roles if item.id == anchor.id),
+            None,
+        )
+        if fresh_anchor is None or _anchor_blocks_placement(
+            fresh_anchor,
+            bot_top_role,
+        ):
+            return "Không thể đặt role dưới anchor đã cấu hình."
+        anchor_position = fresh_anchor.position
+
+    try:
+        await guild.edit_role_positions({role: anchor_position}, reason=reason)
+    except discord.Forbidden:
+        return "Bot không có quyền đặt thứ bậc role."
+    except discord.HTTPException:
+        logger.exception(
+            "Could not position role %s under anchor %s in guild %s.",
+            role.id,
+            anchor.id,
+            guild.id,
+        )
+        return "Không thể cập nhật thứ bậc role."
+
+    role.position = anchor_position
+    return None
 
 
 async def resolve_personal_room(

@@ -16,12 +16,21 @@ from cogs.booster._custom_resource_ui import (
     BoosterRoleEditorView,
     RoleDesignDraft,
 )
-from cogs.booster._role_colors import RoleColorSpec
+from cogs.booster._role_colors import (
+    RoleColorSpec,
+    apply_role_colors,
+    role_color_payload,
+)
 from cogs.economy._shop_helpers import CUSTOM_ROLE_ITEM_ID, ITEM_TYPE_CUSTOM_ROLE
 from cogs.economy._shop_products import register_shop_product, unregister_shop_product
 from cogs.economy._shop_rentals import MIGRATION_DENIAL, RentalAccess
 from cogs.economy._shop_ui import NO_MENTIONS
-from cogs.roles._personal_roles import personal_role_lock, resolve_personal_role
+from cogs.roles._personal_roles import (
+    configured_anchor_role,
+    personal_role_lock,
+    place_role_under_anchor,
+    resolve_personal_role,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -94,18 +103,6 @@ class ShopCustomRoleCog(commands.Cog):
         if not self.bot.user:
             return None
         return guild.get_member(self.bot.user.id)
-
-    def _get_anchor_role(self, guild: discord.Guild) -> discord.Role | None:
-        if not hasattr(self.bot, "global_vars"):
-            return None
-        anchor_value = self.bot.global_vars.get("BOOSTER_CUSTOM_ROLE_ANCHOR_ID")
-        if not anchor_value:
-            return None
-        try:
-            role_id = int(anchor_value)
-        except (TypeError, ValueError):
-            return None
-        return guild.get_role(role_id)
 
     async def _booster_role_denial(
         self, guild: discord.Guild, member: discord.Member
@@ -328,31 +325,16 @@ class ShopCustomRoleCog(commands.Cog):
         role: discord.Role,
         bot_member: discord.Member | None,
     ) -> str | None:
-        anchor_role = self._get_anchor_role(guild)
+        anchor_role = await configured_anchor_role(self.bot, guild)
         if anchor_role is None:
             return None
-        if (
-            anchor_role.is_default()
-            or anchor_role.managed
-            or (bot_member is not None and anchor_role >= bot_member.top_role)
-        ):
-            return "Không thể đặt role dưới anchor đã cấu hình."
-        target_position = max(anchor_role.position - 1, 1)
-        try:
-            await role.edit(
-                position=target_position,
-                reason="Place shop custom role under anchor",
-            )
-        except discord.Forbidden:
-            return "Bot không có quyền đặt thứ bậc role."
-        except discord.HTTPException:
-            logger.exception(
-                "Could not position shop role %s in guild %s.",
-                role.id,
-                guild.id,
-            )
-            return "Không thể cập nhật thứ bậc role."
-        return None
+        return await place_role_under_anchor(
+            guild,
+            role,
+            anchor_role,
+            bot_top_role=bot_member.top_role if bot_member is not None else None,
+            reason="Place shop custom role under anchor",
+        )
 
     async def _create_custom_role(
         self,
@@ -404,12 +386,28 @@ class ShopCustomRoleCog(commands.Cog):
             denial = self.rental.denial(guild.id, member.id)
             if denial:
                 return BoosterActionResult(False, denial)
-            try:
-                role = await guild.create_role(
+
+            async def create_role(
+                spec: RoleColorSpec,
+                *,
+                allow_gradient: bool,
+            ) -> discord.Role:
+                return await guild.create_role(
                     name=role_name,
                     mentionable=False,
                     reason=f"Shop custom role for {member} ({member.id})",
-                    **color_spec.create_kwargs(),
+                    **role_color_payload(
+                        spec,
+                        allow_gradient=allow_gradient,
+                        edit=False,
+                    ),
+                )
+
+            try:
+                role, color_spec, gradient_warning = await apply_role_colors(
+                    color_spec,
+                    guild,
+                    create_role,
                 )
             except discord.Forbidden:
                 return BoosterActionResult(
@@ -461,6 +459,8 @@ class ShopCustomRoleCog(commands.Cog):
                 )
 
             warnings: list[str] = []
+            if gradient_warning:
+                warnings.append(gradient_warning)
             bot_member = self._get_bot_member(guild)
             anchor_warning = await self._place_under_anchor(guild, role, bot_member)
             if anchor_warning:
@@ -543,11 +543,27 @@ class ShopCustomRoleCog(commands.Cog):
             denial = self.rental.denial(guild.id, member.id)
             if denial:
                 return BoosterActionResult(False, denial)
-            try:
+
+            async def edit_role(
+                spec: RoleColorSpec,
+                *,
+                allow_gradient: bool,
+            ) -> None:
                 await role.edit(
                     name=role_name,
                     reason=f"Shop custom role update for {member} ({member.id})",
-                    **color_spec.edit_kwargs(),
+                    **role_color_payload(
+                        spec,
+                        allow_gradient=allow_gradient,
+                        edit=True,
+                    ),
+                )
+
+            try:
+                _edited, color_spec, gradient_warning = await apply_role_colors(
+                    color_spec,
+                    guild,
+                    edit_role,
                 )
             except discord.Forbidden:
                 return BoosterActionResult(
@@ -564,6 +580,8 @@ class ShopCustomRoleCog(commands.Cog):
                 return BoosterActionResult(False, "Đã xảy ra lỗi khi cập nhật role.")
 
             warnings: list[str] = []
+            if gradient_warning:
+                warnings.append(gradient_warning)
             if role not in member.roles:
                 try:
                     await member.add_roles(

@@ -9,8 +9,18 @@ from cogs.booster._custom_resource_ui import (
     BoosterRoleEditorView,
     RoleDesignDraft,
 )
-from cogs.booster._role_colors import RoleColorSpec, parse_role_color_args
-from cogs.roles._personal_roles import personal_role_lock, resolve_personal_role
+from cogs.booster._role_colors import (
+    RoleColorSpec,
+    apply_role_colors,
+    parse_role_color_args,
+    role_color_payload,
+)
+from cogs.roles._personal_roles import (
+    configured_anchor_role,
+    personal_role_lock,
+    place_role_under_anchor,
+    resolve_personal_role,
+)
 from cogs.economy._shop_rentals import paid_resource_denial
 
 
@@ -58,21 +68,6 @@ class BoosterCustomRoleCog(commands.Cog):
         if attachment.size > 256 * 1024:
             return None, "Icon PNG tối đa 256KB."
         return attachment, None
-
-    def _get_anchor_role(self, guild: discord.Guild) -> discord.Role | None:
-        if not hasattr(self.bot, "global_vars"):
-            return None
-
-        anchor_value = self.bot.global_vars.get("BOOSTER_CUSTOM_ROLE_ANCHOR_ID")
-        if not anchor_value:
-            return None
-
-        try:
-            role_id = int(anchor_value)
-        except (TypeError, ValueError):
-            return None
-
-        return guild.get_role(role_id)
 
     def _base_denial(
         self,
@@ -191,15 +186,34 @@ class BoosterCustomRoleCog(commands.Cog):
             if icon_error:
                 return BoosterActionResult(False, icon_error)
 
-            try:
-                role = await guild.create_role(
+            icon_kwargs: dict[str, bytes] = {}
+            if icon_bytes is not None:
+                icon_kwargs["display_icon"] = icon_bytes
+
+            async def create_role(
+                spec: RoleColorSpec,
+                *,
+                allow_gradient: bool,
+            ) -> discord.Role:
+                return await guild.create_role(
                     name=role_name,
                     mentionable=False,
-                    display_icon=icon_bytes,
                     reason=(
                         f"Booster custom role for {member} ({member.id})"
                     ),
-                    **color_spec.create_kwargs(),
+                    **role_color_payload(
+                        spec,
+                        allow_gradient=allow_gradient,
+                        edit=False,
+                    ),
+                    **icon_kwargs,
+                )
+
+            try:
+                role, color_spec, gradient_warning = await apply_role_colors(
+                    color_spec,
+                    guild,
+                    create_role,
                 )
             except discord.Forbidden:
                 return BoosterActionResult(
@@ -251,33 +265,22 @@ class BoosterCustomRoleCog(commands.Cog):
                 )
 
             warnings: list[str] = []
+            if gradient_warning:
+                warnings.append(gradient_warning)
             bot_member = self._get_bot_member(guild)
-            anchor_role = self._get_anchor_role(guild)
-            if anchor_role:
-                if (
-                    anchor_role.is_default()
-                    or anchor_role.managed
-                    or (bot_member is not None and anchor_role >= bot_member.top_role)
-                ):
-                    warnings.append(
-                        "Không thể đặt role dưới anchor đã cấu hình."
-                    )
-                else:
-                    target_position = max(anchor_role.position - 1, 1)
-                    try:
-                        await role.edit(
-                            position=target_position,
-                            reason="Place booster custom role under anchor",
-                        )
-                    except discord.Forbidden:
-                        warnings.append("Bot không có quyền đặt thứ bậc role.")
-                    except discord.HTTPException:
-                        logger.exception(
-                            "Could not position booster role %s in guild %s.",
-                            role.id,
-                            guild.id,
-                        )
-                        warnings.append("Không thể cập nhật thứ bậc role.")
+            anchor_role = await configured_anchor_role(self.bot, guild)
+            if anchor_role is not None:
+                anchor_warning = await place_role_under_anchor(
+                    guild,
+                    role,
+                    anchor_role,
+                    bot_top_role=(
+                        bot_member.top_role if bot_member is not None else None
+                    ),
+                    reason="Place booster custom role under anchor",
+                )
+                if anchor_warning:
+                    warnings.append(anchor_warning)
 
             if bot_member is None or role >= bot_member.top_role:
                 warnings.append(

@@ -9,7 +9,12 @@ from cogs.booster._custom_resource_ui import (
     BoosterRoleEditorView,
     RoleDesignDraft,
 )
-from cogs.booster._role_colors import RoleColorSpec, parse_role_color_args
+from cogs.booster._role_colors import (
+    RoleColorSpec,
+    apply_role_colors,
+    parse_role_color_args,
+    role_color_payload,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -186,18 +191,32 @@ class BoosterCustomRoleUpdateCog(commands.Cog):
             if icon_error:
                 return BoosterActionResult(False, icon_error)
 
-            edit_kwargs: dict[str, object] = {
-                "name": role_name,
-                "reason": (
-                    f"Booster custom role update for {member} ({member.id})"
-                ),
-                **color_spec.edit_kwargs(),
-            }
-            if icon_attachment is not None:
-                edit_kwargs["display_icon"] = icon_bytes
+            async def edit_role(
+                spec: RoleColorSpec,
+                *,
+                allow_gradient: bool,
+            ) -> None:
+                edit_kwargs: dict[str, object] = {
+                    "name": role_name,
+                    "reason": (
+                        f"Booster custom role update for {member} ({member.id})"
+                    ),
+                    **role_color_payload(
+                        spec,
+                        allow_gradient=allow_gradient,
+                        edit=True,
+                    ),
+                }
+                if icon_attachment is not None:
+                    edit_kwargs["display_icon"] = icon_bytes
+                await role.edit(**edit_kwargs)
 
             try:
-                await role.edit(**edit_kwargs)
+                _role, color_spec, gradient_warning = await apply_role_colors(
+                    color_spec,
+                    guild,
+                    edit_role,
+                )
             except discord.Forbidden:
                 return BoosterActionResult(
                     False,
@@ -213,6 +232,8 @@ class BoosterCustomRoleUpdateCog(commands.Cog):
                 return BoosterActionResult(False, "Đã xảy ra lỗi khi cập nhật role.")
 
             warnings: list[str] = []
+            if gradient_warning:
+                warnings.append(gradient_warning)
             if role not in member.roles:
                 try:
                     await member.add_roles(

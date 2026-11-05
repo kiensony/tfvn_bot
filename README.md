@@ -265,7 +265,7 @@ python scripts/migrate_nsfw_gifs.py --overwrite
 Restart the bot after running the seed script, or reload the settings cog followed
 by `cogs.interaction.nsfw_interaction`.
 
-The booster role anchor is optional; without it, Discord keeps the custom role at its default position. `BOOSTER_CUSTOM_VOICE_CATEGORY_ID` is required for custom rooms so their private category placement and permission overwrites are deterministic. The word-chain move icons also have built-in emoji defaults.
+The booster role anchor is optional. When `BOOSTER_CUSTOM_ROLE_ANCHOR_ID` is set, a new booster or shop custom role is given that role's position so it sorts directly underneath. Without it, Discord keeps the custom role at its default position. `BOOSTER_CUSTOM_VOICE_CATEGORY_ID` is required for custom rooms so their private category placement and permission overwrites are deterministic. The word-chain move icons also have built-in emoji defaults.
 
 Voluntary-leave, kick, and ban announcements all use `BYE_CHANNEL`. Give the bot
 View Audit Log permission so it can reliably identify kicks; without that permission,

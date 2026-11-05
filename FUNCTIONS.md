@@ -197,7 +197,9 @@ Shop item IDs are 1–32 lowercase letters, digits, `_`, or `-`, and must start 
 Each custom-role/room purchase adds 30 days from payment or the remaining expiry,
 whichever is later. `shop use custom_role` opens the color/name designer;
 `shop use custom_room` opens the private-room name/member-limit editor. Rooms share
-the configured booster category. Members may have one personal role and one room
+the configured booster category. A new shop custom role uses
+`BOOSTER_CUSTOM_ROLE_ANCHOR_ID` when it is set, and is placed directly under
+that role. Members may have one personal role and one room
 across booster/shop, including active paid time before creation. Leaving deletes
 the resource but retains paid time, which continues elapsing. Expired resources are
 deleted on startup and every minute; failed deletions retry. Existing permanent
@@ -496,6 +498,8 @@ All 25 SFW interactions require a non-bot target and have a 3-second per-command
 | `custom_room <name>` | `booster_room` | Booster | Create a private voice room under the configured category. Run without arguments for a guided name/user-limit preview; the existing name argument remains supported |
 
 **Background (`janitor_unboosted`):** scheduled cleanup of custom roles/rooms after boost expires.
+
+When `BOOSTER_CUSTOM_ROLE_ANCHOR_ID` is set, a new booster custom role is placed directly under that role. The same anchor is used for a shop custom role. Updating a role does not move it again. A gradient color is stored only when the server has Enhanced Role Styles (`ENHANCED_ROLE_COLORS`). Otherwise the booster and shop role is created or updated with the primary color, and the reply says so.
 
 **Module:** `cogs.booster.*`
 
