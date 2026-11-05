@@ -26,6 +26,8 @@ from cogs.economy._shop_products import register_shop_product, unregister_shop_p
 from cogs.economy._shop_rentals import MIGRATION_DENIAL, RentalAccess
 from cogs.economy._shop_ui import NO_MENTIONS
 from cogs.roles._personal_roles import (
+    DELETED_PERSONAL_ROLE_MESSAGE,
+    clear_deleted_personal_role,
     configured_anchor_role,
     personal_role_lock,
     place_role_under_anchor,
@@ -525,6 +527,13 @@ class ShopCustomRoleCog(commands.Cog):
             except (PyMongoError, discord.HTTPException):
                 logger.exception("Could not verify role before editing")
                 return BoosterActionResult(False, "Không thể xác minh role. Vui lòng thử lại.")
+            if record and current is None:
+                saved_role_id = record.get("role_id")
+                if isinstance(saved_role_id, int):
+                    clear_deleted_personal_role(
+                        self.collection, guild, member.id, saved_role_id
+                    )
+                return BoosterActionResult(False, DELETED_PERSONAL_ROLE_MESSAGE)
             if current is None or current.id != role.id:
                 return BoosterActionResult(False, "Role đã thay đổi. Hãy mở lại shop.")
             role = current
@@ -565,6 +574,17 @@ class ShopCustomRoleCog(commands.Cog):
                     guild,
                     edit_role,
                 )
+            except discord.NotFound:
+                logger.info(
+                    "Shop role %s was already deleted in guild %s for user %s.",
+                    role.id,
+                    guild.id,
+                    member.id,
+                )
+                clear_deleted_personal_role(
+                    self.collection, guild, member.id, role.id
+                )
+                return BoosterActionResult(False, DELETED_PERSONAL_ROLE_MESSAGE)
             except discord.Forbidden:
                 return BoosterActionResult(
                     False,

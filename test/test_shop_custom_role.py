@@ -496,6 +496,65 @@ class TestShopCustomRoleProduct(unittest.IsolatedAsyncioTestCase):
         assert record is not None
         self.assertEqual(record["role_name"], "Shop Green")
 
+    async def test_update_of_deleted_role_clears_the_record(self) -> None:
+        created = await self.cog._create_custom_role(
+            guild=self.guild,
+            member=self.member,
+            color_spec=RoleColorSpec(primary=discord.Color(0xFF66B3)),
+            role_name="Shop Pink",
+        )
+        self.assertTrue(created.completed)
+        role = self.guild._roles[77]
+        response = SimpleNamespace(status=404, reason="Not Found")
+        role.edit.side_effect = discord.NotFound(
+            response, {"message": "Unknown Role", "code": 10011}
+        )
+
+        result = await self.cog._update_custom_role(
+            guild=self.guild,
+            member=self.member,
+            role=role,
+            color_spec=RoleColorSpec(primary=discord.Color(0x00FF00)),
+            role_name="Shop Green",
+        )
+
+        self.assertFalse(result.completed)
+        self.assertIn("Role đã bị xóa", result.message)
+        self.assertEqual(role.edit.await_count, 1)
+        self.assertIsNone(
+            self.database["shop_custom_roles"].find_one(
+                {"guild_id": GUILD_ID, "user_id": USER_ID}
+            )
+        )
+        self.assertIsNone(self.guild.get_role(77))
+
+        recreated = await self._create_role()
+        self.assertTrue(recreated.completed)
+
+    async def test_update_of_missing_role_clears_the_record(self) -> None:
+        created = await self.cog._create_custom_role(
+            guild=self.guild,
+            member=self.member,
+            color_spec=RoleColorSpec(primary=discord.Color(0xFF66B3)),
+            role_name="Shop Pink",
+        )
+        self.assertTrue(created.completed)
+        role = self.guild._roles.pop(77)
+        self.guild.fetch_roles.return_value = []
+
+        result = await self.cog._update_custom_role(
+            guild=self.guild,
+            member=self.member,
+            role=role,
+            color_spec=RoleColorSpec(primary=discord.Color(0x00FF00)),
+            role_name="Shop Green",
+        )
+
+        self.assertFalse(result.completed)
+        self.assertIn("Role đã bị xóa", result.message)
+        role.edit.assert_not_awaited()
+        self.assertFalse(self.database["shop_custom_roles"].documents)
+
     async def test_use_opens_editor_from_context(self) -> None:
         ctx = SimpleNamespace(
             guild=self.guild,

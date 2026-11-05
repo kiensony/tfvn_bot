@@ -15,6 +15,10 @@ from cogs.booster._role_colors import (
     parse_role_color_args,
     role_color_payload,
 )
+from cogs.roles._personal_roles import (
+    DELETED_PERSONAL_ROLE_MESSAGE,
+    clear_deleted_personal_role,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -94,7 +98,8 @@ class BoosterCustomRoleUpdateCog(commands.Cog):
             return None, None, "Bạn chưa có custom role. Hãy tạo trước."
 
         role_id = record.get("role_id")
-        role = guild.get_role(role_id)
+        role = guild.get_role(role_id) if isinstance(role_id, int) else None
+        confirmed_missing = False
         if role is None and isinstance(role_id, int):
             try:
                 fetched_roles = await guild.fetch_roles()
@@ -113,7 +118,13 @@ class BoosterCustomRoleUpdateCog(commands.Cog):
                 ),
                 None,
             )
+            confirmed_missing = role is None
         if role is None:
+            if confirmed_missing:
+                clear_deleted_personal_role(
+                    self.collection, guild, member.id, role_id
+                )
+                return record, None, DELETED_PERSONAL_ROLE_MESSAGE
             return record, None, "Không tìm thấy role. Hãy tạo lại custom role."
         if role.is_default() or role.managed:
             return (
@@ -217,6 +228,17 @@ class BoosterCustomRoleUpdateCog(commands.Cog):
                     guild,
                     edit_role,
                 )
+            except discord.NotFound:
+                logger.info(
+                    "Booster role %s was already deleted in guild %s for user %s.",
+                    role.id,
+                    guild.id,
+                    member.id,
+                )
+                clear_deleted_personal_role(
+                    self.collection, guild, member.id, role.id
+                )
+                return BoosterActionResult(False, DELETED_PERSONAL_ROLE_MESSAGE)
             except discord.Forbidden:
                 return BoosterActionResult(
                     False,

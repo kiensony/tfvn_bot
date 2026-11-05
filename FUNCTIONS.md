@@ -499,7 +499,7 @@ All 25 SFW interactions require a non-bot target and have a 3-second per-command
 
 **Background (`janitor_unboosted`):** scheduled cleanup of custom roles/rooms after boost expires.
 
-When `BOOSTER_CUSTOM_ROLE_ANCHOR_ID` is set, a new booster custom role is placed directly under that role. The same anchor is used for a shop custom role. Updating a role does not move it again. A gradient color is stored only when the server has Enhanced Role Styles (`ENHANCED_ROLE_COLORS`). Otherwise the booster and shop role is created or updated with the primary color, and the reply says so.
+When `BOOSTER_CUSTOM_ROLE_ANCHOR_ID` is set, a new booster custom role is placed directly under that role. The same anchor is used for a shop custom role. Updating a role does not move it again. A gradient color is stored only when the server has Enhanced Role Styles (`ENHANCED_ROLE_COLORS`). Otherwise the booster and shop role is created or updated with the primary color, and the reply says so. If the saved role was deleted, the update clears that record and tells the member to create the role again.
 
 **Module:** `cogs.booster.*`
 

@@ -402,6 +402,72 @@ class TestBoosterRoleServices(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(update["$set"]["primary_color"], 0x123456)
         self.assertEqual(update["$set"]["secondary_color"], 0xABCDEF)
 
+    async def test_update_of_deleted_role_clears_the_saved_record(self) -> None:
+        collection = MagicMock()
+        bot, guild, _bot_member, booster, _existing_role = make_role_fixture(
+            collection
+        )
+        owned_role = FakeRole(guild, 88, "Old name", 10)
+        guild._roles[owned_role.id] = owned_role
+        collection.find_one.return_value = {
+            "guild_id": guild.id,
+            "user_id": booster.id,
+            "role_id": owned_role.id,
+        }
+        response = SimpleNamespace(status=404, reason="Not Found")
+        owned_role.edit.side_effect = discord.NotFound(
+            response, {"message": "Unknown Role", "code": 10011}
+        )
+        cog = BoosterCustomRoleUpdateCog(bot)
+
+        result = await cog._update_custom_role(
+            guild=guild,
+            member=booster,
+            color_spec=RoleColorSpec(
+                primary=discord.Color(0x123456),
+                secondary=discord.Color(0xABCDEF),
+            ),
+            role_name="Gone",
+            icon_attachment=None,
+        )
+
+        self.assertFalse(result.completed)
+        self.assertIn("Role đã bị xóa", result.message)
+        self.assertEqual(owned_role.edit.await_count, 1)
+        collection.update_one.assert_not_called()
+        collection.delete_one.assert_called_once_with(
+            {"guild_id": guild.id, "user_id": booster.id, "role_id": owned_role.id}
+        )
+        self.assertIsNone(guild.get_role(owned_role.id))
+
+    async def test_update_of_missing_role_clears_the_saved_record(self) -> None:
+        collection = MagicMock()
+        bot, guild, _bot_member, booster, _existing_role = make_role_fixture(
+            collection
+        )
+        guild.fetch_roles.return_value = []
+        collection.find_one.return_value = {
+            "guild_id": guild.id,
+            "user_id": booster.id,
+            "role_id": 88,
+        }
+        cog = BoosterCustomRoleUpdateCog(bot)
+
+        result = await cog._update_custom_role(
+            guild=guild,
+            member=booster,
+            color_spec=RoleColorSpec(discord.Color(0x123456)),
+            role_name="Gone",
+            icon_attachment=None,
+        )
+
+        self.assertFalse(result.completed)
+        self.assertIn("Role đã bị xóa", result.message)
+        guild.fetch_roles.assert_awaited_once_with()
+        collection.delete_one.assert_called_once_with(
+            {"guild_id": guild.id, "user_id": booster.id, "role_id": 88}
+        )
+
     async def test_gradient_without_perk_creates_the_primary_color(self) -> None:
         collection = MagicMock()
         collection.find_one.return_value = None

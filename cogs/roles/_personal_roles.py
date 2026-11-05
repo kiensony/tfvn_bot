@@ -12,6 +12,7 @@ from discord.ext import commands
 
 
 logger = logging.getLogger(__name__)
+DELETED_PERSONAL_ROLE_MESSAGE = "Role đã bị xóa. Hãy tạo lại custom role."
 
 
 def personal_role_lock(
@@ -52,6 +53,41 @@ async def resolve_personal_role(
         return role
     roles = await guild.fetch_roles()
     return next((role for role in roles if role.id == role_id), None)
+
+
+def forget_cached_role(guild: discord.Guild, role_id: int) -> None:
+    """Drop a role Discord no longer has so later lookups do not reuse it."""
+    remove = getattr(guild, "_remove_role", None)
+    if callable(remove):
+        try:
+            remove(role_id)
+        except KeyError:
+            return
+        return
+    roles = getattr(guild, "_roles", None)
+    if isinstance(roles, dict):
+        roles.pop(role_id, None)
+
+
+def clear_deleted_personal_role(
+    collection: Any,
+    guild: discord.Guild,
+    user_id: int,
+    role_id: int,
+) -> None:
+    """Forget a custom role after Discord reports that it was deleted."""
+    forget_cached_role(guild, role_id)
+    try:
+        collection.delete_one(
+            {"guild_id": guild.id, "user_id": user_id, "role_id": role_id}
+        )
+    except Exception:
+        logger.exception(
+            "Could not remove deleted custom role record %s for guild %s user %s.",
+            role_id,
+            guild.id,
+            user_id,
+        )
 
 
 ANCHOR_ROLE_VARIABLE = "BOOSTER_CUSTOM_ROLE_ANCHOR_ID"
