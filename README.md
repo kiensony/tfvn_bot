@@ -188,30 +188,36 @@ When startup succeeds, the console prints `Bot is ready!`. Runtime output is als
 
 ## Announcement settings
 
-The settings commands configure welcome and leave/kick/ban announcements for
-the current server. With `cogs.settings.variable_setting` loaded, an
-administrator can set or read an announcement value:
+The settings commands configure welcome and leave/kick/ban announcements, plus
+the MrBeast alert channel, for the current server. With
+`cogs.settings.variable_setting` loaded, an administrator can set or read a value:
 
 ```text
 !tf setting set_variable JOIN_CHANNEL
 !tf setting get_variable JOIN_CHANNEL
+!tf setting set_variable MRBEAST_SCAM_ALERT_CHANNEL
 ```
 
 The set command prompts directly for the value and stores it as a `STRING`.
-Both commands accept only the seven keys below, require Administrator, and
+Both commands accept only the eight keys below, require Administrator, and
 cannot be used in DMs. Values automatically use the current server's ID and
 apply immediately. Prompts expire after 120 seconds; enter `cancel` to stop.
+`MRBEAST_SCAM_ALERT_CHANNEL` accepts a channel ID or a channel mention and
+stores the ID.
 
 Announcement records use `{guild_id, name, type, value}` with a unique
 `(guild_id, name)` index, cached in `bot.guild_vars[guild_id][name]`. Announcement
 lookups never fall back to legacy shared channel IDs. Existing unscoped feature
 records continue to load into the flat `bot.global_vars[name]` cache for
-compatibility; these commands cannot read or modify them.
+compatibility; these commands cannot read or modify them. The MrBeast alert
+channel is the exception: a guild value replaces the legacy shared channel for
+that server only.
 
-| Guild announcement variables | Type |
+| Guild setting variables | Type |
 | --- | --- |
 | `JOIN_CHANNEL`, `RULE_CHANNEL`, `ROLE_CHANNEL`, `BYE_CHANNEL` | `STRING` |
 | `WELCOME_GIF_URL`, `GOODBYE_GIF_URL`, `BANNED_GIF_URL` | `STRING` |
+| `MRBEAST_SCAM_ALERT_CHANNEL` | `STRING` channel ID |
 
 Welcome messages require `JOIN_CHANNEL`, `RULE_CHANNEL`, and `ROLE_CHANNEL` to
 point to channels in that server. Departure messages require `BYE_CHANNEL`.
@@ -278,7 +284,7 @@ commands rather than `setting set_variable`:
 | System | Initial configuration |
 | --- | --- |
 | Moderation cases | `!tf case log_channel #mod-log` |
-| MrBeast photo-dump alerts | Existing `MRBEAST_SCAM_ALERT_CHANNEL` configuration, with fallback to the case log channel |
+| MrBeast photo-dump alerts | `setting set_variable MRBEAST_SCAM_ALERT_CHANNEL`. A legacy shared value is used when this server has no channel, then `case log_channel` |
 | Shop | Add a role, badge, or custom-role listing; no separate setup command is required |
 
 The role exam uses the repository file `data/role_exam.json` instead of MongoDB.
@@ -529,7 +535,9 @@ and does not reload `.env`, change settings, or store reports. Secrets and raw
 exception messages are never included in diagnostics. MongoDB checks run in a
 worker thread with a five-second deadline, so a database failure still leaves
 other findings available. Doctor retains its legacy configuration checks and
-does not inspect announcement overrides in `bot.guild_vars`.
+does not inspect announcement overrides in `bot.guild_vars`. It does read this
+server's `MRBEAST_SCAM_ALERT_CHANNEL` from `bot.guild_vars` before the legacy
+shared value.
 
 If the invoking Administrator is also the Bot owner, `operation_dashboard` adds private
 panels for the bot's joined servers and lifecycle history. The server manager can

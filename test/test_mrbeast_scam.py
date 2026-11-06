@@ -597,6 +597,23 @@ class TestMrBeastScamCog(unittest.IsolatedAsyncioTestCase):
         self.author.timeout.assert_awaited()
         self.alert.send.assert_awaited()
 
+    async def test_guild_alert_channel_overrides_shared_channel(self) -> None:
+        guild_alert = self.make_channel(901)
+        guild_alert.send.return_value = SimpleNamespace(
+            id=321, channel=SimpleNamespace(id=guild_alert.id),
+        )
+        self.bot.guild_vars = {
+            self.guild_id: {ALERT_CHANNEL_VARIABLE: str(guild_alert.id)},
+        }
+        await self.dump_times(7, confirm=True)
+        guild_alert.send.assert_awaited()
+        self.alert.send.assert_not_awaited()
+
+    async def test_other_guild_alert_channel_keeps_shared_channel(self) -> None:
+        self.bot.guild_vars = {self.guild_id + 1: {ALERT_CHANNEL_VARIABLE: "901"}}
+        await self.dump_times(7, confirm=True)
+        self.alert.send.assert_awaited()
+
     async def test_missing_alert_channel_still_timeouts(self) -> None:
         self.bot.global_vars = {}
         await self.dump_times(7, confirm=True)

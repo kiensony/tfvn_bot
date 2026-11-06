@@ -19,6 +19,10 @@ from cogs._hash_verification import (
     verification_keyring_from_bot,
 )
 from cogs.operation._setup_helpers import SetupCheck, parse_discord_id
+from cogs.settings._guild_variables import (
+    MRBEAST_SCAM_ALERT_CHANNEL,
+    get_guild_variable,
+)
 
 
 DATABASE_TIMEOUT_SECONDS = 5
@@ -67,7 +71,7 @@ CHANNEL_REQUIREMENTS = (
         MESSAGE_PERMISSIONS + ("manage_messages",),
     ),
     ChannelRequirement(
-        "MRBEAST_SCAM_ALERT_CHANNEL", ("cogs.mod.mrbeast_scam",),
+        MRBEAST_SCAM_ALERT_CHANNEL, ("cogs.mod.mrbeast_scam",),
         MESSAGE_PERMISSIONS + ("attach_files",),
     ),
     ChannelRequirement(
@@ -442,6 +446,18 @@ def _invalid_beta_entries(value: Any) -> bool:
     return False
 
 
+def _channel_setting_value(bot: commands.Bot, guild: discord.Guild, key: str) -> Any:
+    """Prefer this server's MrBeast alert channel over the legacy shared value."""
+    variables = getattr(bot, "global_vars", None)
+    shared = variables.get(key) if isinstance(variables, Mapping) else None
+    if key != MRBEAST_SCAM_ALERT_CHANNEL:
+        return shared
+    guild_value = get_guild_variable(bot, guild.id, key)
+    if _configured(guild_value):
+        return guild_value
+    return shared
+
+
 def _check_global_settings(
     bot: commands.Bot, guild: discord.Guild, modules: set[str],
 ) -> list[SetupCheck]:
@@ -466,7 +482,8 @@ def _check_global_settings(
     for requirement in CHANNEL_REQUIREMENTS:
         if _enabled(modules, requirement.modules):
             checks.extend(_check_channel_value(
-                bot, guild, requirement, variables.get(requirement.key),
+                bot, guild, requirement,
+                _channel_setting_value(bot, guild, requirement.key),
             ))
     for name, dependencies, assignable in ROLE_REQUIREMENTS:
         if _enabled(modules, dependencies):

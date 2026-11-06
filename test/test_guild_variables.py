@@ -10,6 +10,7 @@ from pymongo.errors import PyMongoError
 
 from cogs.settings._guild_variables import (
     ANNOUNCEMENT_VARIABLES,
+    MRBEAST_SCAM_ALERT_CHANNEL,
     get_guild_variable,
     get_guild_variables,
 )
@@ -110,6 +111,26 @@ class TestAnnouncementVariableStore(unittest.TestCase):
         for guild_id in (10, None, "10", True, -1):
             self.assertEqual(get_guild_variables(bot, guild_id), {})
 
+    def test_alert_channel_is_scoped_and_stores_a_channel_id(self) -> None:
+        cog, collection = make_cog([
+            {"name": MRBEAST_SCAM_ALERT_CHANNEL, "value": "legacy"},
+        ])
+        cog.save_variable(10, MRBEAST_SCAM_ALERT_CHANNEL, "<#101>")
+        cog.save_variable(20, MRBEAST_SCAM_ALERT_CHANNEL, " 202 ")
+        reloaded = VariableSetting(cog.bot)
+        self.assertEqual(get_guild_variable(reloaded.bot, 10, MRBEAST_SCAM_ALERT_CHANNEL), "101")
+        self.assertEqual(get_guild_variable(reloaded.bot, 20, MRBEAST_SCAM_ALERT_CHANNEL), "202")
+        self.assertEqual(reloaded.bot.global_vars[MRBEAST_SCAM_ALERT_CHANNEL], "legacy")
+        self.assertIsNone(get_guild_variable(reloaded.bot, 30, MRBEAST_SCAM_ALERT_CHANNEL))
+        for value in ("general", "<#0>", "0", "<#101> extra"):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    cog.save_variable(10, MRBEAST_SCAM_ALERT_CHANNEL, value)
+        self.assertEqual(
+            [row["value"] for row in collection.rows if row.get("guild_id") == 10],
+            ["101"],
+        )
+
     def test_database_failure_preserves_live_cache(self):
         cog, collection = make_cog()
         cog.save_variable(10, "JOIN_CHANNEL", "old")
@@ -153,14 +174,36 @@ class TestAnnouncementVariableCommands(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("private", str(ctx.send.call_args_list))
         self.assertEqual(collection.rows, [{"name": "BETA_ROLE_IDS", "value": ["private"]}])
 
-    async def test_help_only_lists_announcement_keys(self):
+    async def test_help_lists_supported_guild_keys(self):
         cog, _ = make_cog()
         ctx = context()
         await cog.setting.callback(cog, ctx)
         text = ctx.send.call_args.args[0]
-        for name in ANNOUNCEMENT_VARIABLES:
+        for name in (*ANNOUNCEMENT_VARIABLES, MRBEAST_SCAM_ALERT_CHANNEL):
             self.assertIn(name, text)
         self.assertNotIn("BETA_ROLE_IDS", text)
+
+    async def test_alert_channel_prompt_stores_id_and_rejects_names(self) -> None:
+        cog, collection = make_cog()
+        ctx = context()
+        replies = ["general", "<#900>"]
+
+        async def wait_for(event, *, check, timeout):
+            self.assertEqual(event, "message")
+            self.assertEqual(timeout, 120)
+            reply = SimpleNamespace(
+                content=replies.pop(0), author=ctx.author,
+                channel=ctx.channel, guild=ctx.guild,
+            )
+            self.assertTrue(check(reply))
+            return reply
+
+        cog.bot.wait_for.side_effect = wait_for
+        await cog.set_variable.callback(cog, ctx, MRBEAST_SCAM_ALERT_CHANNEL)
+        self.assertEqual(cog.bot.guild_vars, {10: {MRBEAST_SCAM_ALERT_CHANNEL: "900"}})
+        self.assertEqual(collection.rows[0]["value"], "900")
+        self.assertIn("ID kênh", ctx.send.call_args_list[0].args[0])
+        self.assertIn("ví dụ", ctx.send.call_args_list[1].args[0])
 
     async def test_cancel_timeout_and_revoked_permissions_do_not_write(self):
         for reply in ("cancel", None, "101"):

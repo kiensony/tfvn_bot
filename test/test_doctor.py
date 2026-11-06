@@ -502,6 +502,32 @@ class TestDoctorCollection(DoctorFixtures, unittest.IsolatedAsyncioTestCase):
                 self.assertIn("case log_channel #channel", log_findings[0].fix)
                 channel.permissions_for.assert_not_called()
 
+    def test_mrbeast_alert_uses_this_guild_before_the_shared_channel(self) -> None:
+        module = "cogs.mod.mrbeast_scam"
+        self.bot.extensions[module] = object()
+        channel = make_channel(self.guild, 303)
+        self.bot.global_vars["MRBEAST_SCAM_ALERT_CHANNEL"] = "999999"
+        self.bot.guild_vars = {self.guild.id: {"MRBEAST_SCAM_ALERT_CHANNEL": str(channel.id)}}
+
+        checks = doctor._check_global_settings(self.bot, self.guild, {module})
+
+        alert_checks = [check for check in checks if "MRBEAST_SCAM_ALERT_CHANNEL" in check.name]
+        self.assertTrue(alert_checks)
+        self.assertTrue(all(check.level == "ok" for check in alert_checks))
+        self.assertIn("303", alert_checks[0].name)
+
+    def test_missing_mrbeast_alert_points_at_the_setting_command(self) -> None:
+        module = "cogs.mod.mrbeast_scam"
+        self.bot.extensions[module] = object()
+
+        checks = doctor._check_global_settings(self.bot, self.guild, {module})
+
+        findings_for_alert = [
+            check for check in findings(checks) if check.name == "MRBEAST_SCAM_ALERT_CHANNEL"
+        ]
+        self.assertEqual(len(findings_for_alert), 1)
+        self.assertIn("setting set_variable MRBEAST_SCAM_ALERT_CHANNEL", findings_for_alert[0].fix)
+
     async def test_verify_channel_failure_explains_environment_configuration(self) -> None:
         self.bot.extensions["cogs.general"] = object()
         os.environ["VERIFY_CHANNEL"] = "private-invalid-channel-id"

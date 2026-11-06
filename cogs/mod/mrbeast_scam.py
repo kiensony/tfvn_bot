@@ -49,6 +49,7 @@ from cogs.mod._mrbeast_scam_helpers import (
 )
 from cogs.mod._reply_target import ReplyTargetError, fetch_same_channel_reply
 from cogs.operation._setup_helpers import parse_discord_id
+from cogs.settings._guild_variables import get_guild_variable
 
 
 logger = logging.getLogger(__name__)
@@ -519,11 +520,15 @@ class MrBeastScamCog(commands.Cog):
         return files
 
     def _alert_channel(self, guild: discord.Guild) -> discord.abc.Messageable | None:
-        variables = getattr(self.bot, "global_vars", None) or {}
-        channel_id = parse_discord_id(variables.get(ALERT_CHANNEL_VARIABLE))
-        channel = self._resolve_guild_channel(guild, channel_id)
-        if channel is not None:
-            return channel
+        # This server's setting wins. A legacy shared value is used only when
+        # the guild has no resolvable channel of its own.
+        for configured in (
+            get_guild_variable(self.bot, guild.id, ALERT_CHANNEL_VARIABLE),
+            (getattr(self.bot, "global_vars", None) or {}).get(ALERT_CHANNEL_VARIABLE),
+        ):
+            channel = self._resolve_guild_channel(guild, parse_discord_id(configured))
+            if channel is not None:
+                return channel
         try:
             config = self.db["moderation_config"].find_one({"guild_id": guild.id}) or {}
         except PyMongoError:

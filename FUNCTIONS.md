@@ -715,7 +715,7 @@ five seconds in both direct commands and UI confirmations.
 | --- | --- | --- | --- |
 | `scam_check` | `mrbeast` | Manage Messages | Reply to a message to inspect whether it is a 1–4 photo dump, how many times that same image set was posted in another channel during the 2-minute window, and any caption-scam signals. Does not delete or timeout |
 
-**Background:** watches guild messages and edits. A near-empty 1–4 image message is a dump. Dumps count only when the file size and pixel size match and that set has already appeared in a different channel during the last two minutes. Same-channel repeats and different images stay watch-only. Matching dumps **1–4** are watch-only, so posting the same set to page-posting, paper-posting, and general does not warn. Dump **5** (and 6, if they cleared the previous warning) sends a public **Xác nhận** button the author must click within **30 seconds**; missing the click deletes the matching dumps, applies a **24-hour timeout**, and opens the staff panel. Dump **7** skips the button and timeouts immediately. Staff panel: `MRBEAST_SCAM_ALERT_CHANNEL` (fallback: `case log_channel`) with Ban / Gỡ timeout / Giữ timeout. Ban is staff-only. Isolated caption scams that already match brand+prize+lure may still be deleted without a timeout. Webhooks are scanned. This bot and other bots are ignored. Members with Administrator or Manage Messages are ignored in production; development still scans them so the filter can be tried from a staff account. The same photo is recognized by file size and pixel size, so a large upload does not have to be downloaded. Logs: `mrbeast_scam_logs`, `mrbeast_scam_incidents`. The image identity stays in the two-minute memory window and is not written to MongoDB.
+**Background:** watches guild messages and edits. A near-empty 1–4 image message is a dump. Dumps count only when the file size and pixel size match and that set has already appeared in a different channel during the last two minutes. Same-channel repeats and different images stay watch-only. Matching dumps **1–4** are watch-only, so posting the same set to page-posting, paper-posting, and general does not warn. Dump **5** (and 6, if they cleared the previous warning) sends a public **Xác nhận** button the author must click within **30 seconds**; missing the click deletes the matching dumps, applies a **24-hour timeout**, and opens the staff panel. Dump **7** skips the button and timeouts immediately. Staff panel channel is this server's `MRBEAST_SCAM_ALERT_CHANNEL` (`setting set_variable MRBEAST_SCAM_ALERT_CHANNEL`), then a legacy shared value, then `case log_channel`. Buttons: Ban / Gỡ timeout / Giữ timeout. Ban is staff-only. Isolated caption scams that already match brand+prize+lure may still be deleted without a timeout. Webhooks are scanned. This bot and other bots are ignored. Members with Administrator or Manage Messages are ignored in production; development still scans them so the filter can be tried from a staff account. The same photo is recognized by file size and pixel size, so a large upload does not have to be downloaded. Logs: `mrbeast_scam_logs`, `mrbeast_scam_incidents`. The image identity stays in the two-minute memory window and is not written to MongoDB.
 
 **Module:** `cogs.mod.*`
 
@@ -737,18 +737,19 @@ No user command. On message, if content matches entries in `data/banned_word_lis
 
 | Command | Access | Description |
 | --- | --- | --- |
-| `setting` | Administrator, guild only | Announcement settings help |
-| `setting set_variable <NAME>` | Administrator, guild only | Prompt directly for this guild's announcement value and save it as a `STRING` |
-| `setting get_variable <NAME>` | Administrator, guild only | Read this guild's announcement value |
+| `setting` | Administrator, guild only | Guild settings help |
+| `setting set_variable <NAME>` | Administrator, guild only | Prompt directly for this guild's value and save it as a `STRING` |
+| `setting get_variable <NAME>` | Administrator, guild only | Read this guild's value |
 
-Only `JOIN_CHANNEL`, `RULE_CHANNEL`, `ROLE_CHANNEL`, `BYE_CHANNEL`,
-`WELCOME_GIF_URL`, `GOODBYE_GIF_URL`, and `BANNED_GIF_URL` are accepted. All seven
-are `STRING` values scoped to the current guild and apply immediately. Their
-`(guild_id, name)` records are cached in `bot.guild_vars[guild_id]`. GIF overrides
-fall back to bundled images when absent or invalid. Prompts accept `cancel` and
-expire after 120 seconds. The flat `bot.global_vars` cache remains available for
-legacy features; these commands cannot manage other settings. See README for
-the announcement-only migration.
+Accepted names are `JOIN_CHANNEL`, `RULE_CHANNEL`, `ROLE_CHANNEL`, `BYE_CHANNEL`,
+`WELCOME_GIF_URL`, `GOODBYE_GIF_URL`, `BANNED_GIF_URL`, and
+`MRBEAST_SCAM_ALERT_CHANNEL`. All eight are `STRING` values scoped to the current
+guild and apply immediately. Their `(guild_id, name)` records are cached in
+`bot.guild_vars[guild_id]`. The alert channel accepts a channel ID or channel
+mention and stores the ID. GIF overrides fall back to bundled images when absent
+or invalid. Prompts accept `cancel` and expire after 120 seconds. The flat
+`bot.global_vars` cache remains available for legacy features; these commands
+cannot manage other settings. See README for the announcement-only migration.
 
 **Module:** `cogs.settings.variable_setting`
 

@@ -7,7 +7,7 @@ This document maps the maintained repository files and explains where each behav
 1. `main.py` loads `.env`, creates the prefix-based `commands.Bot`, enables member and message-content intents, attaches the MongoDB database from `db.py`, and owns graceful SIGINT/SIGTERM command draining.
 2. `DataLoader` loads shared lists from `data/` onto the bot instance.
 3. In production, every public Python module below `cogs/` is discovered recursively. Development uses the ignored `dev_cogs.txt`. Both use the database selected by `DB_NAME`. Selected extensions and safe startup failure types are retained in memory for diagnostics; disabled modules are excluded and current loaded extensions take precedence over stale failure records.
-4. `cogs.settings.variable_setting` is loaded first when selected, populating `bot.guild_vars[guild_id]` with announcement settings and retaining the flat `bot.global_vars` cache for legacy features. Welcome and departure announcements read their current guild's values through `cogs.settings._guild_variables`.
+4. `cogs.settings.variable_setting` is loaded first when selected, populating `bot.guild_vars[guild_id]` with announcement settings and `MRBEAST_SCAM_ALERT_CHANNEL`, and retaining the flat `bot.global_vars` cache for legacy features. Welcome and departure announcements read their current guild's values through `cogs.settings._guild_variables`. The MrBeast filter reads that guild's alert channel from the same cache before the legacy shared value.
 5. Each extension registers commands, listeners, views, or scheduled tasks through `async def setup(bot)`.
 
 ## Repository Tree and Responsibilities
@@ -271,8 +271,8 @@ tfvn_bot/
     │   ├── setup_check.py               Manage Guild diagnostic summary using the shared Doctor collector
     │   └── leave.py                     Administrator-controlled guild departure
     ├── settings/
-    │   ├── variable_setting.py         Announcement-only settings commands and legacy cache loading
-    │   └── _guild_variables.py         Seven-key announcement whitelist, guild lookups, and unique index
+    │   ├── variable_setting.py         Guild settings commands and legacy cache loading
+    │   └── _guild_variables.py         Announcement whitelist, MrBeast alert channel, guild lookups, and unique index
     └── utils/
         ├── giveaway.py                  Persistent views, entries, scheduling, rerolls, and guild role settings
         ├── _giveaway_helpers.py         Duration/prize parsing, blacklist/bonus weights, and weighted draws
@@ -342,11 +342,12 @@ MongoDB collections are created lazily. Major groups are:
 
 - Configuration: announcement records in `global_variables` use
   `{guild_id, name, type: "STRING", value}` with a partial unique `(guild_id, name)`
-  index for numeric guild IDs. The seven allowed keys are `JOIN_CHANNEL`,
+  index for numeric guild IDs. The allowed keys are `JOIN_CHANNEL`,
   `RULE_CHANNEL`, `ROLE_CHANNEL`, `BYE_CHANNEL`, `WELCOME_GIF_URL`,
-  `GOODBYE_GIF_URL`, and `BANNED_GIF_URL`. Administrator commands can only read/write
-  these values for their current guild; the set command prompts directly for
-  the value. `migrate_guild_variables.py` previews legacy announcement copies
+  `GOODBYE_GIF_URL`, `BANNED_GIF_URL`, and `MRBEAST_SCAM_ALERT_CHANNEL`.
+  Administrator commands can only read/write these values for their current guild;
+  the set command prompts directly for the value. The alert channel is stored as
+  a channel ID. `migrate_guild_variables.py` previews legacy announcement copies
   by default and writes only with `--apply`. Other legacy unscoped records still
   populate the flat `bot.global_vars` cache for compatibility. `moderation_config`
   remains independently guild-scoped
@@ -382,7 +383,7 @@ MongoDB collections are created lazily. Major groups are:
   sleep minutes, announcement channel, next UTC deadline, local-date deduplication,
   and audit timestamps; unique guild/member and due-time indexes enforce one schedule
   per member and support the minute scheduler
-- AFK and moderation: `afk_reminders`, `afk_pings`, `discipline_logs`, `old_roles`, `warnings`, `moderation_cases`, `mrbeast_scam_logs`, `mrbeast_scam_incidents`. Photo-dump raids count the same author's repeated 1–4 image set only when the same file size and pixel size appear in another channel inside a two-minute window: the 5th matching dump sends a 30-second confirm button (missed click → 24h timeout), the 7th timeouts immediately and opens a persistent staff panel; same-channel repeats and different images stay on watch. Ban / Gỡ timeout / Giữ timeout CAS `pending` incidents. Alert channel is `MRBEAST_SCAM_ALERT_CHANNEL` with fallback to `moderation_config.log_channel_id`
+- AFK and moderation: `afk_reminders`, `afk_pings`, `discipline_logs`, `old_roles`, `warnings`, `moderation_cases`, `mrbeast_scam_logs`, `mrbeast_scam_incidents`. Photo-dump raids count the same author's repeated 1–4 image set only when the same file size and pixel size appear in another channel inside a two-minute window: the 5th matching dump sends a 30-second confirm button (missed click → 24h timeout), the 7th timeouts immediately and opens a persistent staff panel; same-channel repeats and different images stay on watch. Ban / Gỡ timeout / Giữ timeout CAS `pending` incidents. Alert channel is this guild's `MRBEAST_SCAM_ALERT_CHANNEL`, then the legacy shared value, then `moderation_config.log_channel_id`
 - Operations audit: `operation_logs` stores guild-scoped recognized prefix-command outcomes and dashboard export/prune actions; records have no automatic TTL and are removed only through the Administrator dashboard
 - Verification approvals: `verification_logs` stores one append-only guild-scoped row each time `verified` newly grants the configured role. The row records the moderator, member, role, channel, and command message. `_id` is `verified:{guild_id}:{message_id}`, so a retried write does not duplicate the approval. Rows have no TTL, are not pruned with `operation_logs`, and are excluded from guild audit browsing and CSV export. `unverified` and `self_unverified` do not write rows. Administrators read the journal from `operation_dashboard` through **Nhật ký xác minh**
 - Bot lifecycle: `bot_lifecycle_events` stores global, append-only `initial_ready`,
