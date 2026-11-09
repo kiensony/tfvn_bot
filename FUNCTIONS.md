@@ -738,18 +738,21 @@ No user command. On message, if content matches entries in `data/banned_word_lis
 | Command | Access | Description |
 | --- | --- | --- |
 | `setting` | Administrator, guild only | Guild settings help |
-| `setting set_variable <NAME>` | Administrator, guild only | Prompt directly for this guild's value and save it as a `STRING` |
-| `setting get_variable <NAME>` | Administrator, guild only | Read this guild's value |
+| `setting set_variable <NAME>` | Administrator, guild only | Prompt for a guild value or a shared Mongo value |
+| `setting get_variable <NAME>` | Administrator, guild only | Read a guild value or a shared Mongo value |
 
-Accepted names are `JOIN_CHANNEL`, `RULE_CHANNEL`, `ROLE_CHANNEL`, `BYE_CHANNEL`,
+Guild names are `JOIN_CHANNEL`, `RULE_CHANNEL`, `ROLE_CHANNEL`, `BYE_CHANNEL`,
 `WELCOME_GIF_URL`, `GOODBYE_GIF_URL`, `BANNED_GIF_URL`, and
 `MRBEAST_SCAM_ALERT_CHANNEL`. All eight are `STRING` values scoped to the current
 guild and apply immediately. Their `(guild_id, name)` records are cached in
 `bot.guild_vars[guild_id]`. The alert channel accepts a channel ID or channel
 mention and stores the ID. GIF overrides fall back to bundled images when absent
-or invalid. Prompts accept `cancel` and expire after 120 seconds. The flat
-`bot.global_vars` cache remains available for legacy features; these commands
-cannot manage other settings. See README for the announcement-only migration.
+or invalid. The same commands also edit the shared settings listed in README,
+including channels, roles, `BETA_ROLE_IDS`, Area 51 hours, move icons, and NSFW
+GIF URL lists. Shared records have no `guild_id` and update `bot.global_vars`.
+The reply tells the administrator to reload the cog when that feature reads the
+value only at startup. Prompts accept `cancel` and expire after 120 seconds.
+`.env` secrets are not accepted. See README for the announcement-only migration.
 
 **Module:** `cogs.settings.variable_setting`
 

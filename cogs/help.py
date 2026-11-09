@@ -1316,15 +1316,15 @@ HELP_TOPICS = (
                         "leave",
                         "Cho bot rời server ngay, không xác nhận — Administrator.",
                     ),
-                    _entry("setting", "Thông báo, MrBeast — Admin."),
+                    _entry("setting", "Biến cấu hình — Admin."),
                     _entry(
                         "setting set_variable",
-                        "Đặt thông báo/MrBeast — Admin.",
+                        "Đặt biến cấu hình — Admin.",
                         "setting set_variable <NAME>",
                     ),
                     _entry(
                         "setting get_variable",
-                        "Đọc thông báo/MrBeast — Admin.",
+                        "Đọc biến cấu hình — Admin.",
                         "setting get_variable <NAME>",
                     ),
                 ),

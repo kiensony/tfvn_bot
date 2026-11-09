@@ -8,6 +8,7 @@ import discord
 from discord.ext import commands
 from pymongo.errors import PyMongoError
 
+from cogs.settings._editable_settings import SHARED_SETTINGS
 from cogs.settings._guild_variables import (
     ANNOUNCEMENT_VARIABLES,
     MRBEAST_SCAM_ALERT_CHANNEL,
@@ -162,11 +163,11 @@ class TestAnnouncementVariableCommands(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(cog.bot.guild_vars, {10: {"JOIN_CHANNEL": "101"}})
         self.assertEqual(collection.rows[0]["type"], "STRING")
 
-    async def test_nonannouncement_commands_rejected_even_for_bot_owner(self):
+    async def test_unknown_names_are_rejected_even_for_bot_owner(self):
         cog, collection = make_cog([{"name": "BETA_ROLE_IDS", "value": ["private"]}])
         cog.bot.is_owner = AsyncMock(return_value=True)
         ctx = context()
-        for name in ("BETA_ROLE_IDS", "HIGHLIGHT_CHANNEL", "KING_ROLE_ID", "arbitrary"):
+        for name in ("arbitrary", "DISCORD_TOKEN", "DB_PASSWORD"):
             await cog.set_variable.callback(cog, ctx, name)
             await cog.get_variable.callback(cog, ctx, name)
         cog.bot.wait_for.assert_not_awaited()
@@ -178,10 +179,10 @@ class TestAnnouncementVariableCommands(unittest.IsolatedAsyncioTestCase):
         cog, _ = make_cog()
         ctx = context()
         await cog.setting.callback(cog, ctx)
-        text = ctx.send.call_args.args[0]
-        for name in (*ANNOUNCEMENT_VARIABLES, MRBEAST_SCAM_ALERT_CHANNEL):
+        text = "".join(call.args[0] for call in ctx.send.call_args_list)
+        for name in (*ANNOUNCEMENT_VARIABLES, MRBEAST_SCAM_ALERT_CHANNEL, *SHARED_SETTINGS):
             self.assertIn(name, text)
-        self.assertNotIn("BETA_ROLE_IDS", text)
+        self.assertNotIn("DISCORD_TOKEN", text)
 
     async def test_alert_channel_prompt_stores_id_and_rejects_names(self) -> None:
         cog, collection = make_cog()
@@ -204,6 +205,63 @@ class TestAnnouncementVariableCommands(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(collection.rows[0]["value"], "900")
         self.assertIn("ID kênh", ctx.send.call_args_list[0].args[0])
         self.assertIn("ví dụ", ctx.send.call_args_list[1].args[0])
+
+    def test_shared_settings_stay_unscoped_and_keep_their_type(self) -> None:
+        cog, collection = make_cog([
+            {"guild_id": 10, "name": "BETA_ROLE_IDS", "type": "ARRAY", "value": ["9"]},
+        ])
+        cog.save_shared_variable("HIGHLIGHT_CHANNEL", "<#303>")
+        cog.save_shared_variable("BETA_ROLE_IDS", "101, <@&202> 101")
+        cog.save_shared_variable("AREA_51_PRUNE_HOURS", "1.5")
+        cog.save_shared_variable("BLOWJOB_GIFS", "https://cdn.example/a.gif")
+        reloaded = VariableSetting(cog.bot)
+        self.assertEqual(reloaded.bot.global_vars["HIGHLIGHT_CHANNEL"], "303")
+        self.assertEqual(reloaded.bot.global_vars["BETA_ROLE_IDS"], ["101", "202"])
+        self.assertEqual(reloaded.bot.global_vars["AREA_51_PRUNE_HOURS"], "1.5")
+        self.assertEqual(
+            reloaded.bot.global_vars["BLOWJOB_GIFS"], ["https://cdn.example/a.gif"],
+        )
+        self.assertIsNone(get_guild_variable(reloaded.bot, 10, "HIGHLIGHT_CHANNEL"))
+        stored = {row["name"]: row for row in collection.rows if "guild_id" not in row}
+        self.assertEqual(stored["HIGHLIGHT_CHANNEL"]["type"], "STRING")
+        self.assertEqual(stored["BETA_ROLE_IDS"]["type"], "ARRAY")
+        self.assertEqual(collection.rows[0]["value"], ["9"])
+        for value in ("general", "169", "javascript:alert(1)", ""):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    cog.save_shared_variable("HIGHLIGHT_CHANNEL" if value == "general" else "AREA_51_PRUNE_HOURS", value)
+
+    async def test_shared_prompt_stores_live_value_and_marks_cached_settings(self) -> None:
+        cog, collection = make_cog()
+        ctx = context()
+        replies = ["nope", "<#404>"]
+
+        async def wait_for(event, *, check, timeout):
+            reply = SimpleNamespace(
+                content=replies.pop(0), author=ctx.author,
+                channel=ctx.channel, guild=ctx.guild,
+            )
+            self.assertTrue(check(reply))
+            return reply
+
+        cog.bot.wait_for.side_effect = wait_for
+        await cog.set_variable.callback(cog, ctx, "HIGHLIGHT_CHANNEL")
+        self.assertEqual(cog.bot.global_vars["HIGHLIGHT_CHANNEL"], "404")
+        self.assertNotIn("guild_id", collection.rows[0])
+        self.assertIn("mọi server", ctx.send.call_args_list[0].args[0])
+        self.assertIn("Có hiệu lực ngay", ctx.send.call_args_list[-1].args[0])
+
+        birthday = context()
+
+        async def wait_birthday(*args, **kwargs):
+            return SimpleNamespace(
+                content="<#505>", author=birthday.author,
+                channel=birthday.channel, guild=birthday.guild,
+            )
+
+        cog.bot.wait_for.side_effect = wait_birthday
+        await cog.set_variable.callback(cog, birthday, "BIRTHDAY_CHANNEL")
+        self.assertIn("Nạp lại cog", birthday.send.call_args_list[-1].args[0])
 
     async def test_cancel_timeout_and_revoked_permissions_do_not_write(self):
         for reply in ("cancel", None, "101"):

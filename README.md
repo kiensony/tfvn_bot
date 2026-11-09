@@ -198,20 +198,24 @@ the MrBeast alert channel, for the current server. With
 !tf setting set_variable MRBEAST_SCAM_ALERT_CHANNEL
 ```
 
-The set command prompts directly for the value and stores it as a `STRING`.
-Both commands accept only the eight keys below, require Administrator, and
-cannot be used in DMs. Values automatically use the current server's ID and
-apply immediately. Prompts expire after 120 seconds; enter `cancel` to stop.
-`MRBEAST_SCAM_ALERT_CHANNEL` accepts a channel ID or a channel mention and
-stores the ID.
+The set command prompts directly for the value. Guild settings are stored as a
+`STRING`. Both commands require Administrator and cannot be used in DMs.
+Guild values use the current server's ID and apply immediately. Prompts expire
+after 120 seconds; enter `cancel` to stop. `MRBEAST_SCAM_ALERT_CHANNEL` accepts
+a channel ID or a channel mention and stores the ID. The same commands also edit
+the shared Mongo settings in the table below. Those rows have no `guild_id` and
+apply to every server. `.env` values, tokens, and API keys are not editable here.
 
 Announcement records use `{guild_id, name, type, value}` with a unique
 `(guild_id, name)` index, cached in `bot.guild_vars[guild_id][name]`. Announcement
 lookups never fall back to legacy shared channel IDs. Existing unscoped feature
 records continue to load into the flat `bot.global_vars[name]` cache for
-compatibility; these commands cannot read or modify them. The MrBeast alert
-channel is the exception: a guild value replaces the legacy shared channel for
-that server only.
+compatibility. The MrBeast alert channel is the exception among guild
+settings: a guild value replaces the legacy shared channel for that server only.
+The shared settings below can be read and written with the same commands. A
+channel or role value accepts an ID or mention. Lists accept IDs separated by
+spaces or commas. Settings read only when a cog loads need a cog reload or bot
+restart; the command says so. Live settings apply immediately.
 
 | Guild setting variables | Type |
 | --- | --- |
@@ -254,6 +258,7 @@ Existing feature configuration remains compatible with the flat cache:
 | Beta command access | `BETA_ROLE_IDS` | `ARRAY` |
 | NSFW role controls | `KING_ROLE_ID`, `QUEEN_ROLE_ID` | `STRING` |
 | NSFW interaction media | `BLOWJOB_GIFS`, `HANDJOB_GIFS`, `FOOTJOB_GIFS`, `ASSJOB_GIFS`, `THIGHJOB_GIFS`, `SPANK_GIFS`, `RIMJOB_GIFS`, `FROTTING_GIFS`, `FUCKING_GIFS`, `CREAMPIE_GIFS`, `THREESOME_GIFS`, `ORGY_GIFS`, `GANGBANG_GIFS`, `FINGERING_GIFS`, `RIDE_GIFS`, `FACESIT_GIFS` | `ARRAY` |
+| Word-chain move icons | `BRILLIANT_MOVE_ICON`, `GREAT_MOVE_ICON`, `GOOD_MOVE_ICON`, `FORCED_MOVE_ICON`, `MISS_MOVE_ICON`, `BLUNDER_MOVE_ICON` | `STRING` |
 
 NSFW interaction commands load those GIF arrays from MongoDB at cog load, not from `assets/nsfw_gifs.py` at runtime. From the repository root, with `.env` Mongo settings available, seed any missing arrays from the file:
 

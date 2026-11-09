@@ -7,7 +7,7 @@ This document maps the maintained repository files and explains where each behav
 1. `main.py` loads `.env`, creates the prefix-based `commands.Bot`, enables member and message-content intents, attaches the MongoDB database from `db.py`, and owns graceful SIGINT/SIGTERM command draining.
 2. `DataLoader` loads shared lists from `data/` onto the bot instance.
 3. In production, every public Python module below `cogs/` is discovered recursively. Development uses the ignored `dev_cogs.txt`. Both use the database selected by `DB_NAME`. Selected extensions and safe startup failure types are retained in memory for diagnostics; disabled modules are excluded and current loaded extensions take precedence over stale failure records.
-4. `cogs.settings.variable_setting` is loaded first when selected, populating `bot.guild_vars[guild_id]` with announcement settings and `MRBEAST_SCAM_ALERT_CHANNEL`, and retaining the flat `bot.global_vars` cache for legacy features. Welcome and departure announcements read their current guild's values through `cogs.settings._guild_variables`. The MrBeast filter reads that guild's alert channel from the same cache before the legacy shared value.
+4. `cogs.settings.variable_setting` is loaded first when selected, populating `bot.guild_vars[guild_id]` with announcement settings and `MRBEAST_SCAM_ALERT_CHANNEL`, and retaining the flat `bot.global_vars` cache for shared feature settings. Welcome and departure announcements read their current guild's values through `cogs.settings._guild_variables`. The MrBeast filter reads that guild's alert channel from the same cache before the legacy shared value. Administrators edit the shared cache through the same settings commands; the accepted names live in `cogs/settings/_editable_settings.py`.
 5. Each extension registers commands, listeners, views, or scheduled tasks through `async def setup(bot)`.
 
 ## Repository Tree and Responsibilities
@@ -271,7 +271,8 @@ tfvn_bot/
     │   ├── setup_check.py               Manage Guild diagnostic summary using the shared Doctor collector
     │   └── leave.py                     Administrator-controlled guild departure
     ├── settings/
-    │   ├── variable_setting.py         Guild settings commands and legacy cache loading
+    │   ├── variable_setting.py         Guild and shared settings commands, plus cache loading
+    │   ├── _editable_settings.py       Shared Mongo settings the settings commands can edit
     │   └── _guild_variables.py         Announcement whitelist, MrBeast alert channel, guild lookups, and unique index
     └── utils/
         ├── giveaway.py                  Persistent views, entries, scheduling, rerolls, and guild role settings
@@ -345,12 +346,12 @@ MongoDB collections are created lazily. Major groups are:
   index for numeric guild IDs. The allowed keys are `JOIN_CHANNEL`,
   `RULE_CHANNEL`, `ROLE_CHANNEL`, `BYE_CHANNEL`, `WELCOME_GIF_URL`,
   `GOODBYE_GIF_URL`, `BANNED_GIF_URL`, and `MRBEAST_SCAM_ALERT_CHANNEL`.
-  Administrator commands can only read/write these values for their current guild;
-  the set command prompts directly for the value. The alert channel is stored as
-  a channel ID. `migrate_guild_variables.py` previews legacy announcement copies
-  by default and writes only with `--apply`. Other legacy unscoped records still
-  populate the flat `bot.global_vars` cache for compatibility. `moderation_config`
-  remains independently guild-scoped
+  Administrator commands read and write these values for their current guild.
+  The same commands also edit the shared settings in `_editable_settings.py`;
+  those rows stay unscoped `{name, type, value}` records in `bot.global_vars`.
+  The alert channel is stored as a channel ID. `migrate_guild_variables.py`
+  previews legacy announcement copies by default and writes only with `--apply`.
+  `moderation_config` remains independently guild-scoped
 - Economy: `user_accounts` (including versioned `cultivation` state), `daily_rewards_logs`, `transaction_logs`, `shop_items`, `shop_inventory`, `shop_custom_roles`, `shop_custom_rooms`, `shop_migrations`
 - Cultivation audit: append-only `cultivation_events`; TC exchanges also write `transaction_logs`
 - Social state: `interactions`, `nsfw_settings`, `images`, `marriages`, `marriage_proposals`, `triggered_replies`, `interaction_streaks`. Pair streaks are unique per guild `(user_a, user_b)` with Vietnam calendar dates (UTC+7); a chain stays live if `last_active_date` is today or yesterday. A day counts when both members reply to each other that date (`pending_reply_date` and `pending_reply_ids` until both have replied) or both join the same non-AFK voice or stage channel. Credited days are kept on `active_dates` for the `streak @user` weekday board. Current counts of 3, 7, 30, 100, or 365 ping both members in the channel that credited the day, once per milestone per pair (`announced_milestones`; older rows treat every milestone at or below the stored streak as already noticed). `streak` lists every credited pair for the caller, including broken chains; `streak @user` shows one pair

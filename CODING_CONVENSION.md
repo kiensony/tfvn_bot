@@ -96,12 +96,14 @@ do not fall back to legacy shared values. The MrBeast alert channel uses the
 guild value when that channel resolves, then the legacy shared value, then the
 case log channel.
 
-The settings commands accept only `JOIN_CHANNEL`, `RULE_CHANNEL`, `ROLE_CHANNEL`,
-`BYE_CHANNEL`, `WELCOME_GIF_URL`, `GOODBYE_GIF_URL`, `BANNED_GIF_URL`, and
-`MRBEAST_SCAM_ALERT_CHANNEL`. All eight are `STRING` values entered through a
-direct value prompt. The alert channel must be a channel ID or channel mention.
-Both commands require Administrator and a guild context; no shared-setting
-command path is provided.
+The settings commands accept those eight guild keys and the shared keys in
+`SHARED_SETTINGS` (`cogs/settings/_editable_settings.py`): birthday, highlight,
+Area 51, booster placement, word-game channels, verification and NSFW role IDs,
+`BETA_ROLE_IDS`, move icons, and NSFW GIF URL lists. Guild keys are `STRING`
+values. Shared keys keep their `STRING` or `ARRAY` type and are stored without
+`guild_id`. Channel and role values accept an ID or mention. Both commands
+require Administrator and a guild context. Process environment variables and
+secrets stay in `.env`.
 
 Legacy unscoped `{name, type, value}` records continue to load into the flat
 `bot.global_vars` map for existing features. Missing required announcement settings

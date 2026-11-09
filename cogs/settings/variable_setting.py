@@ -5,6 +5,12 @@ import discord
 from discord.ext import commands
 from pymongo.errors import PyMongoError
 
+from cogs.settings._editable_settings import (
+    SHARED_SETTINGS,
+    format_shared_setting,
+    normalize_shared_setting,
+    shared_setting,
+)
 from cogs.settings._guild_variables import (
     GUILD_SETTING_VARIABLES,
     MRBEAST_SCAM_ALERT_CHANNEL,
@@ -44,6 +50,21 @@ class VariableSetting(commands.Cog):
         )
         self.bot.guild_vars.setdefault(guild_id, {})[name] = stored
 
+    def save_shared_variable(self, name: str, value: str) -> None:
+        """Persist one shared setting without a guild id."""
+        spec = shared_setting(name)
+        if spec is None:
+            raise ValueError("Only supported shared settings can be saved.")
+        stored = normalize_shared_setting(name, value)
+        self.collection.update_one(
+            {"name": name, "guild_id": {"$exists": False}},
+            {"$set": {"name": name, "type": spec.value_type, "value": stored}},
+            upsert=True,
+        )
+        if not isinstance(getattr(self.bot, "global_vars", None), dict):
+            self.bot.global_vars = {}
+        self.bot.global_vars[name] = stored
+
     def load_variables(self) -> tuple[dict[str, object], dict[int, dict[str, str]]]:
         """Load guild settings and retain read compatibility for existing cogs."""
         legacy = {}
@@ -65,12 +86,15 @@ class VariableSetting(commands.Cog):
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
     async def setting(self, ctx: commands.Context) -> None:
-        """Quản lý thông báo chào mừng, rời/kick/ban và kênh cảnh báo MrBeast."""
-        variables = ", ".join(f"`{name}`" for name in sorted(GUILD_SETTING_VARIABLES))
-        await ctx.send(
+        """Quản lý biến theo server và biến Mongo dùng chung."""
+        guild_names = ", ".join(f"`{name}`" for name in sorted(GUILD_SETTING_VARIABLES))
+        shared_names = ", ".join(f"`{name}`" for name in sorted(SHARED_SETTINGS))
+        await self._send_text(
+            ctx,
             "Dùng `setting set_variable <NAME>` để đặt biến hoặc "
-            "`setting get_variable <NAME>` để xem biến của server này.\n"
-            f"Biến được hỗ trợ: {variables}"
+            "`setting get_variable <NAME>` để xem biến.\n"
+            f"Biến theo server: {guild_names}\n"
+            f"Biến dùng chung: {shared_names}",
         )
 
     @setting.command(name="set_variable")
@@ -78,8 +102,9 @@ class VariableSetting(commands.Cog):
     @commands.has_permissions(administrator=True)
     @commands.max_concurrency(1, per=commands.BucketType.member, wait=False)
     async def set_variable(self, ctx: commands.Context, name: str) -> None:
-        """Đặt biến thông báo hoặc kênh cảnh báo MrBeast cho server hiện tại."""
-        if name not in GUILD_SETTING_VARIABLES:
+        """Đặt biến theo server hoặc một biến Mongo dùng chung."""
+        spec = shared_setting(name)
+        if name not in GUILD_SETTING_VARIABLES and spec is None:
             await ctx.send(UNSUPPORTED_VARIABLE_MESSAGE)
             return
 
@@ -93,7 +118,12 @@ class VariableSetting(commands.Cog):
 
         try:
             while True:
-                if name == MRBEAST_SCAM_ALERT_CHANNEL:
+                if spec is not None:
+                    prompt = (
+                        f"{spec.hint} Biến `{name}` dùng chung cho mọi server. "
+                        "Gõ `cancel` để hủy."
+                    )
+                elif name == MRBEAST_SCAM_ALERT_CHANNEL:
                     prompt = (
                         f"Nhập ID kênh hoặc mention kênh cho `{name}` của server này. "
                         "Gõ `cancel` để hủy."
@@ -112,11 +142,19 @@ class VariableSetting(commands.Cog):
                     await ctx.send("❌ Giá trị không được rỗng.")
                     continue
                 try:
-                    value = normalize_guild_setting_value(name, value)
+                    if spec is None:
+                        value = normalize_guild_setting_value(name, value)
+                    else:
+                        normalize_shared_setting(name, value)
                 except ValueError:
-                    await ctx.send(
-                        "❌ Nhập ID kênh hoặc mention kênh, ví dụ `123456789012345678`."
-                    )
+                    if spec is None:
+                        detail = (
+                            "Nhập ID kênh hoặc mention kênh, ví dụ "
+                            "`123456789012345678`."
+                        )
+                    else:
+                        detail = spec.hint
+                    await ctx.send(f"❌ {detail}")
                     continue
                 break
         except asyncio.TimeoutError:
@@ -128,32 +166,63 @@ class VariableSetting(commands.Cog):
             await ctx.send("❌ Bạn cần quyền Administrator để thiết lập biến.")
             return
         try:
-            self.save_variable(ctx.guild.id, name, value)
+            if spec is None:
+                self.save_variable(ctx.guild.id, name, value)
+            else:
+                self.save_shared_variable(name, value)
         except PyMongoError:
-            logger.exception("Could not save a guild setting for guild %s", ctx.guild.id)
+            logger.exception("Could not save setting %s for guild %s", name, ctx.guild.id)
             await ctx.send("❌ Không lưu được biến. Vui lòng thử lại sau.")
             return
-        await ctx.send(
-            f"✅ Đã thiết lập biến '{name}' cho server này (ID: {ctx.guild.id}).",
-            allowed_mentions=discord.AllowedMentions.none(),
-        )
+        if spec is None:
+            confirmation = (
+                f"✅ Đã thiết lập biến '{name}' cho server này (ID: {ctx.guild.id})."
+            )
+        elif spec.reload_required:
+            confirmation = (
+                f"✅ Đã thiết lập biến '{name}'. "
+                "Nạp lại cog liên quan hoặc khởi động lại bot để áp dụng."
+            )
+        else:
+            confirmation = (
+                f"✅ Đã thiết lập biến '{name}'. Có hiệu lực ngay cho mọi server."
+            )
+        await ctx.send(confirmation, allowed_mentions=discord.AllowedMentions.none())
 
     @setting.command(name="get_variable")
     @commands.guild_only()
     @commands.has_permissions(administrator=True)
     async def get_variable(self, ctx: commands.Context, requested_name: str) -> None:
-        """Xem biến thông báo hoặc kênh cảnh báo MrBeast của server hiện tại."""
-        if requested_name not in GUILD_SETTING_VARIABLES:
+        """Xem biến theo server hoặc một biến Mongo dùng chung."""
+        spec = shared_setting(requested_name)
+        if requested_name not in GUILD_SETTING_VARIABLES and spec is None:
             await ctx.send(UNSUPPORTED_VARIABLE_MESSAGE)
             return
-        variables = get_guild_variables(self.bot, ctx.guild.id)
-        if requested_name not in variables:
-            await ctx.send("❌ Không tìm thấy biến trong server này.")
-            return
-        text = f"Biến '{requested_name}' của server này:\n{variables[requested_name]}"
+        if spec is None:
+            variables = get_guild_variables(self.bot, ctx.guild.id)
+            if requested_name not in variables:
+                await ctx.send("❌ Không tìm thấy biến trong server này.")
+                return
+            text = (
+                f"Biến '{requested_name}' của server này:\n"
+                f"{variables[requested_name]}"
+            )
+        else:
+            variables = getattr(self.bot, "global_vars", {})
+            if not isinstance(variables, dict) or requested_name not in variables:
+                await ctx.send("❌ Không tìm thấy biến dùng chung.")
+                return
+            text = (
+                f"Biến '{requested_name}' dùng chung:\n"
+                f"{format_shared_setting(variables[requested_name])}"
+            )
+        await self._send_text(ctx, text)
+
+    @staticmethod
+    async def _send_text(ctx: commands.Context, text: str) -> None:
         for start in range(0, len(text), 1900):
             await ctx.send(
-                text[start:start + 1900], allowed_mentions=discord.AllowedMentions.none()
+                text[start:start + 1900], allowed_mentions=discord.AllowedMentions.none(),
             )
 
 
